@@ -61,6 +61,52 @@ class AssistantTurnIdentityIntegrationTests {
     }
 
     @Test
+    void keepsEveryAnswerWhenTurnsOfOneConversationCompleteTogether() throws Exception {
+        CurrentActor actor = seededActor();
+        UUID conversationId = conversations.beginTurn(actor, null, "Opening question")
+                .conversationId();
+        int turnCount = 8;
+        List<AssistantTurnRef> open = new ArrayList<>();
+        for (int turn = 0; turn < turnCount; turn++) {
+            open.add(conversations.beginTurn(actor, conversationId, "Question " + turn));
+        }
+
+        CountDownLatch ready = new CountDownLatch(turnCount);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<Void>> completions = new ArrayList<>();
+        try (var executor = Executors.newFixedThreadPool(turnCount)) {
+            for (int index = 0; index < turnCount; index++) {
+                AssistantTurnRef turn = open.get(index);
+                String answer = "Answer " + index;
+                completions.add(executor.submit(() -> {
+                    ready.countDown();
+                    start.await(10, TimeUnit.SECONDS);
+                    conversations.completeTurn(actor, turn, UUID.randomUUID(), answer);
+                    return null;
+                }));
+            }
+            ready.await(10, TimeUnit.SECONDS);
+            start.countDown();
+            for (Future<Void> completion : completions) {
+                // Completing a turn touches the conversation. Without a lock the
+                // losers of that write fail optimistic locking and roll back
+                // their answer row, after the caller already streamed it.
+                completion.get(30, TimeUnit.SECONDS);
+            }
+        }
+
+        assertEquals(
+                turnCount,
+                jdbc.queryForObject(
+                        """
+                        SELECT count(*) FROM assistant_conversation_messages
+                        WHERE conversation_id = ? AND role = 'ASSISTANT'
+                        """,
+                        Integer.class,
+                        conversationId));
+    }
+
+    @Test
     void pairsOverlappingTurnsThatPersistOutOfOrder() {
         CurrentActor actor = seededActor();
         UUID conversationId = conversations.beginTurn(actor, null, "Opening turn")

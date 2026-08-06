@@ -89,7 +89,7 @@ class AssistantConversationServiceTests {
     @Test
     void writesBothHalvesOfOneTurnUnderTheIdentityBeginTurnAllocated() {
         AssistantTurnRef turn = service.beginTurn(actor, null, "How long is probation?");
-        when(conversations.findByIdAndOrganizationIdAndActorUserId(
+        when(conversations.findForUpdateByIdAndOrganizationIdAndActorUserId(
                         turn.conversationId(),
                         actor.organizationId(),
                         actor.userId()))
@@ -177,10 +177,30 @@ class AssistantConversationServiceTests {
     }
 
     @Test
+    void locksTheConversationWhileCompletingATurn() {
+        AssistantTurnRef turn = service.beginTurn(actor, null, "How long is probation?");
+        when(conversations.findForUpdateByIdAndOrganizationIdAndActorUserId(
+                        turn.conversationId(),
+                        actor.organizationId(),
+                        actor.userId()))
+                .thenReturn(Optional.of(ownedConversation(turn.conversationId())));
+
+        service.completeTurn(actor, turn, UUID.randomUUID(), "Sixty days.");
+
+        // Completion touches the conversation. Reading it without the lock lets
+        // a concurrent turn win the version race and roll this answer back after
+        // the caller already streamed it.
+        verify(conversations, never()).findByIdAndOrganizationIdAndActorUserId(
+                eq(turn.conversationId()),
+                eq(actor.organizationId()),
+                eq(actor.userId()));
+    }
+
+    @Test
     void persistsTheServerAllocatedAssistantMessageIdentity() {
         UUID conversationId = UUID.randomUUID();
         UUID messageId = UUID.randomUUID();
-        when(conversations.findByIdAndOrganizationIdAndActorUserId(
+        when(conversations.findForUpdateByIdAndOrganizationIdAndActorUserId(
                         conversationId,
                         actor.organizationId(),
                         actor.userId()))
@@ -206,7 +226,7 @@ class AssistantConversationServiceTests {
         UUID conversationId = UUID.randomUUID();
         UUID messageId = UUID.randomUUID();
         UUID chunkId = UUID.randomUUID();
-        when(conversations.findByIdAndOrganizationIdAndActorUserId(
+        when(conversations.findForUpdateByIdAndOrganizationIdAndActorUserId(
                         conversationId,
                         actor.organizationId(),
                         actor.userId()))

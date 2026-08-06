@@ -9,7 +9,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, and
 `apps/web/src/components/ai-elements/model-selector.tsx`.
 
-Reconciled: `2026-08-06-assistant-turn-activity-continuity (c7ba1f4e)`.
+Reconciled: `2026-08-06-assistant-turn-activity-continuity (merge in progress)`.
 
 ## Current Behavior
 
@@ -226,7 +226,9 @@ carry none; they remain in the transcript and cannot be paired.
 
 Each conversation also stores its optional model activation together with the
 organization route override identity and version observed at selection. Picker
-changes and turn creation lock the owned conversation row. Disabled catalog
+changes, turn creation, and turn completion lock the owned conversation row,
+because each writes conversation state and a lost write would discard an answer
+the caller already streamed. Disabled catalog
 activations remain as immutable historical identities; re-enabling the same
 model creates a new UUID, and stale selections collapse to the current default.
 This prevents an Answer route change followed by a return to the old text route
