@@ -126,13 +126,18 @@ public class SourceQueryService {
                             revision,
                             profile,
                             space,
-                            departmentNameById.get(source.getDepartmentId()),
-                            uploaderNameById.get(source.getCreatedByUserId()),
+                            name(departmentNameById, source.getDepartmentId()),
+                            name(uploaderNameById, source.getCreatedByUserId()),
                             contentVisible.contains(source.getId()),
                             revision.getKnowledgeAssetId() != null
                                     && deletableAssetIds.contains(revision.getKnowledgeAssetId()));
                 })
                 .toList();
+    }
+
+    /** Organization-wide sources carry no department, and the name maps reject null keys. */
+    private static String name(Map<UUID, String> namesById, UUID id) {
+        return id == null ? null : namesById.get(id);
     }
 
     static SourceSummary summary(
