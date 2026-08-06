@@ -23,6 +23,7 @@ import com.orgmemory.core.assistant.AssistantCitationReference;
 import com.orgmemory.core.assistant.AssistantConversationService;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
+import com.orgmemory.core.assistant.AssistantTurnRef;
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.knowledge.retrieval.CitationEvidenceService;
 import com.orgmemory.core.knowledge.retrieval.CitationEvidenceReference;
@@ -226,8 +227,9 @@ class AssistantControllerStreamingTests {
                 "laura@example.test");
         UUID conversationId = UUID.randomUUID();
         when(actors.current(authentication)).thenReturn(actor);
+        AssistantTurnRef turnRef = new AssistantTurnRef(conversationId, UUID.randomUUID());
         when(conversations.beginTurn(actor, null, "Question", null))
-                .thenReturn(conversationId);
+                .thenReturn(turnRef);
         when(assistant.startTurn(
                         eq(actor),
                         eq("Question"),
@@ -262,7 +264,7 @@ class AssistantControllerStreamingTests {
         ArgumentCaptor<UUID> messageId = ArgumentCaptor.forClass(UUID.class);
         verify(conversations).completeTurn(
                 eq(actor),
-                eq(conversationId),
+                eq(turnRef),
                 messageId.capture(),
                 eq("Answer"),
                 eq(List.of()));
@@ -292,8 +294,9 @@ class AssistantControllerStreamingTests {
         CountDownLatch releaseRetrieval = new CountDownLatch(1);
         AtomicBoolean retrievalCompleted = new AtomicBoolean();
         when(actors.current(authentication)).thenReturn(actor);
+        AssistantTurnRef turnRef = new AssistantTurnRef(conversationId, UUID.randomUUID());
         when(conversations.beginTurn(actor, null, "Question", null))
-                .thenReturn(conversationId);
+                .thenReturn(turnRef);
         when(assistant.startTurn(
                         eq(actor),
                         eq("Question"),

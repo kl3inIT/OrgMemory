@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.orgmemory.core.assistant.AssistantAnswerSentiment;
 import com.orgmemory.core.assistant.AssistantConversationService;
+import com.orgmemory.core.assistant.AssistantTurnRef;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.Clearance;
 import java.util.ArrayList;
@@ -116,9 +117,9 @@ class AssistantAnswerFeedbackConcurrencyIntegrationTests {
                 "Feedback actor",
                 actorId + "@example.test",
                 Clearance.STANDARD);
-        UUID conversationId = conversations.beginTurn(actor, null, "What is the policy?");
+        AssistantTurnRef turn = conversations.beginTurn(actor, null, "What is the policy?");
         UUID answerId = UUID.randomUUID();
-        conversations.completeTurn(actor, conversationId, answerId, "The policy is available.");
+        conversations.completeTurn(actor, turn, answerId, "The policy is available.");
         return new Scenario(actor, answerId);
     }
 

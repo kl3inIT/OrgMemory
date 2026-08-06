@@ -1,11 +1,13 @@
 package com.orgmemory.core.assistant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,10 +60,11 @@ class AssistantConversationServiceTests {
 
     @Test
     void createsAnActorOwnedConversationAndStoresTheRawUserTurn() {
-        UUID conversationId = service.beginTurn(
+        AssistantTurnRef turn = service.beginTurn(
                 actor,
                 null,
                 "  How do I submit an expense claim?  ");
+        UUID conversationId = turn.conversationId();
 
         ArgumentCaptor<AssistantConversation> conversation =
                 ArgumentCaptor.forClass(AssistantConversation.class);
@@ -80,6 +83,47 @@ class AssistantConversationServiceTests {
         assertEquals(
                 "How do I submit an expense claim?",
                 message.getValue().view().content());
+        assertEquals(turn.turnId(), message.getValue().turnId());
+    }
+
+    @Test
+    void writesBothHalvesOfOneTurnUnderTheIdentityBeginTurnAllocated() {
+        AssistantTurnRef turn = service.beginTurn(actor, null, "How long is probation?");
+        when(conversations.findByIdAndOrganizationIdAndActorUserId(
+                        turn.conversationId(),
+                        actor.organizationId(),
+                        actor.userId()))
+                .thenReturn(Optional.of(ownedConversation(turn.conversationId())));
+
+        service.completeTurn(actor, turn, UUID.randomUUID(), "Sixty days.");
+
+        ArgumentCaptor<AssistantConversationMessage> saved =
+                ArgumentCaptor.forClass(AssistantConversationMessage.class);
+        verify(messages, times(2)).save(saved.capture());
+        assertEquals(
+                List.of(AssistantConversationRole.USER, AssistantConversationRole.ASSISTANT),
+                saved.getAllValues().stream().map(m -> m.view().role()).toList());
+        // The pairing is recorded by the writers, not inferred later from
+        // sequence order, which concurrent turns interleave.
+        assertEquals(
+                List.of(turn.turnId(), turn.turnId()),
+                saved.getAllValues().stream().map(AssistantConversationMessage::turnId).toList());
+    }
+
+    @Test
+    void givesConcurrentTurnsInOneConversationDistinctIdentities() {
+        AssistantConversation conversation = ownedConversation(UUID.randomUUID());
+        when(conversations.findForUpdateByIdAndOrganizationIdAndActorUserId(
+                        conversation.getId(),
+                        actor.organizationId(),
+                        actor.userId()))
+                .thenReturn(Optional.of(conversation));
+
+        AssistantTurnRef first = service.beginTurn(actor, conversation.getId(), "First");
+        AssistantTurnRef second = service.beginTurn(actor, conversation.getId(), "Second");
+
+        assertEquals(first.conversationId(), second.conversationId());
+        assertNotEquals(first.turnId(), second.turnId());
     }
 
     @Test
@@ -144,7 +188,7 @@ class AssistantConversationServiceTests {
 
         service.completeTurn(
                 actor,
-                conversationId,
+                new AssistantTurnRef(conversationId, UUID.randomUUID()),
                 messageId,
                 "The probation period is 60 days. [1]");
 
@@ -172,7 +216,7 @@ class AssistantConversationServiceTests {
 
         service.completeTurn(
                 actor,
-                conversationId,
+                new AssistantTurnRef(conversationId, UUID.randomUUID()),
                 messageId,
                 "The probation period is 60 days. [1]",
                 List.of(new AssistantCitation(1, evidence)));
@@ -193,6 +237,7 @@ class AssistantConversationServiceTests {
         AssistantConversationMessage answer = new AssistantConversationMessage(
                 messageId,
                 conversationId,
+                UUID.randomUUID(),
                 actor.organizationId(),
                 actor.userId(),
                 AssistantConversationRole.ASSISTANT,
@@ -249,6 +294,7 @@ class AssistantConversationServiceTests {
         AssistantConversationMessage answer = new AssistantConversationMessage(
                 messageId,
                 conversationId,
+                UUID.randomUUID(),
                 actor.organizationId(),
                 actor.userId(),
                 AssistantConversationRole.ASSISTANT,
@@ -321,9 +367,11 @@ class AssistantConversationServiceTests {
     void returnsTheFullOwnedTranscriptInPersistedOrder() {
         UUID conversationId = UUID.randomUUID();
         AssistantConversation conversation = ownedConversation(conversationId);
+        UUID turnId = UUID.randomUUID();
         AssistantConversationMessage first = new AssistantConversationMessage(
                 UUID.randomUUID(),
                 conversationId,
+                turnId,
                 actor.organizationId(),
                 actor.userId(),
                 AssistantConversationRole.USER,
@@ -332,6 +380,7 @@ class AssistantConversationServiceTests {
         AssistantConversationMessage second = new AssistantConversationMessage(
                 UUID.randomUUID(),
                 conversationId,
+                turnId,
                 actor.organizationId(),
                 actor.userId(),
                 AssistantConversationRole.ASSISTANT,

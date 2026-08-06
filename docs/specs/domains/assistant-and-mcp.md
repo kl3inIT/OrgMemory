@@ -9,7 +9,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, and
 `apps/web/src/components/ai-elements/model-selector.tsx`.
 
-Reconciled: `2026-08-06-assistant-skill-activity-receipt (64221f86)`.
+Reconciled: `2026-08-06-assistant-turn-identity (e13685eb)`.
 
 ## Current Behavior
 
@@ -195,6 +195,15 @@ recheck current visibility in fixed batches of at most 20. Determinate denied,
 missing, stale, or revised sources simply leave their historical marker inert;
 an indeterminate authorization result fails citation hydration without hiding
 the saved answer.
+
+Each turn carries an explicit identity allocated when its question is persisted
+and carried through to its answer, so both rows record the pairing their writers
+already knew. A turn holds at most one question and one answer, enforced by a
+partial unique index over turn and role. Two turns in one conversation may both
+open before either answers and may persist their rows in any interleaving, so
+sequence order does not pair them. Rows written before turn identity existed
+carry none; they remain in the transcript and cannot be paired.
+
 Each conversation also stores its optional model activation together with the
 organization route override identity and version observed at selection. Picker
 changes and turn creation lock the owned conversation row. Disabled catalog

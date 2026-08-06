@@ -6,10 +6,10 @@
   with a no-tools judge; record brief and verdict.
 - [x] Port status-mapped failure sentences so a failed turn names its cause.
   Independent of the store change and shippable on its own.
-- [ ] Add `turn_id` to `assistant_conversation_messages` with partial uniqueness
+- [x] Add `turn_id` to `assistant_conversation_messages` with partial uniqueness
   for one USER and one ASSISTANT per turn; leave legacy rows nullable,
   transcript-visible and context-ineligible.
-- [ ] Carry the turn id through `beginTurn` and `completeTurn` so the pair is
+- [x] Carry the turn id through `beginTurn` and `completeTurn` so the pair is
   written against one identity rather than inferred from sequence order.
 - [ ] Add a project-owned read-only transcript context advisor that selects the
   last completed turns, excludes the in-flight USER by construction, and snaps
