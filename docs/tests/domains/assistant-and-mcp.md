@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-06-assistant-conversation-memory-ssot (2cf7249f)`.
+Reconciled: `2026-08-06-assistant-turn-completion-race (14171476)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -35,6 +35,7 @@ Reconciled: `2026-08-06-assistant-conversation-memory-ssot (2cf7249f)`.
 | Empty authorized retrieval stops before both model generation and Skill-tool discovery | `AssistantServiceTests#doesNotCallTheModelWhenNoAccessibleEvidenceExists` | covered |
 | Model context receives the raw question while current authorized evidence and safe user context stay in the current system message | `AssistantServiceTests#streamsOnlyPermissionVerifiedEvidenceToTheModel`, `#escapesEvidenceAndProfileValuesWhileKeepingTheQuestionAsTheUserMessage` | covered |
 | Prior model context comes from the one transcript: completed turns only, oldest first, question before answer, in-flight and failed turns excluded, legacy rows ignored, window bounded to ten turns, and no read across organizations | `AssistantTranscriptContextIntegrationTests` | covered |
+| A streamed answer stays mounted while its sources arrive, and a marker becomes interactive, stays interactive, or stops being presented as its source arrives or is withdrawn | `assistant-answer.test.tsx` | covered |
 | The context advisor keeps grounding first, never writes back, stays inert without a usable conversation id, publishes the history-load stage, and holds the replaced advisor's order | `AssistantTranscriptContextAdvisorTests` | covered |
 | Conversation deletion needs one owned call rather than a second unscoped store clear | `AssistantControllerStreamingTests#deletesAConversationThroughTheOwnedTranscriptAlone` | covered |
 | Only server-declared citation markers become interactive | `assistant-pipeline.spec.ts#anchors only server-declared citations and opens the matching source` | covered |
@@ -89,4 +90,4 @@ Reconciled: `2026-08-06-assistant-conversation-memory-ssot (2cf7249f)`.
 | Every row above about time to first token holds against the handler in isolation and held while the handler was never registered in a running application; only `ConfigurationConditionTests` and production traffic distinguish the two | `AssistantTurnObservationTests` construct the handler directly | partial |
 | Every meter a dashboard charts as a quantile publishes a bounded percentile histogram | `MetricsDistributionTests` | covered |
 | General chat-turn idempotency | none | not implemented |
-| Two turns of one conversation completing at the same instant | none | gap — `completeTurn` touches the conversation without a lock, so simultaneous completion raises an optimistic-locking failure and loses one answer; pre-existing and unrelated to turn identity |
+| Two turns of one conversation completing at the same instant keep both answers | `AssistantTurnIdentityIntegrationTests#keepsEveryAnswerWhenTurnsOfOneConversationCompleteTogether` | covered |

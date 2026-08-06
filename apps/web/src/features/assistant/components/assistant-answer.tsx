@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { useMemo } from "react"
+import { createContext, useContext, useMemo } from "react"
 import { defaultRemarkPlugins } from "streamdown"
 
 import {
@@ -23,6 +23,60 @@ interface CitationElementProps {
   "data-number"?: string
 }
 
+interface CitationContract {
+  sourceByNumber: Map<number, AssistantSourceRef>
+  onOpenSource: (sourceId: string) => void
+}
+
+/**
+ * Carries the citation contract to markers that are already rendered.
+ *
+ * Streamdown memoizes each parsed block and its comparator does not re-render
+ * one for a changed component map, so a marker rendered before its source
+ * arrived would stay literal text. Context reaches those markers because
+ * context propagation ignores memo boundaries, which lets the component map
+ * stay referentially stable and the parsed answer stay mounted while sources
+ * stream in.
+ */
+const CitationContractContext = createContext<CitationContract>({
+  sourceByNumber: new Map(),
+  onOpenSource: () => {},
+})
+
+function CitationMarker({ children, "data-number": rawNumber }: CitationElementProps) {
+  const { sourceByNumber, onOpenSource } = useContext(CitationContractContext)
+  const citationNumber = Number(rawNumber)
+  const source = sourceByNumber.get(citationNumber)
+  if (!source) return <>{children}</>
+
+  return (
+    <InlineCitation>
+      <InlineCitationTrigger
+        sources={[source.url]}
+        label={`[${citationNumber}]`}
+        role="button"
+        tabIndex={0}
+        aria-label={`Open source ${citationNumber}: ${source.title}`}
+        onClick={() => onOpenSource(source.id)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault()
+            onOpenSource(source.id)
+          }
+        }}
+      />
+    </InlineCitation>
+  )
+}
+
+const CITATION_COMPONENTS = { [CITATION_TAG]: CitationMarker }
+const CITATION_ALLOWED_TAGS = { [CITATION_TAG]: ["dataNumber"] }
+const CITATION_LITERAL_TAGS = [CITATION_TAG]
+const CITATION_REMARK_PLUGINS = [
+  ...Object.values(defaultRemarkPlugins),
+  citationRemarkPlugin,
+]
+
 export function AssistantAnswer({
   content,
   sources,
@@ -34,65 +88,26 @@ export function AssistantAnswer({
   onOpenSource: (sourceId: string) => void
   showEvidenceDisclaimer: boolean
 }) {
-  const sourceByNumber = useMemo(
-    () => new Map(sources.map((source) => [source.citationNumber, source])),
-    [sources],
-  )
-  const citationContractKey = useMemo(
-    () =>
-      sources
-        .map((source) => `${source.citationNumber}:${source.id}:${source.title}`)
-        .join("|"),
-    [sources],
-  )
-  const remarkPlugins = useMemo(
-    () => [
-      ...Object.values(defaultRemarkPlugins),
-      citationRemarkPlugin,
-    ],
-    [],
-  )
-  const components = useMemo(
+  const citationContract = useMemo<CitationContract>(
     () => ({
-      [CITATION_TAG]: ({ children, "data-number": rawNumber }: CitationElementProps) => {
-        const citationNumber = Number(rawNumber)
-        const source = sourceByNumber.get(citationNumber)
-        if (!source) return <>{children}</>
-
-        return (
-          <InlineCitation>
-            <InlineCitationTrigger
-              sources={[source.url]}
-              label={`[${citationNumber}]`}
-              role="button"
-              tabIndex={0}
-              aria-label={`Open source ${citationNumber}: ${source.title}`}
-              onClick={() => onOpenSource(source.id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault()
-                  onOpenSource(source.id)
-                }
-              }}
-            />
-          </InlineCitation>
-        )
-      },
+      sourceByNumber: new Map(sources.map((source) => [source.citationNumber, source])),
+      onOpenSource,
     }),
-    [onOpenSource, sourceByNumber],
+    [onOpenSource, sources],
   )
 
   return (
     <>
-      <MessageResponse
-        key={citationContractKey}
-        remarkPlugins={remarkPlugins}
-        allowedTags={{ [CITATION_TAG]: ["dataNumber"] }}
-        literalTagContent={[CITATION_TAG]}
-        components={components}
-      >
-        {content}
-      </MessageResponse>
+      <CitationContractContext.Provider value={citationContract}>
+        <MessageResponse
+          remarkPlugins={CITATION_REMARK_PLUGINS}
+          allowedTags={CITATION_ALLOWED_TAGS}
+          literalTagContent={CITATION_LITERAL_TAGS}
+          components={CITATION_COMPONENTS}
+        >
+          {content}
+        </MessageResponse>
+      </CitationContractContext.Provider>
       {showEvidenceDisclaimer ? (
         <p className="mt-2 text-xs text-content-muted">
           Câu trả lời chỉ dựa trên tài liệu bạn có quyền truy cập.
