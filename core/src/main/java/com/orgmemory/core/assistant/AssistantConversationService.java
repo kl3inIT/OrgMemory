@@ -37,12 +37,13 @@ public class AssistantConversationService {
     }
 
     @Transactional
-    public UUID beginTurn(CurrentActor actor, UUID requestedId, String userMessage) {
+    public AssistantTurnRef beginTurn(
+            CurrentActor actor, UUID requestedId, String userMessage) {
         return beginTurn(actor, requestedId, userMessage, null);
     }
 
     @Transactional
-    public UUID beginTurn(
+    public AssistantTurnRef beginTurn(
             CurrentActor actor,
             UUID requestedId,
             String userMessage,
@@ -62,15 +63,17 @@ public class AssistantConversationService {
             conversation.touch(now);
         }
         conversation.selectModel(modelSelection);
+        UUID turnId = UUID.randomUUID();
         messages.save(new AssistantConversationMessage(
                 UUID.randomUUID(),
                 conversation.getId(),
+                turnId,
                 actor.organizationId(),
                 actor.userId(),
                 AssistantConversationRole.USER,
                 validUserMessage,
                 now));
-        return conversation.getId();
+        return new AssistantTurnRef(conversation.getId(), turnId);
     }
 
     @Transactional(readOnly = true)
@@ -91,16 +94,16 @@ public class AssistantConversationService {
     @Transactional
     public void completeTurn(
             CurrentActor actor,
-            UUID conversationId,
+            AssistantTurnRef turn,
             UUID assistantMessageId,
             String assistantMessage) {
-        completeTurn(actor, conversationId, assistantMessageId, assistantMessage, List.of());
+        completeTurn(actor, turn, assistantMessageId, assistantMessage, List.of());
     }
 
     @Transactional
     public void completeTurn(
             CurrentActor actor,
-            UUID conversationId,
+            AssistantTurnRef turn,
             UUID assistantMessageId,
             String assistantMessage,
             List<AssistantCitation> answerCitations) {
@@ -108,11 +111,13 @@ public class AssistantConversationService {
             return;
         }
         List<AssistantCitation> persistedCitations = validateCitations(answerCitations);
+        UUID conversationId = turn.conversationId();
         AssistantConversation conversation = requireOwned(actor, conversationId);
         Instant now = clock.instant();
         messages.save(new AssistantConversationMessage(
                 assistantMessageId,
                 conversationId,
+                turn.turnId(),
                 actor.organizationId(),
                 actor.userId(),
                 AssistantConversationRole.ASSISTANT,
