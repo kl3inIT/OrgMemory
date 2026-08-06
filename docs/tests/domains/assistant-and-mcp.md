@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-06-assistant-skill-activity-receipt (64221f86)`.
+Reconciled: `2026-08-06-assistant-turn-identity (e13685eb)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -53,6 +53,7 @@ Reconciled: `2026-08-06-assistant-skill-activity-receipt (64221f86)`.
 | Asset tool traces contain exact release refs without raw Prompt secrets/output | `AssistantAssetToolServiceTests#promptTraceStoresShapeAndDigestButNoRawSecretOrOutput` | covered |
 | Asset Assistant has no approval/publication/withdrawal/permission/arbitrary-execution action | `AssistantAssetToolServiceTests#assistantActionRegistryHasNoGovernanceOrArbitraryExecutionPath` | covered |
 | Full transcript is actor-owned, replayed in order, and rejects another actor before writing | `AssistantConversationServiceTests` | covered |
+| A turn's question and answer are paired by an explicit identity, hold at most one row per role, survive out-of-order persistence, and leave pre-existing rows unpaired | `AssistantTurnIdentityIntegrationTests`, `AssistantConversationServiceTests#writesBothHalvesOfOneTurnUnderTheIdentityBeginTurnAllocated`, `AssistantConversationServiceTests#givesConcurrentTurnsInOneConversationDistinctIdentities` | covered |
 | Completed answers atomically persist ordered citation mappings with composite ownership, uniqueness, and cascade deletion | `AssistantConversationServiceTests#persistsServerDeclaredCitationReferencesWithTheCompletedAnswer`, `AssistantMessageCitationMigrationTests` | covered |
 | Citation hydration is transcript-independent, reloadable, actor-owned, bounded to 100, deduplicated, and current-authorization filtered | `AssistantConversationServiceTests` citation-reference scenarios, `CanonicalEvidenceAuthorizationServiceTests`, `CitationEvidenceServiceTests`, `assistant-pipeline.spec.ts#rehydrates currently authorized citations after transcript reload` | covered |
 | Excerpts reauthorize current evidence, cap Unicode content, audit allow/deny, and keep missing/revoked/stale outcomes opaque | `CitationEvidenceServiceTests`, `CitationContentControllerTests`, `CitationContentWebMvcTests`, `assistant-pipeline.spec.ts` revocation scenario | covered |
@@ -85,3 +86,4 @@ Reconciled: `2026-08-06-assistant-skill-activity-receipt (64221f86)`.
 | Every row above about time to first token holds against the handler in isolation and held while the handler was never registered in a running application; only `ConfigurationConditionTests` and production traffic distinguish the two | `AssistantTurnObservationTests` construct the handler directly | partial |
 | Every meter a dashboard charts as a quantile publishes a bounded percentile histogram | `MetricsDistributionTests` | covered |
 | General chat-turn idempotency | none | not implemented |
+| Two turns of one conversation completing at the same instant | none | gap — `completeTurn` touches the conversation without a lock, so simultaneous completion raises an optimistic-locking failure and loses one answer; pre-existing and unrelated to turn identity |

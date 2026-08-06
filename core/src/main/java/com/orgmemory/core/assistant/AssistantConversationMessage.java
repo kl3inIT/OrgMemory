@@ -17,6 +17,10 @@ class AssistantConversationMessage extends BaseEntity {
     @Column(name = "conversation_id", nullable = false, updatable = false)
     private UUID conversationId;
 
+    /** Null only on rows written before turn identity existed. */
+    @Column(name = "turn_id", updatable = false)
+    private UUID turnId;
+
     @Column(name = "organization_id", nullable = false, updatable = false)
     private UUID organizationId;
 
@@ -42,6 +46,7 @@ class AssistantConversationMessage extends BaseEntity {
     AssistantConversationMessage(
             UUID id,
             UUID conversationId,
+            UUID turnId,
             UUID organizationId,
             UUID actorUserId,
             AssistantConversationRole role,
@@ -49,11 +54,16 @@ class AssistantConversationMessage extends BaseEntity {
             Instant occurredAt) {
         super(Objects.requireNonNull(id, "id"));
         this.conversationId = Objects.requireNonNull(conversationId, "conversationId");
+        this.turnId = Objects.requireNonNull(turnId, "turnId");
         this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
         this.actorUserId = Objects.requireNonNull(actorUserId, "actorUserId");
         this.role = Objects.requireNonNull(role, "role");
         this.content = requireContent(content);
         this.occurredAt = Objects.requireNonNull(occurredAt, "occurredAt");
+    }
+
+    UUID turnId() {
+        return turnId;
     }
 
     AssistantConversationMessageView view() {
