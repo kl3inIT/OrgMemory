@@ -1,9 +1,10 @@
 ---
 packages:
   orgmemory: patch
+subject: Keep an Assistant conversation in one place
 ---
 
-## Changes
+## Improvements
 
 An Assistant conversation is now stored once. The transcript that already served
 history, replay, rename, and delete is also what the model reads back as prior

@@ -3218,7 +3218,7 @@
         "tags": [
           "Assistant"
         ],
-        "summary": "Delete the current actor's transcript and bounded model memory",
+        "summary": "Delete the current actor's conversation transcript",
         "operationId": "deleteAssistantConversation",
         "parameters": [
           {
