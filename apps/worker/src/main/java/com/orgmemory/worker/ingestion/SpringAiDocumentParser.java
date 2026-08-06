@@ -2,12 +2,12 @@ package com.orgmemory.worker.ingestion;
 
 import com.orgmemory.graphrag.parsing.CanonicalDocument;
 import com.orgmemory.graphrag.parsing.DocumentBlock;
-import com.orgmemory.graphrag.parsing.DocumentBlockKind;
 import com.orgmemory.graphrag.parsing.DocumentParseRequest;
 import com.orgmemory.graphrag.parsing.DocumentParseResult;
 import com.orgmemory.graphrag.parsing.DocumentParser;
 import com.orgmemory.graphrag.processing.ProcessingComponentRef;
 import com.orgmemory.graphrag.processing.ResolvedDocumentProcessingProfile;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,18 +15,29 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.tika.Tika;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.EmptyParser;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.txt.CharsetDetector;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
-import org.springframework.ai.reader.tika.TikaDocumentReader;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Component;
 
 @Component
 class SpringAiDocumentParser implements DocumentParser {
 
+    /**
+     * Bumped from 2.0.0 when the reader began emitting typed blocks instead of
+     * flat text. The version is part of the canonical processing profile that
+     * {@code profileSha256} is computed over, so identical bytes parsed under
+     * different behaviour must not share one hash.
+     */
     static final ProcessingComponentRef COMPONENT =
-            new ProcessingComponentRef("spring-ai-document-reader", "2.0.0");
+            new ProcessingComponentRef("spring-ai-document-reader", "2.1.0");
 
     private static final List<String> ALLOWED_MEDIA_TYPES = List.of(
             "application/pdf",
@@ -47,7 +58,7 @@ class SpringAiDocumentParser implements DocumentParser {
         try {
             ParsedSource parsed = read(request.content(), request.fileName());
             return new DocumentParseResult(
-                    canonical(parsed.documents()),
+                    canonical(parsed.blocks()),
                     parsed.detectedMediaType(),
                     Map.of("engine", component().toString()));
         } catch (IOException exception) {
@@ -58,65 +69,94 @@ class SpringAiDocumentParser implements DocumentParser {
 
     private ParsedSource read(byte[] bytes, String fileName) throws IOException {
         String detectedMediaType;
-        try (var content = new java.io.ByteArrayInputStream(bytes)) {
+        try (var content = new ByteArrayInputStream(bytes)) {
             detectedMediaType = detector.detect(content, fileName).toLowerCase(Locale.ROOT);
         }
         if (!isAllowed(detectedMediaType, fileName)) {
             throw new RejectedSourceException(
                     "UNSUPPORTED_MEDIA_TYPE", "The uploaded file type is not supported");
         }
-        var resource = new NamedByteArrayResource(bytes, fileName);
-        List<Document> documents;
+        List<ParsedBlock> blocks;
         if ("application/pdf".equals(detectedMediaType)) {
-            documents = new PagePdfDocumentReader(resource).get();
+            blocks = readPdf(bytes, fileName);
         } else if (detectedMediaType.startsWith("text/")) {
-            var match = new CharsetDetector().setText(bytes).detect();
-            if (match == null) {
-                throw new RejectedSourceException(
-                        "UNSUPPORTED_TEXT_ENCODING",
-                        "The plain-text encoding could not be detected");
-            }
-            documents = List.of(new Document(match.getString()));
+            blocks = readPlainText(bytes);
         } else {
-            documents = new TikaDocumentReader(resource).get();
+            blocks = readStructured(bytes, fileName);
         }
-        List<Document> normalizedDocuments = documents.stream()
-                .filter(document -> document.getText() != null && !document.getText().isBlank())
-                .map(document -> new Document(
-                        document.getId(),
-                        normalize(Objects.requireNonNull(document.getText())),
-                        document.getMetadata()))
-                .filter(document -> !document.getText().isBlank())
+        List<ParsedBlock> extracted = blocks.stream()
+                .filter(block -> !block.text().isBlank())
                 .toList();
-        if (normalizedDocuments.isEmpty()) {
+        if (extracted.isEmpty()) {
             throw new RejectedSourceException("NO_EXTRACTABLE_TEXT", "No extractable text was found");
         }
-        return new ParsedSource(normalizedDocuments, detectedMediaType);
+        return new ParsedSource(extracted, detectedMediaType);
     }
 
-    private static CanonicalDocument canonical(List<Document> documents) {
-        StringBuilder content = new StringBuilder();
-        List<DocumentBlock> blocks = new ArrayList<>();
-        for (Document document : documents) {
-            String body = Objects.requireNonNull(document.getText());
-            if (body.isBlank()) {
+    /** Pages stay one block each, because page provenance is what a PDF citation needs. */
+    private static List<ParsedBlock> readPdf(byte[] bytes, String fileName) {
+        List<Document> pages =
+                new PagePdfDocumentReader(new NamedByteArrayResource(bytes, fileName)).get();
+        List<ParsedBlock> blocks = new ArrayList<>();
+        for (Document page : pages) {
+            String text = page.getText();
+            if (text == null || text.isBlank()) {
                 continue;
             }
+            blocks.add(ParsedBlock.paragraph(
+                    BlockText.prose(text),
+                    number(page, PagePdfDocumentReader.METADATA_START_PAGE_NUMBER),
+                    number(page, PagePdfDocumentReader.METADATA_END_PAGE_NUMBER)));
+        }
+        return blocks;
+    }
+
+    private static List<ParsedBlock> readPlainText(byte[] bytes) throws IOException {
+        var match = new CharsetDetector().setText(bytes).detect();
+        if (match == null) {
+            throw new RejectedSourceException(
+                    "UNSUPPORTED_TEXT_ENCODING",
+                    "The plain-text encoding could not be detected");
+        }
+        return List.of(ParsedBlock.paragraph(BlockText.prose(match.getString())));
+    }
+
+    private static List<ParsedBlock> readStructured(byte[] bytes, String fileName)
+            throws IOException {
+        XhtmlBlockHandler handler = new XhtmlBlockHandler();
+        Metadata metadata = new Metadata();
+        metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, fileName);
+        ParseContext context = new ParseContext();
+        // Refuse to follow embedded resources. A supported container must not
+        // become a way to have arbitrary attached content parsed.
+        context.set(Parser.class, EmptyParser.INSTANCE);
+        try (var content = new ByteArrayInputStream(bytes)) {
+            new AutoDetectParser().parse(content, handler, metadata, context);
+        } catch (org.apache.tika.exception.TikaException | org.xml.sax.SAXException exception) {
+            throw new DocumentParsingException("could not extract " + fileName, exception);
+        }
+        return handler.blocks();
+    }
+
+    private static CanonicalDocument canonical(List<ParsedBlock> parsed) {
+        StringBuilder content = new StringBuilder();
+        List<DocumentBlock> blocks = new ArrayList<>();
+        for (ParsedBlock block : parsed) {
             if (!content.isEmpty()) {
                 content.append("\n\n");
             }
             int start = content.length();
-            content.append(body);
+            content.append(block.text());
             int end = content.length();
             blocks.add(new DocumentBlock(
                     blocks.size(),
-                    DocumentBlockKind.PARAGRAPH,
+                    block.kind(),
                     start,
                     end,
-                    number(document, PagePdfDocumentReader.METADATA_START_PAGE_NUMBER),
-                    number(document, PagePdfDocumentReader.METADATA_END_PAGE_NUMBER),
-                    null,
-                    Map.of()));
+                    block.startPage(),
+                    block.endPage(),
+                    block.headingLevel(),
+                    block.attributes()));
         }
         String canonicalText = content.toString();
         return new CanonicalDocument(
@@ -138,22 +178,13 @@ class SpringAiDocumentParser implements DocumentParser {
         return mediaType.startsWith("text/") && (lower.endsWith(".txt") || lower.endsWith(".md"));
     }
 
-    private static String normalize(String text) {
-        return text.replace("\r\n", "\n")
-                .replace('\r', '\n')
-                .replaceAll("[\\t\\x0B\\f]+", " ")
-                .replaceAll(" {2,}", " ")
-                .replaceAll("\\n{3,}", "\n\n")
-                .strip();
-    }
-
     private static final class NamedByteArrayResource extends ByteArrayResource {
 
         private final String fileName;
 
         private NamedByteArrayResource(byte[] bytes, String fileName) {
             super(bytes);
-            this.fileName = fileName;
+            this.fileName = Objects.requireNonNull(fileName, "fileName");
         }
 
         @Override

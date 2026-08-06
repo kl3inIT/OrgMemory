@@ -12,8 +12,10 @@
 - [ ] Parse through Tika with an XHTML content handler and build
   `HEADING` / `TABLE` / `PARAGRAPH` blocks with correct char spans, so
   `CanonicalDocument.hasStructuredBlocks()` is true for single-document sources.
-- [ ] Read CSV with a dedicated reader rather than Tika, handling delimiter
-  sniffing, quoted newlines and BOM, emitting the same `TABLE` blocks.
+- [ ] Bump the parser component version, because `parser.actual` is part of the
+  canonical profile that `profileSha256` is computed over. Changing what the
+  parser emits while keeping its identity would let two different outputs share
+  one hash.
 - [ ] Make normalization block-kind aware: prose keeps the current collapse, a
   `TABLE` block keeps its cell and row boundaries.
 - [ ] Take the header row from `<th>` when present, otherwise the table's first
@@ -46,6 +48,10 @@
   limit, `KnowledgeContentType`, `SpringAiDocumentParser.ALLOWED_MEDIA_TYPES`,
   `DocumentProcessingEngine.SPRING_AI_READER_SUFFIXES`, and the browser
   `accept` list.
+- [ ] Read CSV with a dedicated reader rather than Tika, handling delimiter
+  sniffing, quoted newlines and BOM, emitting the same `TABLE` blocks. It lands
+  here rather than in item 1 because Tika detects CSV as `text/plain`, so the
+  reader is only reachable once the allowlist admits the extension.
 - [ ] Add HTML/HTM with boilerplate removal, so navigation, script and style
   content never becomes evidence.
 - [ ] Add DOC, PPT, RTF and ODT (with ODS/ODP decided by then).
