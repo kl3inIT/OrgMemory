@@ -426,6 +426,13 @@ stored object keys and denied identities never enter model context. Skill
 content is untrusted, `allowed-tools` grants no runtime authority, and the API
 does not execute scripts, binaries, shell commands, or package code. Empty
 authorized retrieval still terminates before model or Skill-tool invocation.
+Successful activation may emit one transient, server-sanitized Skill title and
+a positive turn-local ordinal for the browser's current-turn receipt. Search,
+denial, and failure remain unnamed; resource activity is attributable only to
+an exact release activated successfully in that turn. The receipt is never
+persisted or reconstructed from conversation history. A browser-owned
+visible-output latch keeps the waiting row mounted across transport completion
+until answer text is actually visible; a source frame alone does not end it.
 
 The pure-Java GraphRAG core defines canonical entity/relation identity,
 evidence-level contributions and provenance, structured extraction contracts,

@@ -79,8 +79,9 @@ class AssistantSkillToolCallbacksTests {
                         summary(),
                         "Follow the approved incident workflow.",
                         List.of("references/runbook.md")));
+        List<AssistantAgentActivity> activities = new ArrayList<>();
         ToolCallback activate = new AssistantSkillToolCallbacks(skills)
-                .create(ACTOR, ignored -> { })
+                .create(ACTOR, activities::add)
                 .get(1);
 
         String result = activate.call("{\"assetId\":\"" + ASSET_ID
@@ -89,7 +90,56 @@ class AssistantSkillToolCallbacksTests {
         assertTrue(result.contains("Follow the approved incident workflow."));
         assertTrue(result.contains("references/runbook.md"));
         assertFalse(result.contains("allowed-tools"));
+        assertEquals(List.of(
+                        new AssistantAgentActivity(
+                                AssistantAgentActivity.Phase.SKILL_ACTIVATION,
+                                AssistantAgentActivity.State.ACTIVE,
+                                null,
+                                1,
+                                null),
+                        new AssistantAgentActivity(
+                                AssistantAgentActivity.Phase.SKILL_ACTIVATION,
+                                AssistantAgentActivity.State.COMPLETE,
+                                null,
+                                1,
+                                "Incident response")),
+                activities);
         verify(skills).activate(ACTOR, ASSET_ID, RELEASE_ID);
+    }
+
+    @Test
+    void attributesResourcesOnlyToTheExactSuccessfullyActivatedRelease() {
+        SkillRuntimeOperations skills = mock(SkillRuntimeOperations.class);
+        SkillRuntimeOperations.SkillSummary summary = summary();
+        when(skills.activate(ACTOR, ASSET_ID, RELEASE_ID)).thenReturn(
+                new SkillRuntimeOperations.ActivatedSkill(
+                        summary,
+                        "Follow the approved incident workflow.",
+                        List.of("references/runbook.md")));
+        when(skills.readResource(ACTOR, ASSET_ID, RELEASE_ID, "references/runbook.md"))
+                .thenReturn(new SkillRuntimeOperations.SkillResource(
+                        summary,
+                        "references/runbook.md",
+                        "Read-only runbook"));
+        List<AssistantAgentActivity> activities = new ArrayList<>();
+        List<ToolCallback> callbacks = new AssistantSkillToolCallbacks(skills)
+                .create(ACTOR, activities::add);
+
+        callbacks.get(2).call("{\"assetId\":\"" + ASSET_ID
+                + "\",\"releaseId\":\"" + RELEASE_ID
+                + "\",\"path\":\"references/runbook.md\"}");
+        callbacks.get(1).call("{\"assetId\":\"" + ASSET_ID
+                + "\",\"releaseId\":\"" + RELEASE_ID + "\"}");
+        callbacks.get(2).call("{\"assetId\":\"" + ASSET_ID
+                + "\",\"releaseId\":\"" + RELEASE_ID
+                + "\",\"path\":\"references/runbook.md\"}");
+
+        assertEquals(null, activities.get(0).skillOrdinal());
+        assertEquals(null, activities.get(1).skillOrdinal());
+        assertEquals(1, activities.get(2).skillOrdinal());
+        assertEquals("Incident response", activities.get(3).skillTitle());
+        assertEquals(1, activities.get(4).skillOrdinal());
+        assertEquals(1, activities.get(5).skillOrdinal());
     }
 
     @Test
@@ -97,8 +147,9 @@ class AssistantSkillToolCallbacksTests {
         SkillRuntimeOperations skills = mock(SkillRuntimeOperations.class);
         when(skills.activate(ACTOR, ASSET_ID, RELEASE_ID))
                 .thenThrow(new IllegalStateException("private object key and tenant details"));
+        List<AssistantAgentActivity> activities = new ArrayList<>();
         ToolCallback activate = new AssistantSkillToolCallbacks(skills)
-                .create(ACTOR, ignored -> { })
+                .create(ACTOR, activities::add)
                 .get(1);
 
         String result = activate.call("{\"assetId\":\"" + ASSET_ID
@@ -107,6 +158,7 @@ class AssistantSkillToolCallbacksTests {
         assertTrue(result.contains("The requested Skill is unavailable."));
         assertFalse(result.contains("private object key"));
         assertFalse(result.contains("tenant details"));
+        assertTrue(activities.stream().allMatch(activity -> activity.skillTitle() == null));
     }
 
     @Test

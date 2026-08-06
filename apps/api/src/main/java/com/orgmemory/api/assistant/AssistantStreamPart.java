@@ -11,7 +11,13 @@ sealed interface AssistantStreamPart {
     record Activity(
             Phase phase,
             State state,
-            Integer evidenceCount) implements AssistantStreamPart {
+            Integer evidenceCount,
+            Integer skillOrdinal,
+            String skillTitle) implements AssistantStreamPart {
+
+        Activity(Phase phase, State state, Integer evidenceCount) {
+            this(phase, state, evidenceCount, null, null);
+        }
 
         enum Phase {
             RETRIEVAL,

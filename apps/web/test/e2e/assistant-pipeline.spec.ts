@@ -301,6 +301,11 @@ test("anchors only server-declared citations and opens the matching source", asy
   await submit(page, "How do I submit an expense claim?")
 
   await expect(page.getByText("Use the approved form")).toBeVisible()
+  const skillReceipt = page.getByRole("button", {
+    name: "Using Incident response skill",
+  })
+  await expect(skillReceipt).toBeVisible()
+  await expect(skillReceipt).toHaveAttribute("aria-expanded", "false")
   await expect(page.getByRole("button", { name: "Open source 1: Employee Handbook" })).toHaveCount(1)
   await expect(page.getByRole("button", { name: "Open source 2: Expense Policy" })).toHaveCount(2)
   await expect(page.getByRole("button", { name: /Open source 9/ })).toHaveCount(0)
@@ -602,6 +607,36 @@ test("reports provider failure and retries with exactly one new request", async 
   expect(harness.browserErrors).toEqual([])
 })
 
+test("ends the waiting state when a stream finishes without visible output", async ({ page }) => {
+  const harness = await assistantHarness(page, {
+    chatFrames: [
+      frame({ type: "start", messageId: "assistant-empty" }),
+      frame({ type: "start-step" }),
+      activityFrame("GENERATION", "ACTIVE"),
+      activityFrame("SKILL_ACTIVATION", "ACTIVE", undefined, { skillOrdinal: 1 }),
+      activityFrame("SKILL_ACTIVATION", "COMPLETE", undefined, {
+        skillOrdinal: 1,
+        skillTitle: "Incident response",
+      }),
+      frame({ type: "finish-step" }),
+      frame({ type: "finish", finishReason: "stop" }),
+      "data: [DONE]",
+    ],
+  })
+  await page.goto("/")
+  await submit(page, "Return an empty answer")
+
+  await expect(page.getByRole("alert")).toContainText(
+    "OrgMemory completed the turn without an answer.",
+  )
+  await expect(page.getByRole("status")).toHaveCount(0)
+  await expect(
+    page.getByRole("button", { name: "Using Incident response skill" }),
+  ).toHaveCount(0)
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
 test("stop aborts one in-flight assistant request", async ({ page }) => {
   const harness = await assistantHarness(page, { holdChat: true })
   await page.goto("/")
@@ -803,10 +838,13 @@ function citedAnswerFrames() {
     activityFrame("GENERATION", "ACTIVE"),
     activityFrame("SKILL_DISCOVERY", "ACTIVE"),
     activityFrame("SKILL_DISCOVERY", "COMPLETE", 1),
-    activityFrame("SKILL_ACTIVATION", "ACTIVE"),
-    activityFrame("SKILL_ACTIVATION", "COMPLETE"),
-    activityFrame("SKILL_RESOURCE", "ACTIVE"),
-    activityFrame("SKILL_RESOURCE", "COMPLETE"),
+    activityFrame("SKILL_ACTIVATION", "ACTIVE", undefined, { skillOrdinal: 1 }),
+    activityFrame("SKILL_ACTIVATION", "COMPLETE", undefined, {
+      skillOrdinal: 1,
+      skillTitle: "Incident response",
+    }),
+    activityFrame("SKILL_RESOURCE", "ACTIVE", undefined, { skillOrdinal: 1 }),
+    activityFrame("SKILL_RESOURCE", "COMPLETE", undefined, { skillOrdinal: 1 }),
     sourceFrame(1, FIRST_CHUNK_ID, "Employee Handbook"),
     sourceFrame(2, SECOND_CHUNK_ID, "Expense Policy"),
     sourceFrame(3, THIRD_CHUNK_ID, "Security Policy"),
@@ -864,10 +902,11 @@ function activityFrame(
     | "SKILL_RESOURCE",
   state: "ACTIVE" | "COMPLETE" | "FAILED",
   evidenceCount?: number,
+  skill?: { skillOrdinal: number; skillTitle?: string },
 ) {
   return frame({
     type: "data-assistantActivity",
-    data: { phase, state, evidenceCount },
+    data: { phase, state, evidenceCount, ...skill },
     transient: true,
   })
 }
@@ -926,6 +965,61 @@ function unexpectedBrowserErrors(errors: string[], allowedHttpStatuses: number[]
       ),
   )
 }
+
+test("keeps high-frequency structured Assistant streams responsive", async ({ page }) => {
+  const chunks = 1200
+  const sentence = "Evidence ok."
+  const frames = [
+    frame({ type: "start", messageId: ANSWER_MESSAGE_ID }),
+    frame({ type: "start-step" }),
+    activityFrame("RETRIEVAL", "ACTIVE"),
+    activityFrame("RETRIEVAL", "COMPLETE", 0),
+    frame({ type: "text-start", id: "answer" }),
+    ...Array.from({ length: chunks }, (_, index) =>
+      frame({
+        type: "text-delta",
+        id: "answer",
+        delta: `${sentence}${(index + 1) % 20 === 0 ? "\n\n" : " "}`,
+      }),
+    ),
+    frame({ type: "text-end", id: "answer" }),
+    frame({ type: "finish-step" }),
+    frame({ type: "finish", finishReason: "stop" }),
+    "data: [DONE]",
+  ]
+
+  await page.addInitScript(() => {
+    const stats = { rafMaxGap: 0, longTasks: [] as number[] }
+    ;(window as unknown as { __streamStats: typeof stats }).__streamStats = stats
+    let last = performance.now()
+    const tick = (now: number) => {
+      stats.rafMaxGap = Math.max(stats.rafMaxGap, now - last)
+      last = now
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+    try {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) stats.longTasks.push(entry.duration)
+      }).observe({ entryTypes: ["longtask"] })
+    } catch {}
+  })
+
+  await assistantHarness(page, { chatFrames: frames })
+  await page.goto("/")
+  await submit(page, "Run streaming performance test")
+  await page.getByRole("button", { name: "Submit" }).waitFor({ state: "visible", timeout: 120_000 })
+
+  const stats = await page.evaluate(() => {
+    const value = (window as unknown as { __streamStats: { rafMaxGap: number; longTasks: number[] } }).__streamStats
+    return {
+      rafMaxGap: value.rafMaxGap,
+      longTaskMax: Math.max(0, ...value.longTasks),
+    }
+  })
+  expect(stats.rafMaxGap).toBeLessThan(500)
+  expect(stats.longTaskMax).toBeLessThan(500)
+})
 
 function minimalPdf() {
   const objects = [

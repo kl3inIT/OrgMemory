@@ -1,5 +1,6 @@
 package com.orgmemory.api.assistant;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,8 +33,17 @@ class AssistantRetrievalSchedulerTests {
             queued = scheduler.schedule(() -> "queued").subscribe();
 
             StepVerifier.create(scheduler.schedule(() -> "rejected"))
-                    .expectErrorSatisfies(error ->
-                            assertInstanceOf(AssistantUnavailableException.class, error))
+                    .expectErrorSatisfies(error -> {
+                        AssistantUnavailableException failure = assertInstanceOf(
+                                AssistantUnavailableException.class, error);
+                        // Saturation and a broken retrieval are both AssistantUnavailable-
+                        // Exception, so without this code the turn metric cannot tell "raise
+                        // concurrency" apart from "retrieval is failing".
+                        assertEquals(
+                                AssistantRetrievalScheduler.REJECTED,
+                                failure.failureCode(),
+                                "a rejected turn must be attributable to saturation");
+                    })
                     .verify();
         } finally {
             release.countDown();

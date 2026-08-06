@@ -19,10 +19,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
 public class AssistantService {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AssistantService.class);
 
     private static final String NO_ACCESSIBLE_EVIDENCE_ENGLISH =
             "I could not find this information in the documents you can access. "
@@ -239,6 +243,10 @@ public class AssistantService {
                     .doOnError(error -> {
                         context.unavailable(System.nanoTime(), "assistant_stream_failed");
                         observation.error(error);
+                        LOG.warn(
+                                "assistant turn unavailable failure_code={}",
+                                "assistant_stream_failed",
+                                error);
                     })
                     .doOnComplete(() ->
                             context.answered(System.nanoTime(), evidenceCount, citationCount))
@@ -309,9 +317,16 @@ public class AssistantService {
                 exception instanceof AssistantUnavailableException unavailable
                         ? unavailable
                         : new AssistantUnavailableException("The assistant is unavailable", exception);
-        context.unavailable(System.nanoTime(), "assistant_turn_failed");
+        String failureCode = failure.failureCode() == null
+                ? "assistant_turn_failed"
+                : failure.failureCode();
+        context.unavailable(System.nanoTime(), failureCode);
         observation.error(failure);
         observation.stop();
+        // An unavailable turn is a BusinessException, so the API layer answers it without
+        // logging. That left the only failures users actually report with no diagnostic at
+        // all. The cause carries the stack; the message is already caller-safe.
+        LOG.warn("assistant turn unavailable failure_code={}", failureCode, failure);
         return failure;
     }
 
