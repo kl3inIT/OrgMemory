@@ -33,12 +33,18 @@ canonical ledger before the pure-Java renderer creates the final model prompt.
 `AssistantService` sends that already-verified prompt through the selected
 model port; it does not construct a second chunk-only prompt or invoke a Spring
 AI retrieval advisor. An exact administrator-authorized Assistant route enters
-the request-local agent model port. That port adds only three server-owned,
-read-only Skill tools: actor-scoped catalog search, exact-release instruction
-activation, and one bounded exact-release UTF-8 resource read. Spring AI's
-streaming `ToolCallingAdvisor` performs a bounded recursive loop. A per-turn
-tool-call budget supplies a second bound; a model response without tool calls
-retains the ordinary text path. Skill instructions and resources are
+the request-local agent model port. Before the first model call, that port
+loads at most ten live-`CAN_USE` Skill summaries for the current actor and
+discloses their names, descriptions, versions, and exact release identifiers
+in the `activate_skill` tool description. The model semantically matches the
+user's task against this tier-one catalog, activates an exact release before
+applying its instructions, and uses actor-scoped `search_skills` only when the
+disclosed catalog has no match. One bounded exact-release UTF-8 resource-read
+tool completes progressive disclosure. When the actor has no usable Skills,
+the port omits both the Skill tools and Skill policy. Spring AI's streaming
+`ToolCallingAdvisor` performs a bounded recursive loop. A per-turn tool-call
+budget supplies a second bound; a model response without tool calls retains
+the ordinary text path. Skill instructions and resources are
 untrusted model context; they cannot grant tools or permissions and package
 scripts are never executed. Empty authorized Knowledge retrieval still stops
 before model generation, so the beta augments grounded turns rather than
