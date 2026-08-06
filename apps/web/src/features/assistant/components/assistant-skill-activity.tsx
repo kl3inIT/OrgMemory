@@ -1,5 +1,5 @@
 import { Check, ChevronDown, LoaderCircle, Sparkles, TriangleAlert } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import {
   Collapsible,
@@ -26,54 +26,83 @@ function SkillReceipt({
   receipt: AssistantSkillReceipt
   settled: boolean
 }) {
-  const [open, setOpen] = useState(!settled)
+  const expandable = receipt.resource !== null
+  const failed = receipt.resource === "FAILED"
+  const [open, setOpen] = useState(expandable && (!settled || failed))
+  const userHasToggled = useRef(false)
   const active = receipt.activation === "ACTIVE" || receipt.resource === "ACTIVE"
 
   useEffect(() => {
-    if (settled) setOpen(false)
-  }, [settled])
+    if (userHasToggled.current) return
+    if (failed) {
+      setOpen(true)
+    } else if (settled) {
+      setOpen(false)
+    } else if (expandable) {
+      setOpen(true)
+    }
+  }, [expandable, failed, settled])
 
   if (!receipt.title) return null
 
+  const header = (
+    <>
+      {active ? (
+        <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden="true" />
+      ) : failed ? (
+        <TriangleAlert className="size-4 shrink-0 text-destructive" aria-hidden="true" />
+      ) : (
+        <Sparkles className="size-4 shrink-0" aria-hidden="true" />
+      )}
+      <span className="min-w-0 flex-1 truncate">
+        Using <span className="font-medium text-content-primary">{receipt.title}</span> skill
+      </span>
+      {expandable ? (
+        <ChevronDown
+          className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")}
+          aria-hidden="true"
+        />
+      ) : null}
+    </>
+  )
+
+  const cardClass =
+    "rounded-xl border border-border-subtle bg-surface-subtle/40 text-content-secondary"
+  const headerClass =
+    "flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm"
+
+  if (!expandable) {
+    return (
+      <div className={cardClass}>
+        <div className={headerClass}>{header}</div>
+      </div>
+    )
+  }
+
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="rounded-xl border border-border-subtle bg-surface-subtle/40 text-content-secondary">
-        <CollapsibleTrigger className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm hover:text-content-primary">
-          {active ? (
-            <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden="true" />
-          ) : (
-            <Sparkles className="size-4 shrink-0" aria-hidden="true" />
-          )}
-          <span className="min-w-0 flex-1 truncate">
-            Using <span className="font-medium text-content-primary">{receipt.title}</span> skill
-          </span>
-          <ChevronDown
-            className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")}
-            aria-hidden="true"
-          />
+    <Collapsible
+      open={open}
+      onOpenChange={(nextOpen) => {
+        userHasToggled.current = true
+        setOpen(nextOpen)
+      }}
+    >
+      <div className={cardClass}>
+        <CollapsibleTrigger className={cn(headerClass, "hover:text-content-primary")}>
+          {header}
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="space-y-2 border-t border-border-subtle px-3 py-2.5 text-xs">
             <div className="flex items-center gap-2">
-              <StepState state={receipt.activation} />
+              <StepState state={receipt.resource ?? "COMPLETE"} />
               <span>
-                {receipt.activation === "ACTIVE"
-                  ? "Loading skill instructions"
-                  : "Skill instructions loaded"}
+                {receipt.resource === "ACTIVE"
+                  ? "Reading a skill reference"
+                  : receipt.resource === "FAILED"
+                    ? "Skill reference unavailable"
+                    : "Skill reference read"}
               </span>
             </div>
-            {receipt.resource ? (
-              <div className="flex items-center gap-2">
-                <StepState state={receipt.resource} />
-                <span>
-                  {receipt.resource === "ACTIVE"
-                    ? "Reading a skill reference"
-                    : receipt.resource === "FAILED"
-                      ? "Skill reference unavailable"
-                      : "Skill reference read"}
-                </span>
-              </div>
-            ) : null}
           </div>
         </CollapsibleContent>
       </div>

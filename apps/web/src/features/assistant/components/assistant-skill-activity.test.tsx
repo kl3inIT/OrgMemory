@@ -45,4 +45,45 @@ describe("AssistantSkillActivity", () => {
     expect(screen.getByText('<img src="x" onerror="alert(1)">')).toBeVisible()
     expect(document.querySelector("img")).toBeNull()
   })
+
+  it("does not offer an empty disclosure for activation-only receipts", () => {
+    render(
+      <AssistantSkillActivity
+        receipts={[
+          {
+            ordinal: 1,
+            title: "Incident response",
+            activation: "COMPLETE",
+            resource: null,
+          },
+        ]}
+        settled
+      />,
+    )
+
+    expect(screen.getByText("Incident response")).toBeVisible()
+    expect(screen.queryByRole("button")).toBeNull()
+    expect(screen.queryByText("Skill instructions loaded")).toBeNull()
+  })
+
+  it("opens a failed reference detail instead of burying it", () => {
+    render(
+      <AssistantSkillActivity
+        receipts={[
+          {
+            ordinal: 1,
+            title: "Incident response",
+            activation: "COMPLETE",
+            resource: "FAILED",
+          },
+        ]}
+        settled
+      />,
+    )
+
+    expect(
+      screen.getByRole("button", { name: "Using Incident response skill" }),
+    ).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByText("Skill reference unavailable")).toBeVisible()
+  })
 })
