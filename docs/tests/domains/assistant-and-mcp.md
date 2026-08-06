@@ -8,14 +8,16 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-05-agentic-skill-beta (673b4276)`.
+Reconciled: `2026-08-05-assistant-answer-behavior (333b6ec6)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
 | API context boots without provider key | `OrgMemoryApiContextLoadTests` | covered |
 | Assistant sends only permission-verified evidence to the model | `AssistantServiceTests#streamsOnlyPermissionVerifiedEvidenceToTheModel` | covered |
 | Assistant consumes only the parent `knowledge::search` contract and never imports Retrieval implementation | `ModulithVerificationTests#topLevelSearchConsumersUseOnlyTheParentSearchInterface`, `#assistantAndAssetRegistryDoNotDependOnRetrievalImplementation` | covered |
-| Empty authorized retrieval does not call the model | `AssistantServiceTests#doesNotCallTheModelWhenNoAccessibleEvidenceExists` | covered |
+| Empty authorized retrieval returns bounded same-language user-perspective wording plus one escalation sentence, with no model call or citations | `AssistantServiceTests#answersInVietnameseWithoutCallingTheModelWhenNoAccessibleEvidenceExists`, `#answersInEnglishWithoutCallingTheModelWhenNoAccessibleEvidenceExists` | covered |
+| Canonical and already-verified LightRAG prompts share permission-safe no-answer, adjacent-information, exact-citation, and direct-voice rules while preserving injection boundaries | `AssistantPromptFactoryTests#encodesPermissionSafeNoAnswerAndExactCitationBehavior`, `AssistantServiceTests#usesTheAlreadyVerifiedLightRagPromptWithoutRebuildingIt` | covered |
+| Evidence-scope disclosure renders below Assistant answers but not user messages | `assistant-answer.test.tsx` | covered |
 | Provider failure is surfaced as unavailable | `AssistantServiceTests#asynchronousProviderFailureIsReportedAsUnavailable` | covered |
 | Assistant and Prompt calls carry organization identity into route resolution | `AssistantServiceTests`, `PromptExecutionServiceTests` org-scoped model-port assertions | covered |
 | Ordinary users receive only server-governed model options and selection writes an authorized opaque conversation reference | `AssistantControllerStreamingTests#exposesSafeModelChoicesAndPersistsOnlyAnAuthorizedSelectionReference`, `assistant-pipeline.spec.ts` governed-model scenarios | covered |
