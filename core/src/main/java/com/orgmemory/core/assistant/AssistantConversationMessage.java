@@ -66,6 +66,14 @@ class AssistantConversationMessage extends BaseEntity {
         return turnId;
     }
 
+    AssistantConversationRole role() {
+        return role;
+    }
+
+    String content() {
+        return content;
+    }
+
     AssistantConversationMessageView view() {
         return new AssistantConversationMessageView(
                 getId(), role, content, sequenceId, occurredAt, null);

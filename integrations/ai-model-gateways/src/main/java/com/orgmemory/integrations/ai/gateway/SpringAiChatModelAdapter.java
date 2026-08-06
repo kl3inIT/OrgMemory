@@ -10,21 +10,23 @@ import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assetregistry.skill.SkillRuntimeOperations;
 import com.orgmemory.core.assistant.AssistantAgentActivity;
 import com.orgmemory.core.assistant.AssistantAgentModelPort;
+import com.orgmemory.core.assistant.AssistantTranscriptContext;
+import com.orgmemory.core.assistant.observability.AssistantStageEventSink;
+import com.orgmemory.core.assistant.observability.AssistantTurnEvent;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.springframework.ai.chat.client.AdvisorParams;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.ToolCallingAdvisor;
-import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.model.chat.client.autoconfigure.ChatClientBuilderConfigurer;
 import org.springframework.ai.tool.ToolCallback;
@@ -36,6 +38,13 @@ import reactor.core.publisher.Flux;
 final class SpringAiChatModelAdapter implements ChatModelPort, AssistantAgentModelPort {
 
     private static final int MAX_TOOL_ROUNDS = 8;
+
+    /**
+     * Ten turns, which is the twenty messages the replaced
+     * {@code MessageWindowChatMemory} was configured to keep. Counting whole
+     * turns cannot leave the window opening on an answer.
+     */
+    private static final int MAX_CONTEXT_TURNS = 10;
 
     private static final String SKILL_SYSTEM_POLICY = """
 
@@ -57,7 +66,9 @@ final class SpringAiChatModelAdapter implements ChatModelPort, AssistantAgentMod
 
     private final AiGatewayRegistry gateways;
     private final SpringAiChatModelProvider chatModels;
-    private final ObjectProvider<ChatMemory> memory;
+    private final ObjectProvider<AssistantTranscriptContext> transcript;
+    private final ObjectProvider<AssistantStageEventSink> stages;
+    private final ObjectProvider<AssistantTurnEvent.RetrievalEngine> observedEngine;
     private final ObjectProvider<ChatClientBuilderConfigurer> clientConfigurer;
     private final AssistantModelAuthorityService assistantRoutes;
     private final PermissionAuditService audit;
@@ -69,14 +80,18 @@ final class SpringAiChatModelAdapter implements ChatModelPort, AssistantAgentMod
     SpringAiChatModelAdapter(
             AiGatewayRegistry gateways,
             SpringAiChatModelProvider chatModels,
-            ObjectProvider<ChatMemory> memory,
+            ObjectProvider<AssistantTranscriptContext> transcript,
+            ObjectProvider<AssistantStageEventSink> stages,
+            ObjectProvider<AssistantTurnEvent.RetrievalEngine> observedEngine,
             ObjectProvider<ChatClientBuilderConfigurer> clientConfigurer,
             AssistantModelAuthorityService assistantRoutes,
             PermissionAuditService audit,
             SkillRuntimeOperations skills) {
         this.gateways = gateways;
         this.chatModels = chatModels;
-        this.memory = memory;
+        this.transcript = transcript;
+        this.stages = stages;
+        this.observedEngine = observedEngine;
         this.clientConfigurer = clientConfigurer;
         this.assistantRoutes = assistantRoutes;
         this.audit = audit;
@@ -153,8 +168,8 @@ final class SpringAiChatModelAdapter implements ChatModelPort, AssistantAgentMod
                     .prompt()
                     .system(request.systemInstruction())
                     .user(request.userPrompt())
-                    .advisors(advisors ->
-                            advisors.param(ChatMemory.CONVERSATION_ID, conversationId))
+                    .advisors(advisors -> advisors.param(
+                            AssistantTranscriptContextAdvisor.CONVERSATION_ID, conversationId))
                     .stream()
                     .content();
         }).onErrorMap(
@@ -190,8 +205,8 @@ final class SpringAiChatModelAdapter implements ChatModelPort, AssistantAgentMod
                 .prompt()
                 .system(request.systemInstruction())
                 .user(request.userPrompt())
-                .advisors(advisors ->
-                        advisors.param(ChatMemory.CONVERSATION_ID, conversationId))
+                .advisors(advisors -> advisors.param(
+                        AssistantTranscriptContextAdvisor.CONVERSATION_ID, conversationId))
                 .stream()
                 .content())
                 .onErrorMap(
@@ -223,8 +238,8 @@ final class SpringAiChatModelAdapter implements ChatModelPort, AssistantAgentMod
                     .user(request.userPrompt())
                     .tools(callbacks)
                     .advisors(boundedToolCallingAdvisor())
-                    .advisors(advisors ->
-                            advisors.param(ChatMemory.CONVERSATION_ID, conversationId))
+                    .advisors(advisors -> advisors.param(
+                            AssistantTranscriptContextAdvisor.CONVERSATION_ID, conversationId))
                     .stream()
                     .content();
         }).onErrorMap(
@@ -281,18 +296,10 @@ final class SpringAiChatModelAdapter implements ChatModelPort, AssistantAgentMod
         ModelKey key = key(organizationId, workload, route, gateway);
         evictSuperseded(key);
         return memoryClients.computeIfAbsent(key, ignored -> {
-            ChatMemory chatMemory = memory.getIfAvailable();
-            if (chatMemory == null) {
-                throw new IllegalStateException(
-                        "Conversation memory is not configured for assistant chat");
-            }
-            return configuredBuilder(chatModels.resolve(
-                            organizationId,
-                            workload,
-                            route))
-                    .defaultAdvisors(
-                            MessageChatMemoryAdvisor.builder(chatMemory).build())
-                    .build();
+            ChatClient.Builder builder = configuredBuilder(
+                    chatModels.resolve(organizationId, workload, route));
+            transcriptContextAdvisor(organizationId).ifPresent(builder::defaultAdvisors);
+            return builder.build();
         });
     }
 
@@ -307,21 +314,30 @@ final class SpringAiChatModelAdapter implements ChatModelPort, AssistantAgentMod
                 gateway);
         evictSuperseded(key);
         return assistantMemoryClients.computeIfAbsent(key, ignored -> {
-            ChatMemory chatMemory = memory.getIfAvailable();
-            if (chatMemory == null) {
-                throw new IllegalStateException(
-                        "Conversation memory is not configured for assistant chat");
-            }
-            return configuredBuilder(chatModels.resolveAssistant(
-                            organizationId,
-                            route,
-                            gateway))
-                    .defaultAdvisors(
-                            AdvisorParams.toolCallingAdvisorAutoRegister(false))
-                    .defaultAdvisors(
-                            MessageChatMemoryAdvisor.builder(chatMemory).build())
-                    .build();
+            ChatClient.Builder builder = configuredBuilder(
+                            chatModels.resolveAssistant(organizationId, route, gateway))
+                    .defaultAdvisors(AdvisorParams.toolCallingAdvisorAutoRegister(false));
+            transcriptContextAdvisor(organizationId).ifPresent(builder::defaultAdvisors);
+            return builder.build();
         });
+    }
+
+    /**
+     * A conversation belongs to exactly one organization, so a call that has not
+     * resolved one cannot be scoped to a tenant and gets no prior turns at all.
+     * Failing closed here keeps the tenant boundary a property of the read rather
+     * than of whoever remembered to pass an identifier.
+     */
+    private Optional<AssistantTranscriptContextAdvisor> transcriptContextAdvisor(
+            UUID organizationId) {
+        AssistantTranscriptContext context = transcript.getIfAvailable();
+        AssistantStageEventSink events = stages.getIfAvailable();
+        AssistantTurnEvent.RetrievalEngine engine = observedEngine.getIfAvailable();
+        if (context == null || events == null || engine == null || organizationId == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new AssistantTranscriptContextAdvisor(
+                context, events, engine, organizationId, MAX_CONTEXT_TURNS));
     }
 
     static ToolCallingAdvisor boundedToolCallingAdvisor() {

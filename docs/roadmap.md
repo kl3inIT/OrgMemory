@@ -54,7 +54,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
-| [Assistant conversation memory SSOT](increments/active/2026-08-06-assistant-conversation-memory-ssot/plan.md) | active | one persisted conversation store with explicit turn identity, a read-only transcript context advisor, and a failed turn that names its cause |
+| [Assistant conversation memory SSOT](increments/completed/2026-08-06-assistant-conversation-memory-ssot/verification.md) | shipped | collapsed the conversation to one owned store read back through a project-owned read-only turn advisor, and gave a failed turn a sentence naming its cause |
 | [Clearance separation](increments/active/2026-08-06-clearance-separation/plan.md) | active | complete the implementation gates, then review the migration, two Executive call sites, and generated contract diff in the merge loop |
 | [Knowledge workspace filters and paging](increments/active/2026-08-06-knowledge-filters/plan.md) | active | complete consolidation and final verification of the permission-scoped cursor listing and shared debounced search behavior |
 | [Assistant Skill activity receipt](increments/completed/2026-08-06-assistant-skill-activity-receipt/verification.md) | shipped | keeps waiting through the first rendered token and exposes only bounded successful Skill activity in a current-turn receipt |

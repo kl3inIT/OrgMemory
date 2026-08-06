@@ -12,6 +12,9 @@ import com.orgmemory.core.ai.AiRoute;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.AssistantModelAuthorityService;
 import com.orgmemory.core.assetregistry.skill.SkillRuntimeOperations;
+import com.orgmemory.core.assistant.AssistantTranscriptContext;
+import com.orgmemory.core.assistant.observability.AssistantStageEventSink;
+import com.orgmemory.core.assistant.observability.AssistantTurnEvent;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.lang.reflect.Method;
@@ -20,7 +23,6 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.model.chat.client.autoconfigure.ChatClientBuilderConfigurer;
 import org.springframework.ai.tool.ToolCallback;
@@ -108,8 +110,15 @@ class SpringAiChatModelAdapterTests {
                 .thenReturn(mock(ChatModel.class));
 
         @SuppressWarnings("unchecked")
-        ObjectProvider<ChatMemory> memory = mock(ObjectProvider.class);
-        when(memory.getIfAvailable()).thenReturn(mock(ChatMemory.class));
+        ObjectProvider<AssistantTranscriptContext> transcript = mock(ObjectProvider.class);
+        when(transcript.getIfAvailable()).thenReturn(mock(AssistantTranscriptContext.class));
+        @SuppressWarnings("unchecked")
+        ObjectProvider<AssistantStageEventSink> stages = mock(ObjectProvider.class);
+        when(stages.getIfAvailable()).thenReturn(mock(AssistantStageEventSink.class));
+        @SuppressWarnings("unchecked")
+        ObjectProvider<AssistantTurnEvent.RetrievalEngine> engine = mock(ObjectProvider.class);
+        when(engine.getIfAvailable())
+                .thenReturn(AssistantTurnEvent.RetrievalEngine.GRAPH_RAG);
         @SuppressWarnings("unchecked")
         ObjectProvider<ChatClientBuilderConfigurer> configurer = mock(ObjectProvider.class);
         when(configurer.getIfAvailable()).thenReturn(null);
@@ -117,7 +126,9 @@ class SpringAiChatModelAdapterTests {
         SpringAiChatModelAdapter adapter = new SpringAiChatModelAdapter(
                 mock(AiGatewayRegistry.class),
                 models,
-                memory,
+                transcript,
+                stages,
+                engine,
                 configurer,
                 mock(AssistantModelAuthorityService.class),
                 mock(PermissionAuditService.class),
