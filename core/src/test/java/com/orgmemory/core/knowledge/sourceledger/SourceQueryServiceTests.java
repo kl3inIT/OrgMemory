@@ -3,6 +3,7 @@ package com.orgmemory.core.knowledge.sourceledger;
 import com.orgmemory.core.knowledge.acl.AclAuthority;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
@@ -139,6 +140,34 @@ class SourceQueryServiceTests {
         assertEquals(false, result.getFirst().deletionAllowed());
         verify(visibility, never()).visibleSourceObjectIds(ACTOR);
         verify(actions, never()).deletableKnowledgeAssetIds(ACTOR);
+    }
+
+    @Test
+    void summarizesOrganizationWideSourcesThatCarryNoDepartment() {
+        UUID sourceId = UUID.randomUUID();
+        UUID revisionId = UUID.randomUUID();
+        SourceObject source = source(sourceId, revisionId, "employee-handbook.md");
+        when(source.getDepartmentId()).thenReturn(null);
+        when(source.getCreatedByUserId()).thenReturn(null);
+        SourceRevision revision = revision(revisionId, "employee-handbook.md");
+        when(revision.getKnowledgeAssetId()).thenReturn(UUID.randomUUID());
+        when(revisions.findAllById(List.of(revisionId))).thenReturn(List.of(revision));
+        when(sources.findAllByOrganizationIdAndCreatedByUserIdOrderByUpdatedAtDesc(
+                        ORGANIZATION_ID, USER_ID))
+                .thenReturn(List.of(source));
+        when(spaces.describeAll(ORGANIZATION_ID, Set.of(SPACE_ID)))
+                .thenReturn(Map.of(
+                        SPACE_ID,
+                        new SourceKnowledgeSpaceRef(SPACE_ID, "company", "Company", null)));
+        when(provenance.departmentNames(ORGANIZATION_ID, Set.of())).thenReturn(Map.of());
+        when(provenance.userNames(ORGANIZATION_ID, Set.of())).thenReturn(Map.of());
+
+        List<SourceSummary> result = service.listOwn(ACTOR);
+
+        assertEquals(1, result.size());
+        assertEquals("company", result.getFirst().knowledgeSpaceKey());
+        assertNull(result.getFirst().owningDepartmentName());
+        assertNull(result.getFirst().uploadedByName());
     }
 
     private static SourceObject source(UUID sourceId, UUID revisionId, String title) {
