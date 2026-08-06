@@ -2,10 +2,13 @@
 
 ## Status
 
-Proposed on 2026-08-05. This increment changes answer wording, prompt
-discipline, and one browser disclosure. It does not change retrieval,
-authorization, ranking, evaluation scoring, or official fixtures. Production
-behavior remains unverified until the owner runs the post-merge sweep.
+Completed and production-verified on 2026-08-06. This increment changed answer
+wording, prompt discipline, and one browser disclosure without changing
+retrieval, authorization, ranking, evaluation scoring, or official fixtures.
+The owner-run post-merge sweep met the citation threshold and preserved the
+permission boundary after accounting for the documented P035 fixture mismatch;
+the detailed scoreboard and operational follow-up are recorded in
+[results.md](results.md).
 
 ## Problem
 

@@ -9,7 +9,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, and
 `apps/web/src/components/ai-elements/model-selector.tsx`.
 
-Reconciled: `2026-08-05-agentic-skill-beta (673b4276)`.
+Reconciled: `2026-08-05-assistant-answer-behavior (333b6ec6)`.
 
 ## Current Behavior
 
@@ -18,6 +18,14 @@ grounds every answer in the parent `knowledge::search` interface without
 importing its Retrieval implementation. GraphRAG is the default retrieval
 engine; the canonical hybrid engine is an explicit configuration choice rather
 than an implicit fallback. Answers stream with permission-verified citations.
+Both model-backed answer paths receive one shared behavior policy: answer in
+the user's language and voice, do not speculate about restricted-resource
+existence or expose pipeline internals, label neighboring authorized material
+instead of presenting it as the requested answer, and cite all and only the
+evidence used. Empty authorized evidence remains model-free and citation-free;
+the service returns a bounded Vietnamese or English not-found sentence plus one
+escalation sentence. The browser places a static evidence-scope disclosure
+under Assistant messages only.
 GraphRAG supplies one structured, token-bounded
 grounding set containing entity, relation, and chunk contributions. The
 application rechecks its complete evidence closure through OpenFGA and the
