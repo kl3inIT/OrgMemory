@@ -200,6 +200,31 @@ class CachingQueryEmbeddingServiceTests {
     }
 
     @Test
+    void setupErrorReleasesAllPreviouslyOwnedFlights() throws Exception {
+        SecondReadErrorCache cache = new SecondReadErrorCache();
+        RecordingEmbeddingPort provider = new RecordingEmbeddingPort("1", 2);
+        CachingQueryEmbeddingService service = service(provider, cache);
+
+        assertThrows(
+                AssertionError.class,
+                () -> service.embedAll(
+                        NAMESPACE,
+                        PROFILE_ID,
+                        2,
+                        List.of("first miss", "second read fails")));
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<List<FloatVector>> retry = executor.submit(() -> service.embedAll(
+                    NAMESPACE, PROFILE_ID, 2, List.of("first miss")));
+            assertEquals(1, retry.get(2, TimeUnit.SECONDS).size());
+            assertEquals(1, provider.calls());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void boundedPersistenceFailureDoesNotLeaveCacheRowsBehind() {
         PruneFailingModelInvocationCache cache = new PruneFailingModelInvocationCache();
         RecordingEmbeddingPort provider = new RecordingEmbeddingPort("1", 2);
@@ -495,6 +520,39 @@ class CachingQueryEmbeddingServiceTests {
 
         void release() {
             release.countDown();
+        }
+    }
+
+    private static final class SecondReadErrorCache implements ModelInvocationCache {
+        private final MapModelInvocationCache delegate = new MapModelInvocationCache();
+        private final AtomicInteger reads = new AtomicInteger();
+
+        @Override
+        public Optional<Entry> get(Key key, Instant now) {
+            if (reads.incrementAndGet() == 2) {
+                throw new AssertionError("second cache read failed");
+            }
+            return delegate.get(key, now);
+        }
+
+        @Override
+        public void put(Key key, Entry entry) {
+            delegate.put(key, entry);
+        }
+
+        @Override
+        public void putBounded(
+                ProjectionNamespace namespace,
+                String operation,
+                Map<Key, Entry> entries,
+                Instant now,
+                int maximumEntries) {
+            delegate.putBounded(namespace, operation, entries, now, maximumEntries);
+        }
+
+        @Override
+        public void invalidate(ProjectionNamespace namespace) {
+            delegate.invalidate(namespace);
         }
     }
 

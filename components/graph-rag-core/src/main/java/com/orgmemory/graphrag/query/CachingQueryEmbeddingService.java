@@ -116,18 +116,20 @@ public final class CachingQueryEmbeddingService {
         }
         Map<String, FloatVector> vectors = new LinkedHashMap<>();
         Map<String, CompletableFuture<FloatVector>> waiting = new LinkedHashMap<>();
+        Map<String, CompletableFuture<FloatVector>> ownedFlights = new LinkedHashMap<>();
         List<String> ownedMisses = new ArrayList<>();
-        for (Map.Entry<String, ModelInvocationCache.Key> keyedInput : keys.entrySet()) {
-            String input = keyedInput.getKey();
-            ModelInvocationCache.Key key = keyedInput.getValue();
-            CompletableFuture<FloatVector> owned = new CompletableFuture<>();
-            CompletableFuture<FloatVector> existing = inFlight.putIfAbsent(key, owned);
-            if (existing != null) {
-                waiting.put(input, existing);
-                emit(QueryEmbeddingCacheEventSink.Outcome.COALESCED, System.nanoTime(), 1);
-                continue;
-            }
-            try {
+        try {
+            for (Map.Entry<String, ModelInvocationCache.Key> keyedInput : keys.entrySet()) {
+                String input = keyedInput.getKey();
+                ModelInvocationCache.Key key = keyedInput.getValue();
+                CompletableFuture<FloatVector> owned = new CompletableFuture<>();
+                CompletableFuture<FloatVector> existing = inFlight.putIfAbsent(key, owned);
+                if (existing != null) {
+                    waiting.put(input, existing);
+                    emit(QueryEmbeddingCacheEventSink.Outcome.COALESCED, System.nanoTime(), 1);
+                    continue;
+                }
+                ownedFlights.put(input, owned);
                 long lookupStarted = System.nanoTime();
                 Optional<FloatVector> cached = readCached(key, now, dimensions);
                 emit(
@@ -141,15 +143,18 @@ public final class CachingQueryEmbeddingService {
                     vectors.put(input, vector);
                     owned.complete(vector);
                     inFlight.remove(key, owned);
+                    ownedFlights.remove(input);
                 } else {
                     waiting.put(input, owned);
                     ownedMisses.add(input);
                 }
-            } catch (RuntimeException | Error failure) {
-                owned.completeExceptionally(failure);
-                inFlight.remove(key, owned);
-                throw failure;
             }
+        } catch (RuntimeException | Error failure) {
+            ownedFlights.forEach((input, owned) -> {
+                owned.completeExceptionally(failure);
+                inFlight.remove(keys.get(input), owned);
+            });
+            throw failure;
         }
         if (!ownedMisses.isEmpty()) {
             loadOwnedMisses(
