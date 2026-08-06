@@ -11,12 +11,13 @@ test("graph explorer keeps its title readable beside a wrapping desktop toolbar"
   page,
 }, testInfo) => {
   const browserErrors: string[] = []
+  const graphQueries: string[] = []
   page.on("pageerror", (error) => browserErrors.push(error.message))
   page.on("console", (message) => {
     if (message.type() === "error") browserErrors.push(message.text())
   })
 
-  await graphHarness(page)
+  await graphHarness(page, graphQueries)
   await page.setViewportSize({ width: 1459, height: 816 })
   await page.emulateMedia({ colorScheme: "dark" })
   await page.goto("/sources?view=graph")
@@ -25,8 +26,10 @@ test("graph explorer keeps its title readable beside a wrapping desktop toolbar"
   const actions = page.locator('[data-slot="page-header-actions"]')
 
   await expect(heading).toBeVisible({ timeout: 20_000 })
-  await expect(page.getByRole("button", { name: "Explore" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Explore" })).toHaveCount(0)
   await expect(page.getByLabel("Knowledge space")).toContainText("Company Knowledge")
+  await page.getByRole("textbox", { name: "Find an entity or relation" }).fill("allowance")
+  await expect.poll(() => graphQueries).toContain("allowance")
 
   const headingMetrics = await heading.evaluate((element) => {
     const rect = element.getBoundingClientRect()
@@ -78,7 +81,7 @@ test("graph explorer keeps its title readable beside a wrapping desktop toolbar"
   expect(browserErrors).toEqual([])
 })
 
-async function graphHarness(page: Page) {
+async function graphHarness(page: Page, graphQueries: string[]) {
   await page.route("**/api/**", async (route) => {
     const url = new URL(route.request().url())
 
@@ -117,12 +120,21 @@ async function graphHarness(page: Page) {
         clearance: "STANDARD",
       })
     }
-    if (url.pathname === "/api/sources") return json(route, [])
+    if (url.pathname === "/api/sources") {
+      return json(route, {
+        items: [],
+        nextCursor: null,
+        pageSize: 25,
+        total: 0,
+        statusCounts: { processing: 0, ready: 0, attention: 0 },
+      })
+    }
     if (url.pathname === "/api/knowledge-spaces/upload-targets") return json(route, [])
     if (url.pathname === "/api/knowledge-spaces/visible") {
       return json(route, [{ id: SPACE_ID, key: "company", name: "Company Knowledge" }])
     }
     if (url.pathname === `/api/knowledge-spaces/${SPACE_ID}/graph/explorer`) {
+      graphQueries.push(url.searchParams.get("q") ?? "")
       return json(route, {
         knowledgeSpaceId: SPACE_ID,
         authorizationGeneration: 7,

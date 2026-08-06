@@ -1,4 +1,4 @@
-import type { SourceResponse } from "@/lib/hey-api"
+import type { SourcePageResponse, SourceResponse } from "@/lib/hey-api"
 
 export const ACTIVE_SOURCE_STATUSES = new Set([
   "RECEIVED",
@@ -32,6 +32,17 @@ export function matchesSourceStatus(source: SourceResponse, filter: SourceStatus
 
 export function sourceStatusCount(sources: SourceResponse[], filter: SourceStatusFilter) {
   return sources.filter((source) => matchesSourceStatus(source, filter)).length
+}
+
+export function sourceStatusCountFromPage(
+  page: SourcePageResponse | undefined,
+  filter: SourceStatusFilter,
+) {
+  if (!page) return 0
+  if (filter === "ALL") return page.total ?? 0
+  if (filter === "PROCESSING") return page.statusCounts?.processing ?? 0
+  if (filter === "READY") return page.statusCounts?.ready ?? 0
+  return page.statusCounts?.attention ?? 0
 }
 
 export function sourceProgress(status?: string) {

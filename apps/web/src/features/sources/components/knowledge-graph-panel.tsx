@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select"
 import { GraphPropertiesPanel } from "@/features/sources/components/graph/graph-properties-panel"
 import { GraphViewerControls } from "@/features/sources/components/graph/graph-viewer-controls"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import {
   type GraphEntityLimit,
   useGraphExplorerStore,
@@ -57,7 +58,7 @@ export function KnowledgeGraphPanel() {
   const setMaximumDepth = useGraphExplorerStore((state) => state.setMaximumDepth)
   const showPropertyPanel = useGraphExplorerStore((state) => state.showPropertyPanel)
   const [queryDraft, setQueryDraft] = useState("")
-  const [query, setQuery] = useState("")
+  const query = useDebouncedValue(queryDraft.trim())
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   const [selectedRelationId, setSelectedRelationId] = useState<string | null>(null)
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
@@ -81,6 +82,14 @@ export function KnowledgeGraphPanel() {
       setSelectedKnowledgeSpaceId(selectedSpace.id)
     }
   }, [selectedKnowledgeSpaceId, selectedSpace?.id, setSelectedKnowledgeSpaceId])
+
+  useEffect(() => {
+    setSelectedEntityId(null)
+    setSelectedRelationId(null)
+    setSelectedTypes(new Set())
+    setExpandedViews([])
+    setHiddenEntityIds(new Set())
+  }, [query])
 
   const graph = useQuery({
     ...exploreKnowledgeGraphOptions({
@@ -126,13 +135,8 @@ export function KnowledgeGraphPanel() {
       <PageLayout.Header
         title="Knowledge graph"
         actions={
-          <form
+          <div
             className="flex w-full max-w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end"
-            onSubmit={(event) => {
-              event.preventDefault()
-              resetExploration()
-              setQuery(queryDraft.trim())
-            }}
           >
             <Select
               value={selectedSpace?.id ?? ""}
@@ -195,15 +199,7 @@ export function KnowledgeGraphPanel() {
                 aria-label="Find an entity or relation"
               />
             </InputGroup>
-            <Button type="submit" disabled={!selectedSpace?.id || graph.isFetching}>
-              {graph.isFetching ? (
-                <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Search className="size-4" aria-hidden="true" />
-              )}
-              Explore
-            </Button>
-          </form>
+          </div>
         }
       />
 

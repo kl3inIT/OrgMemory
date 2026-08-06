@@ -13,6 +13,8 @@ const RETRY_SOURCE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 const FAILED_SOURCE_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 const QUARANTINED_SOURCE_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
 const OUT_OF_SCOPE_SOURCE_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+const PEOPLE_SPACE_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+const FINANCE_SPACE_ID = "ffffffff-ffff-4fff-8fff-ffffffffffff"
 
 test("views protected evidence and deletes only an eligible ready upload", async ({ page }) => {
   const requests: string[] = []
@@ -82,6 +84,15 @@ test("Knowledge presents safe cross-format evidence in a centered document viewe
   await expect(page.getByRole("tab", { name: "Knowledge graph", exact: true })).toBeVisible()
   await expect(page.getByRole("columnheader", { name: "Status" })).toBeVisible()
   await expect(page.getByRole("columnheader", { name: "Index profile" })).toHaveCount(0)
+  await expect(page.getByRole("tab", { name: "All documents, 27 documents" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "Processing, 8 documents" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "Ready, 15 documents" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "Needs attention, 4 documents" })).toBeVisible()
+  await page.getByRole("combobox", { name: "Filter by Knowledge Space" }).click()
+  await page.getByRole("option", { name: "People" }).click()
+  await expect
+    .poll(() => requests.some((request) => request.includes(`knowledgeSpaceId=${PEOPLE_SPACE_ID}`)))
+    .toBe(true)
   await expect(page.getByText(/Word document/)).toBeVisible()
   await expect(page.getByText("Space: People").first()).toBeVisible()
   await expect(page.getByText("Owned by People Operations").first()).toBeVisible()
@@ -93,7 +104,7 @@ test("Knowledge presents safe cross-format evidence in a centered document viewe
   await expect(
     page.getByText("Original content becomes available after governed publication completes."),
   ).toBeVisible()
-  await expect(page.getByText("People", { exact: true })).toBeVisible()
+  await expect(page.getByTitle("People", { exact: true })).toBeVisible()
   await expect(page.getByText("Nguyen Van An", { exact: true })).toBeVisible()
   await closeReader(page)
 
@@ -176,7 +187,7 @@ async function documentHarness(
   await page.route("**/api/**", async (route) => {
     const request = route.request()
     const url = new URL(request.url())
-    requests.push(`${request.method()} ${url.pathname}`)
+    requests.push(`${request.method()} ${url.pathname}${url.search}`)
 
     if (url.pathname === "/api/session") {
       return route.fulfill({
@@ -223,6 +234,16 @@ async function documentHarness(
     }
     if (url.pathname === "/api/knowledge-spaces/upload-targets") {
       return route.fulfill({ status: 200, contentType: "application/json", body: "[]" })
+    }
+    if (url.pathname === "/api/knowledge-spaces/visible") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          { id: PEOPLE_SPACE_ID, key: "people", name: "People" },
+          { id: FINANCE_SPACE_ID, key: "finance", name: "Finance" },
+        ]),
+      })
     }
     if (url.pathname === "/api/sources" && request.method() === "GET") {
       const sources = [
@@ -336,7 +357,13 @@ async function documentHarness(
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(sources),
+        body: JSON.stringify({
+          items: sources,
+          nextCursor: null,
+          pageSize: 25,
+          total: 27,
+          statusCounts: { processing: 8, ready: 15, attention: 4 },
+        }),
       })
     }
     if (url.pathname === `/api/sources/${READY_SOURCE_ID}/content`) {
