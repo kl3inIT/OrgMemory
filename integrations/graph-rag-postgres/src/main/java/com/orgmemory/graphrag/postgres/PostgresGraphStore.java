@@ -32,7 +32,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 public final class PostgresGraphStore implements GraphStore {
 
-    private static final Duration DEGREE_QUERY_STATEMENT_TIMEOUT = Duration.ofSeconds(20);
+    private static final Duration GRAPH_QUERY_STATEMENT_TIMEOUT = Duration.ofSeconds(20);
 
     private static final List<String> COPY_PREDECESSOR = List.of(
             """
@@ -365,25 +365,48 @@ public final class PostgresGraphStore implements GraphStore {
         if (!readable(scope, snapshot, ids)) {
             return List.of();
         }
-        return jdbc.query(
+        return support.read(GRAPH_QUERY_STATEMENT_TIMEOUT, () -> jdbc.query(
                 """
+                WITH candidate_relations AS MATERIALIZED (
+                    SELECT relation.*
+                    FROM projection_graph_relations relation
+                    WHERE relation.batch_id = :batchId
+                      AND relation.relation_id IN (:ids)
+                ),
+                visible_entities AS MATERIALIZED (
+                    SELECT DISTINCT contribution.entity_id
+                    FROM projection_graph_entity_contributions contribution
+                    JOIN candidate_relations relation
+                      ON contribution.entity_id IN (
+                          relation.source_entity_id,
+                          relation.target_entity_id)
+                    WHERE contribution.batch_id = :batchId
+                      AND contribution.organization_id = :organizationId
+                      AND contribution.knowledge_asset_id
+                          IN (:authorizedAssetIds)
+                ),
+                visible_relation_ids AS MATERIALIZED (
+                    SELECT DISTINCT contribution.relation_id
+                    FROM projection_graph_relation_contributions contribution
+                    JOIN candidate_relations relation
+                      ON relation.relation_id = contribution.relation_id
+                    JOIN visible_entities source_evidence
+                      ON source_evidence.entity_id = relation.source_entity_id
+                    JOIN visible_entities target_evidence
+                      ON target_evidence.entity_id = relation.target_entity_id
+                    WHERE contribution.batch_id = :batchId
+                      AND contribution.organization_id = :organizationId
+                      AND contribution.knowledge_asset_id
+                          IN (:authorizedAssetIds)
+                )
                 SELECT relation.*
-                FROM projection_graph_relations relation
-                WHERE relation.batch_id = :batchId
-                  AND relation.relation_id IN (:ids)
-                  AND EXISTS (
-                      SELECT 1
-                      FROM (
-                """
-                        + VISIBLE_RELATION_CONTRIBUTIONS
-                        + """
-                      ) visible
-                      WHERE visible.relation_id = relation.relation_id
-                  )
+                FROM candidate_relations relation
+                JOIN visible_relation_ids visible
+                  ON visible.relation_id = relation.relation_id
                 ORDER BY relation.relation_id
                 """,
                 visibility(scope, snapshot).addValue("ids", ids),
-                (resultSet, rowNumber) -> relation(resultSet));
+                (resultSet, rowNumber) -> relation(resultSet)));
     }
 
     @Override
@@ -547,7 +570,7 @@ public final class PostgresGraphStore implements GraphStore {
         if (ids.isEmpty() || PostgresProjectionSupport.noAuthorizedAssets(scope)) {
             return Map.copyOf(degrees);
         }
-        return support.read(DEGREE_QUERY_STATEMENT_TIMEOUT, () -> {
+        return support.read(GRAPH_QUERY_STATEMENT_TIMEOUT, () -> {
             jdbc.query(
                     """
                     WITH visible_relations AS MATERIALIZED (
