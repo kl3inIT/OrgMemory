@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/ai`,
 API/worker `application*.yml`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `2026-08-06-assistant-catalog-none-reasoning`.
+Reconciled: `2026-08-06-assistant-catalog-none-reasoning (9f5246d0)`.
 
 ## Current Behavior
 
