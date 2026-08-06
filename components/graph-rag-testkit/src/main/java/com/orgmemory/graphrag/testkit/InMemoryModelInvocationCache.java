@@ -32,6 +32,30 @@ public final class InMemoryModelInvocationCache implements ModelInvocationCache 
     }
 
     @Override
+    public synchronized void putBounded(
+            ProjectionNamespace namespace,
+            String operation,
+            Map<Key, Entry> boundedEntries,
+            Instant now,
+            int maximumEntries) {
+        entries.putAll(boundedEntries);
+        entries.entrySet().removeIf(entry ->
+                entry.getKey().namespace().equals(namespace)
+                        && entry.getKey().operation().equals(operation)
+                        && entry.getValue().expiredAt(now));
+        entries.entrySet().stream()
+                .filter(entry -> entry.getKey().namespace().equals(namespace))
+                .filter(entry -> entry.getKey().operation().equals(operation))
+                .sorted((left, right) -> right.getValue()
+                        .createdAt()
+                        .compareTo(left.getValue().createdAt()))
+                .skip(maximumEntries)
+                .map(Map.Entry::getKey)
+                .toList()
+                .forEach(entries::remove);
+    }
+
+    @Override
     public synchronized void invalidate(ProjectionNamespace namespace) {
         Objects.requireNonNull(namespace, "namespace");
         entries.keySet().removeIf(key -> key.namespace().equals(namespace));

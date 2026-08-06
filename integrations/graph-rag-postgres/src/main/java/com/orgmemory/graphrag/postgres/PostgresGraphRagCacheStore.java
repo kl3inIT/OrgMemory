@@ -12,6 +12,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -150,6 +151,58 @@ public final class PostgresGraphRagCacheStore
     }
 
     @Override
+    public void putBounded(
+            ProjectionNamespace namespace,
+            String operation,
+            Map<ModelInvocationCache.Key, ModelInvocationCache.Entry> entries,
+            Instant now,
+            int maximumEntries) {
+        Objects.requireNonNull(namespace, "namespace");
+        String boundedOperation = Objects.requireNonNull(operation, "operation").strip();
+        Map<ModelInvocationCache.Key, ModelInvocationCache.Entry> boundedEntries =
+                Map.copyOf(Objects.requireNonNull(entries, "entries"));
+        Objects.requireNonNull(now, "now");
+        if (boundedOperation.isEmpty()) {
+            throw new IllegalArgumentException("operation must not be blank");
+        }
+        if (maximumEntries <= 0) {
+            throw new IllegalArgumentException("maximumEntries must be positive");
+        }
+        boundedEntries.forEach((key, entry) -> {
+            if (!key.namespace().equals(namespace)
+                    || !key.operation().equals(boundedOperation)) {
+                throw new IllegalArgumentException(
+                        "bounded entries must match namespace and operation");
+            }
+            Objects.requireNonNull(entry, "entry");
+        });
+        transactions.executeWithoutResult(status -> {
+            acquireBoundedWriteLock(namespace, boundedOperation);
+            boundedEntries.forEach(this::put);
+            prune(namespace, boundedOperation, now, maximumEntries);
+        });
+    }
+
+    private void acquireBoundedWriteLock(
+            ProjectionNamespace namespace, String operation) {
+        String lockKey = lockSegment(namespace.organizationId().toString())
+                + lockSegment(namespace.workspace())
+                + lockSegment(namespace.collection())
+                + lockSegment(operation);
+        jdbc.query(
+                "SELECT pg_advisory_xact_lock(hashtextextended(:lockKey, 0))",
+                new MapSqlParameterSource("lockKey", lockKey),
+                resultSet -> {
+                    resultSet.next();
+                    return null;
+                });
+    }
+
+    private static String lockSegment(String value) {
+        return value.length() + ":" + value;
+    }
+
+    @Override
     public void invalidate(ProjectionNamespace namespace) {
         MapSqlParameterSource parameters = namespaceParameters(namespace);
         jdbc.update("""
@@ -158,6 +211,87 @@ public final class PostgresGraphRagCacheStore
                   AND workspace = :workspace
                   AND collection_name = :collection
                 """, parameters);
+    }
+
+    @Override
+    public void prune(
+            ProjectionNamespace namespace,
+            String operation,
+            Instant now,
+            int maximumEntries) {
+        Objects.requireNonNull(namespace, "namespace");
+        String boundedOperation = Objects.requireNonNull(operation, "operation").strip();
+        Objects.requireNonNull(now, "now");
+        if (boundedOperation.isEmpty()) {
+            throw new IllegalArgumentException("operation must not be blank");
+        }
+        if (maximumEntries <= 0) {
+            throw new IllegalArgumentException("maximumEntries must be positive");
+        }
+        MapSqlParameterSource parameters = namespaceParameters(namespace)
+                .addValue("operation", boundedOperation)
+                .addValue("now", Timestamp.from(now))
+                .addValue("maximumEntries", maximumEntries);
+        jdbc.update("""
+                DELETE FROM graph_model_invocation_cache target
+                WHERE target.organization_id = :organizationId
+                  AND target.workspace = :workspace
+                  AND target.collection_name = :collection
+                  AND target.operation = :operation
+                  AND (
+                    target.expires_at <= :now
+                    OR (
+                      target.input_hash,
+                      target.model_route_fingerprint,
+                      target.profile_fingerprint
+                    ) IN (
+                      SELECT
+                        retained.input_hash,
+                        retained.model_route_fingerprint,
+                        retained.profile_fingerprint
+                      FROM graph_model_invocation_cache retained
+                      WHERE retained.organization_id = :organizationId
+                        AND retained.workspace = :workspace
+                        AND retained.collection_name = :collection
+                        AND retained.operation = :operation
+                        AND retained.expires_at > :now
+                      ORDER BY retained.created_at DESC,
+                        retained.input_hash DESC,
+                        retained.model_route_fingerprint DESC,
+                        retained.profile_fingerprint DESC
+                      OFFSET :maximumEntries
+                    )
+                  )
+                """, parameters);
+    }
+
+    @Override
+    public int deleteExpired(String operation, Instant now, int maximumRows) {
+        String boundedOperation = Objects.requireNonNull(operation, "operation").strip();
+        Objects.requireNonNull(now, "now");
+        if (boundedOperation.isEmpty()) {
+            throw new IllegalArgumentException("operation must not be blank");
+        }
+        if (maximumRows <= 0) {
+            throw new IllegalArgumentException("maximumRows must be positive");
+        }
+        return jdbc.update("""
+                WITH expired AS (
+                    SELECT ctid
+                    FROM graph_model_invocation_cache
+                    WHERE operation = :operation
+                      AND expires_at <= :now
+                    ORDER BY expires_at
+                    LIMIT :maximumRows
+                    FOR UPDATE SKIP LOCKED
+                )
+                DELETE FROM graph_model_invocation_cache target
+                USING expired
+                WHERE target.ctid = expired.ctid
+                """, new MapSqlParameterSource()
+                .addValue("operation", boundedOperation)
+                .addValue("now", Timestamp.from(now))
+                .addValue("maximumRows", maximumRows));
     }
 
     @Override

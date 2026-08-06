@@ -1,6 +1,7 @@
 package com.orgmemory.graphrag.postgres;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -28,6 +29,29 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 
 class PostgresGraphRagCacheStoreTests {
+
+    @Test
+    void prunesExpiredAndOverflowRowsWithinOneNamespaceAndOperation() {
+        NamedParameterJdbcTemplate jdbc = mock(NamedParameterJdbcTemplate.class);
+        PlatformTransactionManager transactions = mock(PlatformTransactionManager.class);
+        PostgresGraphRagCacheStore store =
+                new PostgresGraphRagCacheStore(jdbc, transactions, 2);
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                UUID.randomUUID(), "default", "knowledge");
+        Instant now = Instant.parse("2026-08-06T00:00:00Z");
+
+        store.prune(namespace, "QUERY_EMBEDDING", now, 10_000);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<SqlParameterSource> parameters =
+                ArgumentCaptor.forClass(SqlParameterSource.class);
+        verify(jdbc).update(sql.capture(), parameters.capture());
+        assertTrue(sql.getValue().contains("target.expires_at <= :now"));
+        assertTrue(sql.getValue().contains("OFFSET :maximumEntries"));
+        assertEquals(namespace.organizationId(), parameters.getValue().getValue("organizationId"));
+        assertEquals("QUERY_EMBEDDING", parameters.getValue().getValue("operation"));
+        assertEquals(10_000, parameters.getValue().getValue("maximumEntries"));
+    }
 
     @Test
     void batchesOnlyEvidenceAfterUpsertAndDeleteWhileKeepingGlobalOrdinals() {

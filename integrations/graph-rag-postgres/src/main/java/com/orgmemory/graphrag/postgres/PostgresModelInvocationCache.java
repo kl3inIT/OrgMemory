@@ -3,6 +3,7 @@ package com.orgmemory.graphrag.postgres;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -36,7 +37,31 @@ public final class PostgresModelInvocationCache implements ModelInvocationCache 
     }
 
     @Override
+    public void putBounded(
+            ProjectionNamespace namespace,
+            String operation,
+            Map<Key, Entry> entries,
+            Instant now,
+            int maximumEntries) {
+        delegate.putBounded(namespace, operation, entries, now, maximumEntries);
+    }
+
+    @Override
+    public int deleteExpired(String operation, Instant now, int maximumRows) {
+        return delegate.deleteExpired(operation, now, maximumRows);
+    }
+
+    @Override
     public void invalidate(ProjectionNamespace namespace) {
         delegate.invalidate(namespace);
+    }
+
+    @Override
+    public void prune(
+            ProjectionNamespace namespace,
+            String operation,
+            Instant now,
+            int maximumEntries) {
+        delegate.prune(namespace, operation, now, maximumEntries);
     }
 }

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
+import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.export.GraphExportReader;
 import com.orgmemory.graphrag.model.CanonicalEntity;
 import com.orgmemory.graphrag.model.CanonicalRelation;
@@ -34,6 +35,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -121,6 +123,95 @@ class PostgresSharedProjectionIntegrationTests {
                 graph,
                 publications,
                 new PostgresGraphCurationStore(jdbc, transactions));
+    }
+
+    @Test
+    void modelInvocationCachePruneRemovesExpiredRowsAndKeepsNewestBound() {
+        NamedParameterJdbcTemplate jdbc = new NamedParameterJdbcTemplate(dataSource);
+        PostgresGraphRagCacheStore cache = new PostgresGraphRagCacheStore(
+                jdbc,
+                new DataSourceTransactionManager(dataSource),
+                100);
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                ORGANIZATION_ID,
+                "model-cache-prune",
+                "query-embedding");
+        Map<ModelInvocationCache.Key, ModelInvocationCache.Entry> entries =
+                new LinkedHashMap<>();
+        for (int index = 0; index < 3; index++) {
+            Instant createdAt = NOW.minusSeconds(3L - index);
+            entries.put(
+                    modelCacheKey(namespace, index + 1),
+                    new ModelInvocationCache.Entry(
+                            "application/test",
+                            "payload",
+                            createdAt,
+                            NOW.plus(Duration.ofDays(1))));
+        }
+        entries.put(
+                modelCacheKey(namespace, 99),
+                new ModelInvocationCache.Entry(
+                        "application/test",
+                        "expired",
+                        NOW.minus(Duration.ofDays(2)),
+                        NOW.minus(Duration.ofDays(1))));
+
+        cache.putBounded(namespace, "QUERY_EMBEDDING", entries, NOW, 2);
+
+        Integer remaining = plainJdbc.queryForObject(
+                """
+                SELECT count(*)
+                FROM graph_model_invocation_cache
+                WHERE organization_id = ?
+                  AND workspace = ?
+                  AND collection_name = ?
+                  AND operation = 'QUERY_EMBEDDING'
+                """,
+                Integer.class,
+                namespace.organizationId(),
+                namespace.workspace(),
+                namespace.collection());
+        assertEquals(2, remaining);
+
+        ProjectionNamespace inactiveNamespace = new ProjectionNamespace(
+                ORGANIZATION_ID,
+                "model-cache-inactive",
+                "query-embedding");
+        cache.put(
+                modelCacheKey(inactiveNamespace, 100),
+                new ModelInvocationCache.Entry(
+                        "application/test",
+                        "expired",
+                        NOW.minus(Duration.ofDays(2)),
+                        NOW.minus(Duration.ofDays(1))));
+        assertEquals(1, cache.deleteExpired("QUERY_EMBEDDING", NOW, 1));
+        Integer inactiveRows = plainJdbc.queryForObject(
+                """
+                SELECT count(*)
+                FROM graph_model_invocation_cache
+                WHERE organization_id = ?
+                  AND workspace = ?
+                  AND collection_name = ?
+                  AND operation = 'QUERY_EMBEDDING'
+                """,
+                Integer.class,
+                inactiveNamespace.organizationId(),
+                inactiveNamespace.workspace(),
+                inactiveNamespace.collection());
+        assertEquals(0, inactiveRows);
+        cache.invalidate(namespace);
+        cache.invalidate(inactiveNamespace);
+    }
+
+    private static ModelInvocationCache.Key modelCacheKey(
+            ProjectionNamespace namespace,
+            int suffix) {
+        return new ModelInvocationCache.Key(
+                namespace,
+                "QUERY_EMBEDDING",
+                String.format("%064x", suffix),
+                "test-route",
+                "test-profile");
     }
 
     @Test
