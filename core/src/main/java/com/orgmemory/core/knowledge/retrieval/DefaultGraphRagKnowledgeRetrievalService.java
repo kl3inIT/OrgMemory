@@ -636,7 +636,10 @@ class DefaultGraphRagKnowledgeRetrievalService
                 futures.add(completed.submit(tasks.decorate(() ->
                         new IndexedSnapshotQueryResult(
                                 resultIndex,
-                                queryPublishedSpace(request, prepared)))));
+                                queryPublishedSpace(
+                                        operationId,
+                                        request,
+                                        prepared)))));
             }
             SnapshotQueryResult[] ordered =
                     new SnapshotQueryResult[requests.size()];
@@ -679,12 +682,18 @@ class DefaultGraphRagKnowledgeRetrievalService
     }
 
     private SnapshotQueryResult queryPublishedSpace(
+            UUID operationId,
             LightRagQueryRequest request,
             LightRagPreparedQuery prepared) throws Exception {
         long startedAt = System.nanoTime();
-        LightRagQueryResult result =
-                admission.execute(() ->
-                        engine.executePrepared(request, prepared));
+        LightRagQueryResult result = admission.execute(() -> engine.executePrepared(
+                request,
+                prepared,
+                measurement -> emitQueryOperation(
+                        operationId,
+                        request.scope().organizationId(),
+                        request.scope().authorizationFingerprint(),
+                        measurement)));
         return new SnapshotQueryResult(
                 result,
                 Duration.ofNanos(Math.max(
@@ -692,6 +701,54 @@ class DefaultGraphRagKnowledgeRetrievalService
                         System.nanoTime() - startedAt)),
                 request.scope().authorizedAssetIds().size(),
                 request.snapshot().namespace());
+    }
+
+    private void emitQueryOperation(
+            UUID operationId,
+            UUID organizationId,
+            String scopeFingerprint,
+            LightRagQueryEngine.QueryOperationMeasurement measurement) {
+        GraphRagEventSink.Outcome outcome = switch (measurement.outcome()) {
+            case SUCCEEDED -> GraphRagEventSink.Outcome.SUCCEEDED;
+            case FAILED -> GraphRagEventSink.Outcome.FAILED;
+        };
+        safeEmit(new GraphRagEventSink.GraphRagEvent(
+                operationId,
+                organizationId,
+                queryOperationStage(measurement.operation()),
+                outcome,
+                measurement.duration(),
+                measurement.inputCount(),
+                measurement.outputCount(),
+                null,
+                scopeFingerprint,
+                null,
+                outcome == GraphRagEventSink.Outcome.FAILED
+                        ? "query_operation_failed"
+                        : null,
+                Instant.now()));
+    }
+
+    private static GraphRagEventSink.Stage queryOperationStage(
+            LightRagQueryEngine.QueryOperation operation) {
+        return switch (operation) {
+            case SEARCH_ENTITIES -> GraphRagEventSink.Stage.QUERY_SEARCH_ENTITIES;
+            case SEARCH_RELATIONS -> GraphRagEventSink.Stage.QUERY_SEARCH_RELATIONS;
+            case SEARCH_CHUNKS -> GraphRagEventSink.Stage.QUERY_SEARCH_CHUNKS;
+            case EXPAND_ENTITY_IDS -> GraphRagEventSink.Stage.QUERY_EXPAND_ENTITY_IDS;
+            case LOAD_INCIDENT_RELATIONS ->
+                    GraphRagEventSink.Stage.QUERY_LOAD_INCIDENT_RELATIONS;
+            case LOAD_ENTITY_CONTRIBUTIONS ->
+                    GraphRagEventSink.Stage.QUERY_LOAD_ENTITY_CONTRIBUTIONS;
+            case LOAD_RELATION_CONTRIBUTIONS ->
+                    GraphRagEventSink.Stage.QUERY_LOAD_RELATION_CONTRIBUTIONS;
+            case LOAD_VISIBLE_ENTITY_DEGREES ->
+                    GraphRagEventSink.Stage.QUERY_LOAD_VISIBLE_ENTITY_DEGREES;
+            case LOAD_VISIBLE_RELATION_WEIGHTS ->
+                    GraphRagEventSink.Stage.QUERY_LOAD_VISIBLE_RELATION_WEIGHTS;
+            case RANK_CHUNKS -> GraphRagEventSink.Stage.QUERY_RANK_CHUNKS;
+            case LOAD_CHUNKS -> GraphRagEventSink.Stage.QUERY_LOAD_CHUNKS;
+        };
     }
 
     private record IndexedSnapshotQueryResult(
