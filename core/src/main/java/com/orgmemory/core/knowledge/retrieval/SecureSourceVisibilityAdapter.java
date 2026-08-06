@@ -80,4 +80,17 @@ class SecureSourceVisibilityAdapter implements SourceVisibilityPort {
                 listed.policyVersion(),
                 Instant.now()));
     }
+
+    @Override
+    public int maximumAuthorizedObjects() {
+        return properties.maximumAuthorizedObjects();
+    }
+
+    @Override
+    public void requireWithinMaximumAuthorizedObjects(int sourceObjectCount) {
+        if (sourceObjectCount > properties.maximumAuthorizedObjects()) {
+            throw new KnowledgeRetrievalUnavailableException(
+                    "Document permissions are inconsistent");
+        }
+    }
 }

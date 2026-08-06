@@ -85,6 +85,14 @@ class SecureSourceVisibilityAdapterTests {
         verify(authorization).listAuthorizedResources(any());
     }
 
+    @Test
+    void authorizedSourceUnionUsesTheRetrievalBoundAndUnavailableFailure() {
+        assertEquals(5_000, adapter.maximumAuthorizedObjects());
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                () -> adapter.requireWithinMaximumAuthorizedObjects(5_001));
+    }
+
     private static KnowledgeAccessSubject subject(boolean executive) {
         return new KnowledgeAccessSubject(
                 USER_ID,

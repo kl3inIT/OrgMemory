@@ -8,4 +8,10 @@ import java.util.UUID;
 public interface SourceVisibilityPort {
 
     List<UUID> visibleSourceObjectIds(CurrentActor actor);
+
+    /** Maximum number of source ids one listing query may bind. */
+    int maximumAuthorizedObjects();
+
+    /** Fails closed through the authorization adapter's established unavailable posture. */
+    void requireWithinMaximumAuthorizedObjects(int sourceObjectCount);
 }

@@ -6,45 +6,45 @@ One PR.
 
 ## 1. Persistence and query
 
-- [ ] Flyway `V<next>__source_listing_indexes.sql` (check the highest existing
+- [x] Flyway `V<next>__source_listing_indexes.sql` (check the highest existing
   `V` number first — main moves): trigram GIN on `source_objects.title` and
   `source_revisions.file_name` (`CREATE EXTENSION IF NOT EXISTS pg_trgm`),
   btree on `source_objects (organization_id, classification)`, and a
   `source_revisions (organization_id, updated_at DESC, id)` index supporting the
   cursor walk. Constraint 6.
-- [ ] `SourceObjectRepository`: replace the two unbounded finders used by
+- [x] `SourceObjectRepository`: replace the two unbounded finders used by
   `listVisible` with one paged query that joins `source_revisions`
   **on `so.latest_revision_id`** (constraint 2), applies
   `so.status = ACTIVE`, the optional filters, `ORDER BY sr.updated_at DESC, so.id`
   (constraint 4), keyset predicate from the cursor, and `LIMIT pageSize + 1`
   (constraint 3).
-- [ ] Companion count query returning `total` plus the three status buckets in
+- [x] Companion count query returning `total` plus the three status buckets in
   one pass (constraint 5). Do not re-bind the id list more times than necessary.
-- [ ] Bound the owner leg and assert the union against
+- [x] Bound the owner leg and assert the union against
   `KnowledgeRetrievalProperties.maximumAuthorizedObjects`, throwing
   `KnowledgeRetrievalUnavailableException` to match
   `SecureSourceVisibilityAdapter.java:57-61` (constraint 1).
-- [ ] Keep the empty-authorized-set early return (constraint 7).
-- [ ] Gate: terminating clean JVM test; migration applies on a fresh database.
+- [x] Keep the empty-authorized-set early return (constraint 7).
+- [x] Gate: terminating clean JVM test; migration applies on a fresh database.
 
 ## 2. Core service and API
 
-- [ ] `SourceQueryService.listVisible` takes a filter/cursor command and returns
+- [x] `SourceQueryService.listVisible` takes a filter/cursor command and returns
   a page record. Clamp `pageSize` with
   `Math.min(Math.max(pageSize, 1), 60)` **in the service**, never a 400
   (`AssetRegistryService.java:152-153` precedent).
-- [ ] Do not unify the authorization-outage posture: visibility keeps throwing,
+- [x] Do not unify the authorization-outage posture: visibility keeps throwing,
   action authorization keeps returning empty (constraint 8).
-- [ ] `SourceController` `GET /api/sources` accepts `knowledgeSpaceId`,
+- [x] `SourceController` `GET /api/sources` accepts `knowledgeSpaceId`,
   `classification`, `status`, `q`, `cursor`, `pageSize`; returns
   `{ items, nextCursor, pageSize, total, statusCounts }`.
-- [ ] Tests — none exist for this path today
+- [x] Tests — none exist for this path today
   (`SourceUploadIntegrationTests.java:97-98` covers `listOwn`):
   a staged-but-unpublished revision stays visible with its true status;
   filtering by a space the actor cannot see returns empty, not a leak;
   the empty authorized set short-circuits; cursor paging over a set mutated
   between pages neither duplicates nor skips a stable row; `pageSize` clamps.
-- [ ] Regenerate `contracts/openapi.json` via `OpenApiContractTests` with
+- [x] Regenerate `contracts/openapi.json` via `OpenApiContractTests` with
   `ORGMEMORY_OPENAPI_WRITE=true`.
 
 ## 3. Web

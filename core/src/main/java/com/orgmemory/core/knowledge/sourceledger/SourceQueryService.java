@@ -53,24 +53,64 @@ public class SourceQueryService {
     }
 
     @Transactional(readOnly = true)
-    public List<SourceSummary> listVisible(CurrentActor actor) {
+    public SourceSummaryPage listVisible(CurrentActor actor, SourceListCommand command) {
         Objects.requireNonNull(actor, "actor");
-        Set<UUID> sourceIds = new LinkedHashSet<>();
-        sources.findAllByOrganizationIdAndCreatedByUserIdOrderByUpdatedAtDesc(
-                        actor.organizationId(), actor.userId())
-                .forEach(source -> sourceIds.add(source.getId()));
+        Objects.requireNonNull(command, "command");
+        int pageSize = Math.min(Math.max(command.pageSize(), 1), 60);
+        SourceListCursor cursor = SourceListCursor.decode(command.cursor());
+        String query = normalizeQuery(command.query());
 
         Set<UUID> contentVisible = Set.copyOf(visibility.visibleSourceObjectIds(actor));
-        sourceIds.addAll(contentVisible);
-        if (sourceIds.isEmpty()) {
-            return List.of();
-        }
-        return summaries(
+        int maximumAuthorizedObjects = visibility.maximumAuthorizedObjects();
+        Set<UUID> sourceIds = new LinkedHashSet<>();
+        sourceIds.addAll(sources.findActiveOwnedIds(
                 actor.organizationId(),
-                sources.findAllByOrganizationIdAndIdInOrderByUpdatedAtDesc(
-                        actor.organizationId(), sourceIds),
+                actor.userId(),
+                maximumAuthorizedObjects + 1));
+        sourceIds.addAll(contentVisible);
+        visibility.requireWithinMaximumAuthorizedObjects(sourceIds.size());
+        if (sourceIds.isEmpty()) {
+            return SourceSummaryPage.empty(pageSize);
+        }
+
+        List<SourceObject> overFetched = sources.findVisiblePage(
+                actor.organizationId(),
+                sourceIds,
+                command.knowledgeSpaceId(),
+                command.classification() == null ? null : command.classification().name(),
+                command.status() == null ? null : command.status().name(),
+                query,
+                cursor == null ? null : cursor.updatedAt(),
+                cursor == null ? null : cursor.sourceId(),
+                pageSize + 1);
+        boolean hasMore = overFetched.size() > pageSize;
+        List<SourceObject> pageSources = hasMore
+                ? overFetched.subList(0, pageSize)
+                : overFetched;
+        List<SourceSummary> items = summaries(
+                actor.organizationId(),
+                pageSources,
                 contentVisible,
                 actions.deletableKnowledgeAssetIds(actor));
+        SourceObjectRepository.SourceListingCountProjection count = sources.countVisible(
+                actor.organizationId(),
+                sourceIds,
+                command.knowledgeSpaceId(),
+                command.classification() == null ? null : command.classification().name(),
+                query);
+        String nextCursor = hasMore && !items.isEmpty()
+                ? SourceListCursor.encode(items.getLast().updatedAt(), items.getLast().id())
+                : null;
+        return new SourceSummaryPage(
+                items,
+                nextCursor,
+                pageSize,
+                count.getTotal(),
+                SourceStatusCounts.from(count));
+    }
+
+    private static String normalizeQuery(String query) {
+        return query == null || query.isBlank() ? null : query.strip();
     }
 
     private List<SourceSummary> summaries(
