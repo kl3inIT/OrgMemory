@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-06-assistant-turn-activity-continuity (merge in progress)`.
+Reconciled: `2026-08-06-assistant-turn-activity-continuity (a4a9684c)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
