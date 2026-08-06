@@ -6,11 +6,13 @@ import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -102,6 +104,25 @@ final class PostgresProjectionSupport {
                     WHERE batch_id = :batchId AND projection_kind = :projectionKind
                     """,
                     parameters);
+        });
+    }
+
+    <T> T read(Duration statementTimeout, Supplier<T> query) {
+        Objects.requireNonNull(statementTimeout, "statementTimeout");
+        Objects.requireNonNull(query, "query");
+        if (statementTimeout.isNegative() || statementTimeout.isZero()) {
+            throw new IllegalArgumentException("statementTimeout must be positive");
+        }
+        long timeoutMilliseconds = statementTimeout.toMillis();
+        if (timeoutMilliseconds < 1 || timeoutMilliseconds > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                    "statementTimeout must be between 1 ms and " + Integer.MAX_VALUE + " ms");
+        }
+        return transactions.execute(status -> {
+            // SET LOCAL is transaction-scoped: the timeout reaches PostgreSQL itself,
+            // cancels the backend query, and cannot leak into the next pooled connection.
+            jdbc.getJdbcTemplate().execute("SET LOCAL statement_timeout = " + timeoutMilliseconds);
+            return query.get();
         });
     }
 

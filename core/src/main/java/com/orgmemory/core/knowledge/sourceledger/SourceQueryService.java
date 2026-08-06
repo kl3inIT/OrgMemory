@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.organization.OrganizationProvenanceQuery;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +19,8 @@ public class SourceQueryService {
     private final SourceObjectRepository sources;
     private final SourceRevisionRepository revisions;
     private final SourceEmbeddingProfileDirectory embeddingProfiles;
+    private final SourceKnowledgeSpacePort knowledgeSpaces;
+    private final OrganizationProvenanceQuery provenance;
     private final SourceVisibilityPort visibility;
     private final SourceActionAuthorizationPort actions;
 
@@ -24,11 +28,15 @@ public class SourceQueryService {
             SourceObjectRepository sources,
             SourceRevisionRepository revisions,
             SourceEmbeddingProfileDirectory embeddingProfiles,
+            SourceKnowledgeSpacePort knowledgeSpaces,
+            OrganizationProvenanceQuery provenance,
             SourceVisibilityPort visibility,
             SourceActionAuthorizationPort actions) {
         this.sources = sources;
         this.revisions = revisions;
         this.embeddingProfiles = embeddingProfiles;
+        this.knowledgeSpaces = knowledgeSpaces;
+        this.provenance = provenance;
         this.visibility = visibility;
         this.actions = actions;
     }
@@ -82,6 +90,23 @@ public class SourceQueryService {
                         .filter(Objects::nonNull)
                         .toList())
                 .forEach(revision -> revisionById.put(revision.getId(), revision));
+        Set<UUID> knowledgeSpaceIds = visibleSources.stream()
+                .map(SourceObject::getKnowledgeSpaceId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<UUID, SourceKnowledgeSpaceRef> spaceById = knowledgeSpaces.describeAll(
+                organizationId, knowledgeSpaceIds);
+        Set<UUID> departmentIds = visibleSources.stream()
+                .map(SourceObject::getDepartmentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<UUID, String> departmentNameById = provenance.departmentNames(
+                organizationId, departmentIds);
+        Set<UUID> uploaderIds = visibleSources.stream()
+                .map(SourceObject::getCreatedByUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<UUID, String> uploaderNameById = provenance.userNames(
+                organizationId, uploaderIds);
         Map<UUID, SourceEmbeddingProfileView> profileById = new LinkedHashMap<>();
         return visibleSources.stream()
                 .map(source -> {
@@ -93,10 +118,16 @@ public class SourceQueryService {
                             : profileById.computeIfAbsent(
                                     revision.getEmbeddingProfileId(),
                                     profileId -> embeddingProfiles.get(organizationId, profileId));
+                    SourceKnowledgeSpaceRef space = Objects.requireNonNull(
+                            spaceById.get(source.getKnowledgeSpaceId()),
+                            "Source Knowledge Space was not found");
                     return summary(
                             source,
                             revision,
                             profile,
+                            space,
+                            name(departmentNameById, source.getDepartmentId()),
+                            name(uploaderNameById, source.getCreatedByUserId()),
                             contentVisible.contains(source.getId()),
                             revision.getKnowledgeAssetId() != null
                                     && deletableAssetIds.contains(revision.getKnowledgeAssetId()));
@@ -104,21 +135,41 @@ public class SourceQueryService {
                 .toList();
     }
 
-    static SourceSummary summary(
-            SourceObject source,
-            SourceRevision revision,
-            SourceEmbeddingProfileView embeddingProfile) {
-        return summary(source, revision, embeddingProfile, false, false);
+    /** Organization-wide sources carry no department, and the name maps reject null keys. */
+    private static String name(Map<UUID, String> namesById, UUID id) {
+        return id == null ? null : namesById.get(id);
     }
 
     static SourceSummary summary(
             SourceObject source,
             SourceRevision revision,
             SourceEmbeddingProfileView embeddingProfile,
+            SourceKnowledgeSpaceRef knowledgeSpace,
+            String owningDepartmentName,
+            String uploadedByName) {
+        return summary(
+                source,
+                revision,
+                embeddingProfile,
+                knowledgeSpace,
+                owningDepartmentName,
+                uploadedByName,
+                false,
+                false);
+    }
+
+    static SourceSummary summary(
+            SourceObject source,
+            SourceRevision revision,
+            SourceEmbeddingProfileView embeddingProfile,
+            SourceKnowledgeSpaceRef knowledgeSpace,
+            String owningDepartmentName,
+            String uploadedByName,
             boolean contentAuthorized,
             boolean deleteAuthorized) {
         boolean ready = revision.getStatus() == SourceRevisionStatus.READY;
         UUID knowledgeAssetId = revision.getKnowledgeAssetId();
+        boolean publicationComplete = ready && knowledgeAssetId != null;
         return new SourceSummary(
                 source.getId(),
                 source.getTitle(),
@@ -132,9 +183,13 @@ public class SourceQueryService {
                 revision.getFailureCode(),
                 revision.getFailureMessage(),
                 knowledgeAssetId,
-                ready && knowledgeAssetId != null && contentAuthorized,
-                ready
-                        && knowledgeAssetId != null
+                knowledgeSpace.key(),
+                knowledgeSpace.name(),
+                owningDepartmentName,
+                uploadedByName,
+                publicationComplete,
+                publicationComplete && contentAuthorized,
+                publicationComplete
                         && SourceObject.NATIVE_UPLOAD_SYSTEM.equals(source.getSourceSystem())
                         && deleteAuthorized,
                 embeddingProfile == null ? null : embeddingProfile.profileKey(),

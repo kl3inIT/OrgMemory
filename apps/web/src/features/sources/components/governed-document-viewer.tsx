@@ -237,6 +237,16 @@ function SourceContext({ target }: { target: Extract<GovernedDocumentTarget, { k
           label="Classification"
           value={source.classification ? titleCase(source.classification) : "Policy controlled"}
         />
+        <InlineMetadata
+          label="Space"
+          value={source.knowledgeSpaceName ?? source.knowledgeSpaceKey ?? "—"}
+        />
+        {source.owningDepartmentName ? (
+          <InlineMetadata label="Owned by" value={source.owningDepartmentName} />
+        ) : null}
+        {source.uploadedByName ? (
+          <InlineMetadata label="Uploaded by" value={source.uploadedByName} />
+        ) : null}
         <InlineMetadata label="Updated" value={formatDate(source.updatedAt)} />
       </dl>
       {terminalFailure ? (
@@ -302,6 +312,16 @@ function ViewerBody({
   }
 
   if (!target.source.contentAvailable) {
+    if (target.source.publicationComplete) {
+      const contact = target.source.owningDepartmentName
+        ? ` Contact ${target.source.owningDepartmentName} to request access.`
+        : ""
+      return (
+        <EmptyPreview
+          message={`This document's content is outside your access scope.${contact}`}
+        />
+      )
+    }
     return (
       <EmptyPreview message="Original content becomes available after governed publication completes." />
     )

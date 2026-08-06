@@ -7,7 +7,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/test/java/com/orgmemory/worker/connector`, and
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-08-05-knowledge-operations-graph-inspector (47a53da1)`.
+Reconciled: `2026-08-06-source-provenance-ux (061b075d)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -31,12 +31,13 @@ Evidence classes: `SourceQueryServiceTests`, `SourceContentServiceTests`,
 `SourceDocumentEvidenceQueryTests`,
 `SecureSourceActionAuthorizationAdapterTests`,
 `KnowledgeAssetLifecycleServiceTests`, `SourceLifecycleServiceTests`,
-`SourceContentWebMvcTests`, `source-preview.test.ts`, and
+`SourceContentWebMvcTests`, `governed-document-viewer.test.tsx`,
+`source-preview.test.ts`, and
 `document-actions.spec.ts`.
 
 | Behavior | Automated evidence |
 | --- | --- |
-| List flags distinguish permission-visible content and deletable READY native uploads | `SourceQueryServiceTests` |
+| Visible rows batch-resolve Space, department, and uploader provenance, and distinguish pending, published-out-of-scope, available, and deletable READY native uploads | `SourceQueryServiceTests`, `governed-document-viewer.test.tsx`, `document-actions.spec.ts` |
 | Content rechecks the canonical evidence scope and missing/denied sources share one opaque response | `streamsOnlyTheCurrentPermissionVisibleReadyRevision`, `deniedAndMissingSourcesShareTheOpaqueNotFoundContract`, `missingAndDeniedSourcesAreWireEquivalent` |
 | Source Ledger exposes current READY document/blob metadata without exporting persistence types | `SourceDocumentEvidenceQueryTests` |
 | Integrity mismatch closes the stream, fails unavailable, and records an audit | `integrityFailureClosesTheObjectAndIsAudited` |

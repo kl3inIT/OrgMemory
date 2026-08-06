@@ -6450,6 +6450,21 @@
             "type": "string",
             "format": "uuid"
           },
+          "knowledgeSpaceKey": {
+            "type": "string"
+          },
+          "knowledgeSpaceName": {
+            "type": "string"
+          },
+          "owningDepartmentName": {
+            "type": "string"
+          },
+          "uploadedByName": {
+            "type": "string"
+          },
+          "publicationComplete": {
+            "type": "boolean"
+          },
           "contentAvailable": {
             "type": "boolean"
           },
