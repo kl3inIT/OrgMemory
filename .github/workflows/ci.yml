@@ -130,6 +130,7 @@ jobs:
               - ".github/workflows/tegami-pr-comment.yml"
               - "compose.yaml"
               - "infrastructure/deployment/**"
+              - "infrastructure/observability/**"
               - "infrastructure/images/**"
               - "infrastructure/keycloak/**"
               - "infrastructure/postgres-rag/**"
@@ -677,6 +678,9 @@ jobs:
           --file infrastructure/deployment/compose.docs.yaml
           --env-file infrastructure/deployment/docs.env.example
           config --quiet
+
+      - name: Validate shared Docker DNS topology
+        run: python3 infrastructure/deployment/scripts/verify-shared-dns-network.py
 
       - name: Prove docs-only failed-canary rollback
         run: infrastructure/deployment/scripts/test-deploy-docs-rollback.sh

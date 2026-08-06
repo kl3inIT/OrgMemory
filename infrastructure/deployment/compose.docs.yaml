@@ -8,6 +8,9 @@ services:
     expose:
       - "3000"
     networks:
+      shared-infra:
+        aliases:
+          - orgmemory-docs
       proxy:
         aliases:
           - orgmemory-docs
@@ -34,6 +37,9 @@ services:
           memory: 64M
 
 networks:
+  shared-infra:
+    external: true
+    name: ${ORGMEMORY_SHARED_INFRA_NETWORK:-shared-infra}
   proxy:
     external: true
     name: ${ORGMEMORY_PROXY_NETWORK:-proxy-network}

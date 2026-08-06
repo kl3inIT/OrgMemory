@@ -100,10 +100,12 @@ flowchart LR
 ```
 
 Only web and Keycloak join the proxy network. API, worker, MCP, OpenFGA, and
-MinIO stay on OrgMemory's private network. Components needing PostgreSQL also
-join a narrow external shared-infrastructure network. No application database
-port, MinIO console, OpenFGA playground, actuator, or MCP endpoint is published
-to the host by default.
+MinIO stay on OrgMemory's private network for their product routes. Every
+OrgMemory, documentation, and observability service also joins the external
+shared-infrastructure network as a common Docker DNS fabric; that additive
+membership does not publish a service to the host. No application database port,
+MinIO console, OpenFGA playground, actuator, or MCP endpoint is published by
+default.
 
 Nginx Proxy Manager terminates TLS. Keycloak receives trusted
 `X-Forwarded-*` headers, uses internal HTTP, and pins its public hostname to
