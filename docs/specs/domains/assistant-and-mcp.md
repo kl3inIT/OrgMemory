@@ -6,10 +6,11 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `integrations/ai-model-gateways`,
 `apps/api/src/main/java/com/orgmemory/api/assistant`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
-`apps/web/src/features/assistant`, and
-`apps/web/src/components/ai-elements/model-selector.tsx`.
+`apps/web/src/features/assistant`,
+`apps/web/src/components/ai-elements/model-selector.tsx`, and
+`apps/web/src/components/ai-elements/prompt-input.tsx`.
 
-Reconciled: `2026-08-06-assistant-turn-activity-continuity (a4a9684c)`.
+Reconciled: `2026-08-06-assistant-prompt-input-alignment (b83d45d9)`.
 
 ## Current Behavior
 
@@ -254,8 +255,14 @@ data and do not infer inaccessible resources or call a model. Its AI Elements
 composer places a compact searchable, keyboard-navigable model selector in the
 footer and keeps provider grouping and selection detail in the dialog. The
 decorative `Permission-aware` label is absent; authorization remains a server
-invariant. The composer keeps at most 4,000 characters per actor and
-conversation in browser `sessionStorage`, including a separate new-conversation
+invariant. Its local Prompt Input surface supplies reusable header, body,
+footer, tooltip-aware action-button, side-effect-free action-menu, and
+status-aware submit primitives. Enter submits, Shift+Enter inserts a newline,
+IME composition does not submit, and the in-flight submit control stops the
+current turn. The mounted composer remains text-only: file, screenshot, speech,
+and referenced-source actions are not exposed. The composer keeps at most 4,000
+characters per actor and conversation in browser `sessionStorage`, including a
+separate new-conversation
 draft. Submit, actor change, conversation deletion, and logout clear the
 applicable draft state. Drafts are neither server state nor telemetry. Retrying
 a completed answer resubmits its immediately preceding user message as a new
