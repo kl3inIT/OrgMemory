@@ -4,6 +4,9 @@ import com.orgmemory.core.knowledge.acl.AclAuthority;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
@@ -72,22 +75,42 @@ class SourceQueryServiceTests {
         when(availableRevision.getKnowledgeAssetId()).thenReturn(availableAssetId);
         when(pendingRevision.getStatus()).thenReturn(SourceRevisionStatus.PUBLISHING);
 
-        when(sources.findAllByOrganizationIdAndCreatedByUserIdOrderByUpdatedAtDesc(
-                        ORGANIZATION_ID, USER_ID))
-                .thenReturn(List.of(unauthorizedSource, pendingSource));
         when(visibility.visibleSourceObjectIds(ACTOR)).thenReturn(List.of(availableSourceId));
+        when(visibility.maximumAuthorizedObjects()).thenReturn(5_000);
+        when(sources.findActiveOwnedIds(ORGANIZATION_ID, USER_ID, 5_001))
+                .thenReturn(List.of(unauthorizedSourceId, pendingSourceId));
         when(actions.deletableKnowledgeAssetIds(ACTOR)).thenReturn(Set.of(unauthorizedAssetId));
-        when(sources.findAllByOrganizationIdAndIdInOrderByUpdatedAtDesc(
-                        ORGANIZATION_ID,
-                        Set.of(unauthorizedSourceId, pendingSourceId, availableSourceId)))
+        when(sources.findVisiblePage(
+                        eq(ORGANIZATION_ID),
+                        eq(Set.of(unauthorizedSourceId, pendingSourceId, availableSourceId)),
+                        eq(null),
+                        eq(null),
+                        eq(null),
+                        eq(null),
+                        eq(null),
+                        eq(null),
+                        eq(26)))
                 .thenReturn(List.of(availableSource, unauthorizedSource, pendingSource));
+        SourceObjectRepository.SourceListingCountProjection counts = counts(3, 1, 2, 0);
+        when(sources.countVisible(
+                        ORGANIZATION_ID,
+                        Set.of(unauthorizedSourceId, pendingSourceId, availableSourceId),
+                        null,
+                        null,
+                        null))
+                .thenReturn(counts);
         when(revisions.findAllById(List.of(
                         availableRevisionId, unauthorizedRevisionId, pendingRevisionId)))
                 .thenReturn(List.of(availableRevision, unauthorizedRevision, pendingRevision));
         stubProvenance();
 
-        List<SourceSummary> result = service.listVisible(ACTOR);
+        SourceSummaryPage page = service.listVisible(
+                ACTOR,
+                new SourceListCommand(null, null, null, null, null, 25));
+        List<SourceSummary> result = page.items();
 
+        assertEquals(3, page.total());
+        assertEquals(new SourceStatusCounts(1, 2, 0), page.statusCounts());
         assertEquals(
                 List.of(availableSourceId, unauthorizedSourceId, pendingSourceId),
                 result.stream().map(SourceSummary::id).toList());
@@ -113,10 +136,72 @@ class SourceQueryServiceTests {
                 List.of("Nguyen Van An", "Nguyen Van An", "Nguyen Van An"),
                 result.stream().map(SourceSummary::uploadedByName).toList());
         verify(visibility).visibleSourceObjectIds(ACTOR);
+        verify(visibility).requireWithinMaximumAuthorizedObjects(3);
         verify(actions).deletableKnowledgeAssetIds(ACTOR);
         verify(spaces).describeAll(ORGANIZATION_ID, Set.of(SPACE_ID));
         verify(provenance).departmentNames(ORGANIZATION_ID, Set.of(DEPARTMENT_ID));
         verify(provenance).userNames(ORGANIZATION_ID, Set.of(USER_ID));
+    }
+
+    @Test
+    void emptyAuthorizedSetShortCircuitsBeforePageCountAndActions() {
+        when(visibility.visibleSourceObjectIds(ACTOR)).thenReturn(List.of());
+        when(visibility.maximumAuthorizedObjects()).thenReturn(5_000);
+        when(sources.findActiveOwnedIds(ORGANIZATION_ID, USER_ID, 5_001))
+                .thenReturn(List.of());
+
+        SourceSummaryPage result = service.listVisible(
+                ACTOR,
+                new SourceListCommand(null, null, null, null, null, 25));
+
+        assertEquals(List.of(), result.items());
+        assertEquals(0, result.total());
+        verify(visibility).requireWithinMaximumAuthorizedObjects(0);
+        verify(sources, never()).findVisiblePage(
+                any(), any(), any(), any(), any(), any(), any(), any(), anyInt());
+        verify(sources, never()).countVisible(any(), any(), any(), any(), any());
+        verify(actions, never()).deletableKnowledgeAssetIds(ACTOR);
+    }
+
+    @Test
+    void clampsPageSizeAndBoundsTheOwnerLegBeforeBindingTheUnion() {
+        UUID sourceId = UUID.randomUUID();
+        when(visibility.visibleSourceObjectIds(ACTOR)).thenReturn(List.of(sourceId));
+        when(visibility.maximumAuthorizedObjects()).thenReturn(7);
+        when(sources.findActiveOwnedIds(ORGANIZATION_ID, USER_ID, 8))
+                .thenReturn(List.of());
+        when(sources.findVisiblePage(
+                        ORGANIZATION_ID,
+                        Set.of(sourceId),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        61))
+                .thenReturn(List.of());
+        SourceObjectRepository.SourceListingCountProjection emptyCounts = counts(0, 0, 0, 0);
+        when(sources.countVisible(ORGANIZATION_ID, Set.of(sourceId), null, null, null))
+                .thenReturn(emptyCounts);
+
+        SourceSummaryPage result = service.listVisible(
+                ACTOR,
+                new SourceListCommand(null, null, null, null, null, 10_000));
+
+        assertEquals(60, result.pageSize());
+        verify(visibility).requireWithinMaximumAuthorizedObjects(1);
+        verify(sources).findActiveOwnedIds(ORGANIZATION_ID, USER_ID, 8);
+        verify(sources).findVisiblePage(
+                ORGANIZATION_ID,
+                Set.of(sourceId),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                61);
     }
 
     @Test
@@ -205,5 +290,16 @@ class SourceQueryServiceTests {
                 .thenReturn(Map.of(DEPARTMENT_ID, "People Operations"));
         when(provenance.userNames(ORGANIZATION_ID, Set.of(USER_ID)))
                 .thenReturn(Map.of(USER_ID, "Nguyen Van An"));
+    }
+
+    private static SourceObjectRepository.SourceListingCountProjection counts(
+            long total, long processing, long ready, long attention) {
+        SourceObjectRepository.SourceListingCountProjection projection =
+                mock(SourceObjectRepository.SourceListingCountProjection.class);
+        when(projection.getTotal()).thenReturn(total);
+        when(projection.getProcessing()).thenReturn(processing);
+        when(projection.getReady()).thenReturn(ready);
+        when(projection.getAttention()).thenReturn(attention);
+        return projection;
     }
 }

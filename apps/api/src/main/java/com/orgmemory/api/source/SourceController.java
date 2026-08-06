@@ -1,6 +1,8 @@
 package com.orgmemory.api.source;
 
 import com.orgmemory.core.knowledge.sourceledger.CreateUploadSourceCommand;
+import com.orgmemory.core.knowledge.sourceledger.SourceListCommand;
+import com.orgmemory.core.knowledge.sourceledger.SourceListStatus;
 import com.orgmemory.core.knowledge.sourceledger.SourceQueryService;
 import com.orgmemory.core.knowledge.sourceledger.SourceUploadService;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetLifecycleService;
@@ -12,7 +14,6 @@ import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import io.swagger.v3.oas.annotations.Operation;
 import java.io.IOException;
-import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -50,9 +51,24 @@ class SourceController {
 
     @GetMapping
     @Operation(operationId = "listSources", summary = "List sources visible to the current user")
-    List<SourceResponse> list(Authentication authentication) {
+    SourcePageResponse list(
+            @RequestParam(required = false) UUID knowledgeSpaceId,
+            @RequestParam(required = false) KnowledgeClassification classification,
+            @RequestParam(required = false) SourceListStatus status,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "25") int pageSize,
+            Authentication authentication) {
         CurrentActor actor = actors.current(authentication);
-        return sources.listVisible(actor).stream().map(SourceResponse::from).toList();
+        return SourcePageResponse.from(sources.listVisible(
+                actor,
+                new SourceListCommand(
+                        knowledgeSpaceId,
+                        classification,
+                        status,
+                        q,
+                        cursor,
+                        pageSize)));
     }
 
     @DeleteMapping("/{sourceId}")

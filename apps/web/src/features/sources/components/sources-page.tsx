@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Files, LoaderCircle, RefreshCw, Search } from "lucide-react"
+import { ChevronLeft, ChevronRight, Files, LoaderCircle, RefreshCw, Search } from "lucide-react"
 import { lazy, Suspense, useCallback, useState } from "react"
 import { toast } from "sonner"
 
@@ -10,6 +10,13 @@ import { PageLayout } from "@/components/layouts/page-layout"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { FilterBar } from "@/components/patterns/filter-bar"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SourceUploadDialog } from "@/features/sources/components/source-upload-dialog"
 import { SourcesTable } from "@/features/sources/components/sources-table"
@@ -25,22 +32,26 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-  ACTIVE_SOURCE_STATUSES,
-  matchesSourceStatus,
   SOURCE_STATUS_FILTERS,
-  sourceStatusCount,
+  sourceStatusCountFromPage,
   type SourceStatusFilter,
 } from "@/features/sources/source-status"
 import { useDocumentManagerStore } from "@/features/sources/store/document-manager-store"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import {
   listKnowledgeSpaceUploadTargetsOptions,
   listSourcesOptions,
   listSourcesQueryKey,
+  listVisibleKnowledgeSpacesOptions,
   uploadSourceMutation,
   deleteSourceMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type { SourceResponse } from "@/lib/hey-api"
 import { apiErrorMessage } from "@/lib/api-error"
+
+type ClassificationFilter = "ALL" | "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED"
+
+const SOURCE_PAGE_SIZE = 25
 
 const KnowledgeGraphPanel = lazy(() =>
   import("@/features/sources/components/knowledge-graph-panel").then((module) => ({
@@ -65,14 +76,27 @@ export function SourcesPage({
   const [viewingId, setViewingId] = useState<string | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [deleteCandidate, setDeleteCandidate] = useState<SourceResponse | null>(null)
+  const [knowledgeSpaceFilter, setKnowledgeSpaceFilter] = useState("ALL")
+  const [classificationFilter, setClassificationFilter] = useState<ClassificationFilter>("ALL")
+  const [cursorHistory, setCursorHistory] = useState<Array<string | undefined>>([undefined])
+  const currentCursor = cursorHistory.at(-1)
+  const debouncedSearch = useDebouncedValue(search.trim())
   const sources = useQuery({
-    ...listSourcesOptions(),
+    ...listSourcesOptions({
+      query: {
+        knowledgeSpaceId: knowledgeSpaceFilter === "ALL" ? undefined : knowledgeSpaceFilter,
+        classification: classificationFilter === "ALL" ? undefined : classificationFilter,
+        status: statusFilter === "ALL" ? undefined : statusFilter,
+        q: debouncedSearch || undefined,
+        cursor: currentCursor,
+        pageSize: SOURCE_PAGE_SIZE,
+      },
+    }),
     refetchInterval: (query) =>
-      query.state.data?.some((source) => ACTIVE_SOURCE_STATUSES.has(source.status ?? ""))
-        ? 2000
-        : false,
+      (query.state.data?.statusCounts?.processing ?? 0) > 0 ? 2000 : false,
   })
   const uploadTargets = useQuery(listKnowledgeSpaceUploadTargetsOptions())
+  const visibleSpaces = useQuery(listVisibleKnowledgeSpacesOptions())
   const upload = useMutation({
     ...uploadSourceMutation(),
     onSuccess: async () => {
@@ -92,7 +116,7 @@ export function SourcesPage({
       toast.error(apiErrorMessage(error, "The document could not be deleted.")),
   })
 
-  const documents = sources.data ?? []
+  const documents = sources.data?.items ?? []
   const viewing = documents.find((source) => source.id === viewingId) ?? null
   const viewDocument = useCallback((source: SourceResponse) => {
     setViewingId(source.id ?? null)
@@ -110,18 +134,17 @@ export function SourcesPage({
     closeDocument()
     setUploadOpen(true)
   }, [closeDocument])
-  const normalizedSearch = search.trim().toLocaleLowerCase()
-  const filteredDocuments = documents.filter((source) => {
-    if (!matchesSourceStatus(source, statusFilter)) return false
-    if (!normalizedSearch) return true
-    return [source.title, source.fileName, source.mediaType]
-      .filter(Boolean)
-      .some((value) => value?.toLocaleLowerCase().includes(normalizedSearch))
-  })
+  const visibleDocumentCount = sourceStatusCountFromPage(sources.data, statusFilter)
   const visibleDocumentLabel = formatVisibleDocumentCount(
-    filteredDocuments.length,
-    normalizedSearch.length > 0,
+    visibleDocumentCount,
+    debouncedSearch.length > 0,
   )
+  const outOfRange = Boolean(currentCursor && sources.data && documents.length === 0)
+  const filtersActive =
+    knowledgeSpaceFilter !== "ALL" ||
+    classificationFilter !== "ALL" ||
+    statusFilter !== "ALL" ||
+    debouncedSearch.length > 0
 
   return (
     <PageLayout.Root variant={view === "graph" ? "canvas" : "wide"}>
@@ -170,7 +193,10 @@ export function SourcesPage({
 
           <Tabs
             value={statusFilter}
-            onValueChange={(value: string) => setStatusFilter(value as SourceStatusFilter)}
+            onValueChange={(value: string) => {
+              setCursorHistory([undefined])
+              setStatusFilter(value as SourceStatusFilter)
+            }}
           >
             <TabsList
               variant="line"
@@ -178,7 +204,7 @@ export function SourcesPage({
               aria-label="Document status"
             >
               {SOURCE_STATUS_FILTERS.map((filter) => {
-                const count = sourceStatusCount(documents, filter.value)
+                const count = sourceStatusCountFromPage(sources.data, filter.value)
                 return (
                   <TabsTrigger
                     key={filter.value}
@@ -209,52 +235,131 @@ export function SourcesPage({
             </TabsList>
           </Tabs>
 
-          <section className="min-h-[32rem] overflow-hidden rounded-lg border bg-card" aria-label="Documents">
-                <div className="sticky top-0 z-10 border-b bg-card p-3">
-                  <FilterBar
-                    search={
-                      <InputGroup className="max-w-md shadow-none">
-                        <InputGroupAddon>
-                          <Search aria-hidden="true" />
-                        </InputGroupAddon>
-                        <InputGroupInput
-                          type="search"
-                          value={search}
-                          placeholder="Search documents"
-                          aria-label="Search documents"
-                          onChange={(event) => onSearchChange(event.target.value)}
-                        />
-                      </InputGroup>
-                    }
-                    result={visibleDocumentLabel}
-                    actions={
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={sources.isFetching}
-                        onClick={() => sources.refetch()}
+          <section
+            className="min-h-[32rem] overflow-hidden rounded-lg border bg-card"
+            aria-label="Documents"
+          >
+            <div className="sticky top-0 z-10 border-b bg-card p-3">
+              <FilterBar
+                search={
+                  <InputGroup className="max-w-md shadow-none">
+                    <InputGroupAddon>
+                      <Search aria-hidden="true" />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      type="search"
+                      value={search}
+                      placeholder="Search documents"
+                      aria-label="Search documents"
+                      onChange={(event) => {
+                        setCursorHistory([undefined])
+                        onSearchChange(event.target.value)
+                      }}
+                    />
+                  </InputGroup>
+                }
+                filters={
+                  <>
+                    <Select
+                      value={knowledgeSpaceFilter}
+                      onValueChange={(value: string) => {
+                        setCursorHistory([undefined])
+                        setKnowledgeSpaceFilter(value)
+                      }}
+                    >
+                      <SelectTrigger
+                        className="w-full sm:w-52"
+                        aria-label="Filter by Knowledge Space"
+                        disabled={visibleSpaces.isPending || visibleSpaces.isError}
                       >
-                        <RefreshCw
-                          className={sources.isFetching ? "animate-spin" : ""}
-                          aria-hidden="true"
-                        />
-                        Refresh
-                      </Button>
-                    }
-                  />
-                </div>
+                        <SelectValue placeholder="All spaces" />
+                      </SelectTrigger>
+                      <SelectContent align="start">
+                        <SelectItem value="ALL">All spaces</SelectItem>
+                        {(visibleSpaces.data ?? []).map((space) =>
+                          space.id ? (
+                            <SelectItem key={space.id} value={space.id}>
+                              {space.name ?? space.key ?? "Knowledge space"}
+                            </SelectItem>
+                          ) : null,
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={classificationFilter}
+                      onValueChange={(value: string) => {
+                        setCursorHistory([undefined])
+                        setClassificationFilter(value as ClassificationFilter)
+                      }}
+                    >
+                      <SelectTrigger className="w-full sm:w-44" aria-label="Filter by classification">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent align="start">
+                        <SelectItem value="ALL">All classifications</SelectItem>
+                        <SelectItem value="PUBLIC">Public</SelectItem>
+                        <SelectItem value="INTERNAL">Internal</SelectItem>
+                        <SelectItem value="CONFIDENTIAL">Confidential</SelectItem>
+                        <SelectItem value="RESTRICTED">Restricted</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </>
+                }
+                result={visibleDocumentLabel}
+                actions={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={sources.isFetching}
+                    onClick={() => sources.refetch()}
+                  >
+                    <RefreshCw
+                      className={sources.isFetching ? "animate-spin" : ""}
+                      aria-hidden="true"
+                    />
+                    Refresh
+                  </Button>
+                }
+              />
+            </div>
 
-                {sources.isPending ? <SourcesLoading /> : null}
-                {sources.isError ? <SourcesError onRetry={() => sources.refetch()} /> : null}
-                {sources.data?.length === 0 ? <SourcesEmpty /> : null}
-                {sources.data && sources.data.length > 0 ? (
-                  <SourcesTable
-                    sources={filteredDocuments}
-                    onView={viewDocument}
-                    onDelete={setDeleteCandidate}
-                    onUploadCorrection={uploadCorrection}
-                  />
-                ) : null}
+            {sources.isPending ? <SourcesLoading /> : null}
+            {sources.isError ? <SourcesError onRetry={() => sources.refetch()} /> : null}
+            {outOfRange ? (
+              <SourcesPageCorrection
+                onPrevious={() => setCursorHistory((current) => current.slice(0, -1))}
+              />
+            ) : null}
+            {!outOfRange && sources.data && documents.length === 0 ? (
+              filtersActive ? <SourcesNoResults /> : <SourcesEmpty />
+            ) : null}
+            {documents.length > 0 ? (
+              <SourcesTable
+                sources={documents}
+                onView={viewDocument}
+                onDelete={setDeleteCandidate}
+                onUploadCorrection={uploadCorrection}
+              />
+            ) : null}
+            {!sources.isPending && !sources.isError && !outOfRange && visibleDocumentCount > 0 ? (
+              <SourceCursorPagination
+                page={cursorHistory.length}
+                total={visibleDocumentCount}
+                hasPrevious={cursorHistory.length > 1}
+                hasNext={Boolean(sources.data?.nextCursor)}
+                disabled={sources.isFetching}
+                onPrevious={() => {
+                  setViewingId(null)
+                  setCursorHistory((current) => current.slice(0, -1))
+                }}
+                onNext={() => {
+                  const nextCursor = sources.data?.nextCursor
+                  if (!nextCursor) return
+                  setViewingId(null)
+                  setCursorHistory((current) => [...current, nextCursor])
+                }}
+              />
+            ) : null}
           </section>
         </TabsContent>
         <TabsContent value="graph" className="flex min-h-0 flex-1">
@@ -357,5 +462,82 @@ function SourcesEmpty() {
       description="Upload one clean document to start the knowledge index."
       icon={<Files className="size-5" aria-hidden="true" />}
     />
+  )
+}
+
+function SourcesNoResults() {
+  return (
+    <EmptyState
+      title="No documents found"
+      description="Try another space, classification, status, or search term."
+      icon={<Search className="size-5" aria-hidden="true" />}
+    />
+  )
+}
+
+function SourcesPageCorrection({ onPrevious }: { onPrevious: () => void }) {
+  return (
+    <EmptyState
+      title="This page is no longer available"
+      description="Documents changed while you were browsing. Return to the previous page to continue."
+      icon={<Files className="size-5" aria-hidden="true" />}
+      action={
+        <Button variant="outline" onClick={onPrevious}>
+          <ChevronLeft aria-hidden="true" />
+          Previous page
+        </Button>
+      }
+    />
+  )
+}
+
+function SourceCursorPagination({
+  page,
+  total,
+  hasPrevious,
+  hasNext,
+  disabled,
+  onPrevious,
+  onNext,
+}: {
+  page: number
+  total: number
+  hasPrevious: boolean
+  hasNext: boolean
+  disabled: boolean
+  onPrevious: () => void
+  onNext: () => void
+}) {
+  const first = Math.min((page - 1) * SOURCE_PAGE_SIZE + 1, total)
+  const last = Math.min(page * SOURCE_PAGE_SIZE, total)
+  return (
+    <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm tabular-nums text-content-muted" aria-live="polite">
+        Showing {first.toLocaleString()}–{last.toLocaleString()} of {total.toLocaleString()}
+      </p>
+      <nav className="flex items-center gap-1 self-end" aria-label="Document pages" aria-busy={disabled}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={disabled || !hasPrevious}
+          onClick={onPrevious}
+        >
+          <ChevronLeft aria-hidden="true" />
+          Previous
+        </Button>
+        <span className="px-2 text-sm tabular-nums text-content-muted">Page {page}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={disabled || !hasNext}
+          onClick={onNext}
+        >
+          Next
+          <ChevronRight aria-hidden="true" />
+        </Button>
+      </nav>
+    </div>
   )
 }
