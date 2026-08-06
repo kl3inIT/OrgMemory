@@ -2,30 +2,38 @@
 
 ## Measure first
 
-- [ ] Probe what Tika actually exposes in XHTML mode for XLSX, CSV and HTML:
-  does it emit `<table>`/`<tr>`/`<td>` and heading elements, or flat text?
-  Record the finding in `design.md`. If it is flat, stop and re-plan item 1
-  before writing any parser code.
+- [x] Probed what Tika exposes in XHTML mode. XLSX, DOCX and HTML carry real
+  `<table>`/`<tr>`/`<td>` plus headings; CSV is flat text under every
+  configuration tried. Recorded in `design.md`. Item 1 stands, with CSV split
+  out into its own reader.
 
 ## 1. Typed block IR
 
 - [ ] Parse through Tika with an XHTML content handler and build
   `HEADING` / `TABLE` / `PARAGRAPH` blocks with correct char spans, so
   `CanonicalDocument.hasStructuredBlocks()` is true for single-document sources.
+- [ ] Read CSV with a dedicated reader rather than Tika, handling delimiter
+  sniffing, quoted newlines and BOM, emitting the same `TABLE` blocks.
 - [ ] Make normalization block-kind aware: prose keeps the current collapse, a
   `TABLE` block keeps its cell and row boundaries.
+- [ ] Take the header row from `<th>` when present, otherwise the table's first
+  row, since XLSX and HTML disagree.
 - [ ] Keep `PagePdfDocumentReader` page provenance intact; a PDF must not lose
   `startPage`/`endPage` when it gains block kinds.
+- [ ] Confirm against a genuine Word export whether heading styles surface as
+  `<h1>`; the synthetic probe fixture could not answer this.
 - [ ] Cover: a spreadsheet becomes `TABLE` blocks with the header row intact, an
-  HTML export becomes headings plus tables, a plain text file stays one
-  `PARAGRAPH`, and a multi-page PDF keeps its page range.
+  HTML export becomes headings plus tables, a DOCX table stops being flattened,
+  a plain text file stays one `PARAGRAPH`, and a multi-page PDF keeps its page
+  range.
 
 ## 2. Strategy resolution by content type
 
 - [ ] Complete the independent architecture challenge on per-content-type
   chunker resolution against the profile hash as an idempotency input; record
   proposal, strongest counterargument, evidence, choice and rejected
-  alternative.
+  alternative. It must also settle what happens to DOCX revisions already
+  ingested flat, since item 1 changes how they would parse.
 - [ ] Resolve the chunker from content type instead of one global property,
   recording requested and actual in the existing profile fields.
 - [ ] Cover: a spreadsheet resolves to `paragraph-semantic`, resolution is
@@ -70,5 +78,6 @@ admit a spreadsheet and cut it into headerless 800-token fragments, because
 the header into every fragment — cannot run until the parser produces `TABLE`
 blocks and a strategy selects it.
 
-The measurement at the top is not ceremony. Item 1's mechanism depends on Tika
-exposing table markup in XHTML mode, and that has not been verified.
+The measurement at the top was not ceremony. It confirmed the mechanism for
+three formats, removed CSV from it entirely, and revealed that DOCX — already
+allowed — is losing its tables today.

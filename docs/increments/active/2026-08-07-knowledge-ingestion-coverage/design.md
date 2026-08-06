@@ -96,6 +96,44 @@ Paid for and unused: `ParagraphPdfDocumentReader` (bookmark/TOC driven, a real
 source of headings) ships in the already-declared PDF reader jar, and
 `JsonReader`/`TextReader` live in `spring-ai-commons`.
 
+## Measured: what Tika exposes in XHTML mode
+
+Probed with `AutoDetectParser` writing into `ToXMLContentHandler`, against
+fixtures built in-process. Three of four formats carry real structure; CSV
+carries none.
+
+| Format | XHTML observed | Structure |
+| --- | --- | --- |
+| XLSX | `<div class="sheet">`, `<h1>` per sheet name, `<table><tbody><tr><td>` | Full. Sheet names arrive as headings. |
+| DOCX | `<table><tbody><tr><td><p>` | Tables present, cells wrap their text in `<p>`. |
+| HTML | `<h1>`, `<h2>`, `<p>`, `<table>` with `<th>` and `<td>` | Full. |
+| CSV | one flat `<p>` holding every line | None. |
+
+Three consequences change the plan.
+
+**CSV cannot come from Tika.** `TextAndCSVParser` rewrote `Content-Type` to
+`text/plain` in all three attempts: auto-detection from a `.csv` resource name,
+an explicitly declared `text/csv`, and the parser invoked directly with
+`text/csv; delimiter=comma`. It never emitted a table. CSV therefore needs its
+own reader, which is the better answer anyway — delimiter sniffing for European
+exports, quoted newlines, and BOM handling are all ours to control, and Tika
+offers nothing for a format this simple.
+
+**A header row is not marked up consistently.** HTML emits `<th>`; XLSX emits
+`<td>` for its first row like any other. Header detection must therefore be
+`<th>` when present, otherwise the table's first row.
+
+**Already-supported formats are losing structure today.** DOCX is in the
+allowlist now, and its tables are being flattened into prose before any chunker
+sees them. Item 1 improves what the system already ingests, before a single new
+format is admitted. It also means existing revisions were parsed under a
+different profile, so re-ingestion behaviour is part of item 2's challenge, not
+a later concern.
+
+Not measured: whether a real Word document's heading styles surface as `<h1>`.
+The probe fixture was built with POI and carried no styles part, so its heading
+arrived as `<p>`. Verify against a genuine Word export during item 1.
+
 ## Decision
 
 Work in this order, because each step is unusable without the one before it:
@@ -117,7 +155,7 @@ In scope, organization formats:
 
 | Format | What it is in an organization | Structure sought |
 | --- | --- | --- |
-| CSV | Export from HRM, accounting, CRM | Table |
+| CSV | Export from HRM, accounting, CRM | Table, from a dedicated reader |
 | XLSX | Salary bands, headcount, reports | Table per sheet |
 | XLS | Excel 97-2003 | Table per sheet |
 | HTML / HTM | Confluence, SharePoint, wiki export | Headings and tables |
@@ -174,6 +212,10 @@ Refused deliberately:
    `rtf`, `odt`, `tex` and `epub` have no dedicated extractor and fall through a
    plain-UTF-8 path; ODT and EPUB are zip binaries and fail there. A supported
    format means a parser that produces usable structure, not a list entry.
+7. **CSV is read by a dedicated reader, never through Tika.** Measured: Tika
+   returns flat text for CSV under every configuration tried.
+8. **A header row is `<th>` when present, otherwise the table's first row.**
+   The two structured sources disagree, so the rule must be explicit.
 
 ## Required architecture challenge
 
@@ -186,11 +228,8 @@ profile hash.
 
 ## Open questions
 
-- **Unverified assumption.** The whole of item 1 rests on Tika's XHTML mode
-  exposing real `<table>` and heading markup for XLSX, CSV and HTML rather than
-  the flat text the current `BodyContentHandler` path returns. This has not been
-  measured. If it is false, item 1 needs a different mechanism and every
-  downstream estimate changes. Measure before committing to the approach.
+- Whether a genuine Word export surfaces heading styles as `<h1>`, which the
+  synthetic probe fixture could not answer.
 - Whether ODS and ODP earn inclusion, or whether ODT alone covers the real
   LibreOffice usage.
 - Whether `ParagraphPdfDocumentReader` should replace or supplement
