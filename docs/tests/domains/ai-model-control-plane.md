@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/ai`,
 `apps/web/src/features/admin/components/provider-logo.test.tsx`,
 `apps/web/test/e2e/admin-language-models.spec.ts`, and the admin web build.
 
-Reconciled: `2026-08-06-assistant-catalog-none-reasoning`.
+Reconciled: `2026-08-06-assistant-catalog-none-reasoning (9f5246d0)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
