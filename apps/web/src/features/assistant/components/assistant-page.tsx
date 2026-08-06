@@ -525,6 +525,10 @@ export function AssistantPage({
     clearError,
   } = useChat({
     transport,
+    // Coalesce high-frequency SSE deltas before React/Streamdown reparses the
+    // growing answer. Without this, a fast provider can monopolize the browser
+    // main thread by publishing one full-transcript render per token chunk.
+    throttle: 100,
     onData: (part) => {
       if (
         !activityAcceptingRef.current ||
