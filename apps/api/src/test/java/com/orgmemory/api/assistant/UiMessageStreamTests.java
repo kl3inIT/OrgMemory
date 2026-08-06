@@ -132,4 +132,25 @@ class UiMessageStreamTests {
         assertThat(data.getFirst()).contains("\"type\":\"start\"");
         assertThat(data).allMatch(frame -> !frame.contains("provider secret"));
     }
+
+    /**
+     * The opaque frame above is the floor, not the contract. A failure that carries a status has to
+     * reach the browser as the sentence for that status, or the encoder is silently discarding the
+     * only actionable thing the failure knew.
+     */
+    @Test
+    void aRecognizedFailureReachesTheBrowserAsItsOwnSentence() {
+        List<String> data = UiMessageStream.encode(
+                        Flux.error(new IllegalStateException("429: slow down", null)),
+                        MESSAGE_ID,
+                        json,
+                        Duration.ofHours(1),
+                        Duration.ofMinutes(1))
+                .map(ServerSentEvent::data)
+                .collectList()
+                .block();
+
+        assertThat(data).anyMatch(frame -> frame.contains("rate limiting"));
+        assertThat(data).allMatch(frame -> !frame.contains("slow down"));
+    }
 }

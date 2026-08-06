@@ -73,6 +73,16 @@ safe as a meter tag. An unavailable turn is also logged at `WARN` with its
 failure code and cause: it is a `BusinessException`, which the API layer answers
 without logging, so nothing else records it.
 
+A failed turn ends on a sentence naming what the caller can do about it, not a
+single opaque frame. Retrieval-scheduler saturation is read from the bounded
+failure code carried on the exception, because that failure is raised before any
+gateway is contacted and never had a status; every other case is keyed on the
+leading HTTP status the client puts on the message, so the delivery layer never
+depends on provider exception types. Every returned sentence is a fixed string
+and nothing is interpolated from the failure, so a chatty or misconfigured
+gateway cannot echo a key, a prompt fragment, or provider internals into the
+browser. An unrecognized failure still ends on the opaque generic sentence.
+
 Blocking permission-scoped retrieval runs on an Assistant-owned fixed scheduler
 with configured concurrency, a finite queue, sanitized overload rejection, and
 bounded shutdown. The server begins the UI message stream before scheduling

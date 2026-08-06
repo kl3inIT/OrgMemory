@@ -74,6 +74,10 @@ Reconciled: `2026-08-06-assistant-skill-activity-receipt (64221f86)`.
 | An unavailable turn publishes why, and an answered turn publishes `none`, as a low-cardinality tag | `DefaultAssistantTurnObservationConventionTests` | covered |
 | The failure code cannot smuggle free text onto a meter tag | `DefaultAssistantTurnObservationConventionTests#carriesNoFreeTextOnTheLowCardinalitySurface`, `AssistantTurnEventTests` | covered |
 | An unavailable turn is logged at `WARN` with its failure code and cause | none | gap — asserted only by reading `AssistantService`; no test pins the log |
+| A failed turn ends on a sentence naming the cause: saturation from the failure code, everything else from the HTTP status | `AssistantStreamFailuresTests#namesSaturationFromTheFailureCodeRatherThanAStatus`, `#distinguishesCredentialFailureFromRateLimitFromRetiredModel`, `#readsTheStatusThroughAWrappedCause` | covered |
+| A recognized failure reaches the browser as its own sentence rather than the opaque frame | `UiMessageStreamTests#aRecognizedFailureReachesTheBrowserAsItsOwnSentence` | covered |
+| No failure sentence quotes the failure it describes, and an unrecognized failure stays opaque | `AssistantStreamFailuresTests#neverQuotesTheFailureItDescribes`, `#fallsBackToTheGenericSentenceWhenNothingIsRecognizable`, `UiMessageStreamTests#providerFailureEmitsOpaqueErrorAndDone` | covered |
+| A self-referential cause chain terminates instead of spinning inside a streaming response | `AssistantStreamFailuresTests#terminatesOnASelfReferentialCauseChain` | covered |
 | Time to first token stops at the first token, not the last | `AssistantTurnObservationTests#stopsAtTheFirstTokenRatherThanTheLast` | covered |
 | A turn that emitted nothing records no latency sample | `AssistantTurnObservationTests#recordsNothingWhenNoTokenEverReachedTheCaller`, `#recordsNothingWhenThereWasNoAccessibleEvidenceToAnswerFrom` | covered |
 | Assistant meters carry no tenant, request or conversation identifier | `AssistantTurnObservationTests#carriesNoIdentifierThatWouldGrowASeriesPerTenantOrRequest` | covered |

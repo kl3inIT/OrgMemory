@@ -54,6 +54,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Assistant conversation memory SSOT](increments/active/2026-08-06-assistant-conversation-memory-ssot/plan.md) | active | one persisted conversation store with explicit turn identity, a read-only transcript context advisor, and a failed turn that names its cause |
 | [Clearance separation](increments/active/2026-08-06-clearance-separation/plan.md) | active | complete the implementation gates, then review the migration, two Executive call sites, and generated contract diff in the merge loop |
 | [Assistant Skill activity receipt](increments/completed/2026-08-06-assistant-skill-activity-receipt/verification.md) | shipped | keeps waiting through the first rendered token and exposes only bounded successful Skill activity in a current-turn receipt |
 | [Agentic Skill beta](increments/completed/2026-08-05-agentic-skill-beta/verification.md) | shipped | delivered actor-scoped progressive Skill disclosure, a bounded read-only Assistant tool loop, and truthful Skill activity without server-side package execution |
@@ -112,6 +113,24 @@ implementation-active until their predecessor exit gates pass.
 
 ## Engineering Backlog
 
+- Decide whether a file attached at the Assistant composer may become evidence.
+  The composer has no attachment path at all today: `prompt-input.tsx` submits
+  `files: []` and `AssistantPage` forwards only `message.text`. Copying
+  Northstar's per-turn attachment flow would bypass the permission model that
+  makes an OrgMemory answer citable, so the question is a permission boundary —
+  who owns the file, who may see it, and whether it is turn-local or durable
+  evidence — and needs its own architecture challenge, not a UI change.
+- Widen Knowledge Base ingestion coverage. `KnowledgeContentType` allows upload
+  of PDF, DOCX, PPTX, MD and TXT only; `SpringAiDocumentParser.ALLOWED_MEDIA_TYPES`
+  matches. Spreadsheets (XLSX/XLS/CSV), HTML, JSON/XML and legacy Office are
+  unsupported, and every image type is explicitly `uploadAllowed=false`. Adding a
+  format is not just an allowlist entry: each needs a parser, a chunking shape
+  and a browser-safe delivery type.
+- Wire or retire the LightRAG multimodal pipeline. `graph-rag-core/multimodal`
+  ships 22 classes covering IMAGE, TABLE and EQUATION with a
+  `SpringAiMultimodalAnalyzer` adapter, but `MultimodalProcessor` has no caller
+  outside its own package and the analyzer is never constructed. It cannot run
+  while image upload is disallowed, so the two decisions are coupled.
 - Before any authorization-model evolution, add an explicit publication
   compatibility and convergence rollout gate. Retrieval currently pins an
   applied publication to the raw authorization-model identity, so even a
