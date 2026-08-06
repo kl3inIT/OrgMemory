@@ -33,7 +33,12 @@ public class DefaultAssistantTurnObservationConvention
                 AssistantTurnObservationDocumentation.LowCardinality.OUTCOME
                         .withValue(event.outcome().name().toLowerCase(java.util.Locale.ROOT)),
                 AssistantTurnObservationDocumentation.LowCardinality.STARTED
-                        .withValue(Boolean.toString(event.started())));
+                        .withValue(Boolean.toString(event.started())),
+                AssistantTurnObservationDocumentation.LowCardinality.FAILURE_CODE
+                        // "none" rather than absent: a tag that disappears on success would
+                        // split the answered series in two on any backend that keys on the
+                        // full tag set, and the panel that matters compares them.
+                        .withValue(event.failureCode() == null ? "none" : event.failureCode()));
     }
 
     @Override

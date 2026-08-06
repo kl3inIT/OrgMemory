@@ -40,8 +40,9 @@ public enum AssistantTurnObservationDocumentation implements ObservationDocument
     };
 
     /**
-     * Bounded enumerations only. Two engines times three outcomes is six series, and it stays
-     * six however many tenants or questions arrive.
+     * Bounded enumerations only. Two engines times three outcomes times the handful of failure
+     * codes the assistant path can raise stays a fixed, small number of series however many
+     * tenants or questions arrive.
      */
     public enum LowCardinality implements KeyName {
 
@@ -64,6 +65,23 @@ public enum AssistantTurnObservationDocumentation implements ObservationDocument
             @Override
             public String asString() {
                 return "started";
+            }
+        },
+
+        /**
+         * Why an unavailable turn was unavailable, or {@code none} when it was not.
+         *
+         * <p>Safe here despite the free-form look: the values are compile-time constants raised
+         * by the assistant path, and {@link AssistantTurnEvent#FAILURE_CODE} rejects anything
+         * that is not a bounded machine code, so this cannot become a series per message.
+         * Micrometer's own {@code error} tag carries the exception class, which named the type and not the
+         * reason — {@code AssistantUnavailableException} is raised for saturation and for
+         * downstream failure alike, and telling those apart is the entire point of this tag.
+         */
+        FAILURE_CODE {
+            @Override
+            public String asString() {
+                return "failure_code";
             }
         };
     }

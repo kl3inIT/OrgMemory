@@ -59,7 +59,9 @@ class UiMessageStreamTests {
                         Flux.just(new AssistantStreamPart.Activity(
                                 AssistantStreamPart.Activity.Phase.SKILL_ACTIVATION,
                                 AssistantStreamPart.Activity.State.COMPLETE,
-                                1)),
+                                null,
+                                1,
+                                "Incident response")),
                         MESSAGE_ID,
                         json,
                         Duration.ofHours(1),
@@ -69,7 +71,7 @@ class UiMessageStreamTests {
                 .block();
 
         assertThat(data).contains(
-                "{\"type\":\"data-assistantActivity\",\"data\":{\"phase\":\"SKILL_ACTIVATION\",\"state\":\"COMPLETE\",\"evidenceCount\":1},\"transient\":true}");
+                "{\"type\":\"data-assistantActivity\",\"data\":{\"phase\":\"SKILL_ACTIVATION\",\"state\":\"COMPLETE\",\"evidenceCount\":null,\"skillOrdinal\":1,\"skillTitle\":\"Incident response\"},\"transient\":true}");
     }
 
     @Test
