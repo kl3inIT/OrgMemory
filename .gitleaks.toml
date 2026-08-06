@@ -10,3 +10,11 @@ condition = "AND"
 regexTarget = "line"
 regexes = ['''"reference":\s*"ghcr\.io/kl3init/orgmemory-[a-z0-9-]+:sha-[0-9a-f]{40}"''']
 paths = ['''^release/artifacts\.json$''']
+
+[[allowlists]]
+description = "Assistant redaction test uses a synthetic API-key-shaped prompt fragment"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = ['''String secret = "sk-live-1234567890abcdef1234567890abcdef6789 prompt fragment";''']
+paths = ['''^apps/api/src/test/java/com/orgmemory/api/assistant/AssistantStreamFailuresTests\.java$''']
