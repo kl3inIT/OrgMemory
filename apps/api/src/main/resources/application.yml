@@ -119,6 +119,12 @@ orgmemory:
       provider: ${ORGMEMORY_EMBEDDING_PROVIDER:openai}
       model: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
       dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
+  query-embedding-cache:
+    time-to-live: ${ORGMEMORY_QUERY_EMBEDDING_CACHE_TTL:7d}
+    maximum-entries-per-namespace: ${ORGMEMORY_QUERY_EMBEDDING_CACHE_MAXIMUM_ENTRIES:10000}
+    maximum-batch-size: ${ORGMEMORY_QUERY_EMBEDDING_CACHE_MAXIMUM_BATCH_SIZE:${ORGMEMORY_GRAPH_QUERY_EMBEDDING_BATCH_SIZE:64}}
+    cleanup-batch-size: ${ORGMEMORY_QUERY_EMBEDDING_CACHE_CLEANUP_BATCH_SIZE:1000}
+    cleanup-interval: ${ORGMEMORY_QUERY_EMBEDDING_CACHE_CLEANUP_INTERVAL:15m}
   graph-rag:
     postgres:
       reconcile-published-batches: ${ORGMEMORY_GRAPH_RAG_POSTGRES_RECONCILE_PUBLISHED_BATCHES:false}

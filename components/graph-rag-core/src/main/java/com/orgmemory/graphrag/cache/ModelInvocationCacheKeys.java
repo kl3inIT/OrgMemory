@@ -8,6 +8,8 @@ import java.util.Objects;
 /** Exact key factories for the model-cache surfaces in LightRAG v1.5.4. */
 public final class ModelInvocationCacheKeys {
 
+    public static final String QUERY_EMBEDDING_OPERATION = "QUERY_EMBEDDING";
+
     private ModelInvocationCacheKeys() {
     }
 
@@ -45,6 +47,31 @@ public final class ModelInvocationCacheKeys {
                         "strategy", requireText(strategy, "strategy")),
                 modelRouteFingerprint,
                 profileFingerprint);
+    }
+
+    public static ModelInvocationCache.Key queryEmbedding(
+            ProjectionNamespace namespace,
+            String exactInput,
+            String embeddingComponent,
+            java.util.UUID embeddingProfileId,
+            int dimensions) {
+        if (dimensions <= 0) {
+            throw new IllegalArgumentException("dimensions must be positive");
+        }
+        return key(
+                namespace,
+                QUERY_EMBEDDING_OPERATION,
+                Map.of(
+                        "input", requireExactInput(exactInput),
+                        "component", requireText(embeddingComponent, "embeddingComponent"),
+                        "embeddingProfileId",
+                                Objects.requireNonNull(
+                                                embeddingProfileId, "embeddingProfileId")
+                                        .toString(),
+                        "dimensions", Integer.toString(dimensions),
+                        "normalization", "unicode-nfc-v1"),
+                embeddingComponent,
+                embeddingProfileId + ":" + dimensions + ":unicode-nfc-v1");
     }
 
     public static ModelInvocationCache.Key permissionScopedSummary(
@@ -87,6 +114,14 @@ public final class ModelInvocationCacheKeys {
                         "orgmemory.graph-rag.model-invocation.v1", fields),
                 modelRouteFingerprint,
                 profileFingerprint);
+    }
+
+    private static String requireExactInput(String value) {
+        String exact = Objects.requireNonNull(value, "exactInput");
+        if (exact.isBlank()) {
+            throw new IllegalArgumentException("exactInput must not be blank");
+        }
+        return exact;
     }
 
     private static String requireText(String value, String field) {

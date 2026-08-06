@@ -20,6 +20,7 @@ import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.processing.ProcessingComponentRef;
 import com.orgmemory.graphrag.query.AuthorizedQueryProjection;
+import com.orgmemory.graphrag.query.CachingQueryEmbeddingService;
 import com.orgmemory.graphrag.query.ChunkReranker;
 import com.orgmemory.graphrag.query.KeywordPlan;
 import com.orgmemory.graphrag.query.KeywordPlanningModel;
@@ -37,6 +38,8 @@ import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -154,6 +157,39 @@ class LightRagQueryRuntimeConformanceTests {
                 .anyMatch(signal -> signal.origin() == LightRagQueryResult.Origin.ENTITY));
         assertTrue(result.trace().chunkSignals().stream()
                 .anyMatch(signal -> signal.origin() == LightRagQueryResult.Origin.RELATION));
+    }
+
+    @Test
+    void separateGraphRagRequestsReuseExactEmbeddingsThroughTheRuntimeConstructor() {
+        CachingQueryEmbeddingService cache = new CachingQueryEmbeddingService(
+                embeddings,
+                new InMemoryModelInvocationCache(),
+                Duration.ofDays(7),
+                Clock.systemUTC());
+        LightRagQueryEngine cachedEngine = new LightRagQueryEngine(
+                projection,
+                new LightRagKeywordPlanner(keywordModel, "Vietnamese"),
+                cache,
+                new WordTokenizer(),
+                reranker,
+                answerModel);
+        LightRagQueryRequest request = request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                trustedKeywords());
+
+        LightRagQueryResult first = cachedEngine.execute(request);
+        LightRagQueryResult second = cachedEngine.execute(request);
+
+        assertEquals(LightRagQueryResult.Status.SUCCESS, first.status());
+        assertEquals(LightRagQueryResult.Status.SUCCESS, second.status());
+        assertEquals(1, embeddings.batches.size());
+        assertEquals(
+                List.of("What is the probation policy?", "probation", "workplace policy"),
+                embeddings.batches.getFirst());
     }
 
     @Test

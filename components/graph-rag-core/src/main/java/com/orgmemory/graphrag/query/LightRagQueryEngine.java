@@ -40,6 +40,7 @@ public final class LightRagQueryEngine {
     private final AuthorizedQueryProjection projection;
     private final LightRagKeywordPlanner keywordPlanner;
     private final TextEmbeddingPort embeddings;
+    private final CachingQueryEmbeddingService cachedEmbeddings;
     private final TextTokenizer tokenizer;
     private final LightRagGroundingAssembler groundingAssembler;
     private final ChunkReranker reranker;
@@ -52,9 +53,45 @@ public final class LightRagQueryEngine {
             TextTokenizer tokenizer,
             ChunkReranker reranker,
             QueryAnswerModel answerModel) {
+        this(
+                projection,
+                keywordPlanner,
+                Objects.requireNonNull(embeddings, "embeddings"),
+                null,
+                tokenizer,
+                reranker,
+                answerModel);
+    }
+
+    public LightRagQueryEngine(
+            AuthorizedQueryProjection projection,
+            LightRagKeywordPlanner keywordPlanner,
+            CachingQueryEmbeddingService cachedEmbeddings,
+            TextTokenizer tokenizer,
+            ChunkReranker reranker,
+            QueryAnswerModel answerModel) {
+        this(
+                projection,
+                keywordPlanner,
+                null,
+                Objects.requireNonNull(cachedEmbeddings, "cachedEmbeddings"),
+                tokenizer,
+                reranker,
+                answerModel);
+    }
+
+    private LightRagQueryEngine(
+            AuthorizedQueryProjection projection,
+            LightRagKeywordPlanner keywordPlanner,
+            TextEmbeddingPort embeddings,
+            CachingQueryEmbeddingService cachedEmbeddings,
+            TextTokenizer tokenizer,
+            ChunkReranker reranker,
+            QueryAnswerModel answerModel) {
         this.projection = Objects.requireNonNull(projection, "projection");
         this.keywordPlanner = Objects.requireNonNull(keywordPlanner, "keywordPlanner");
-        this.embeddings = Objects.requireNonNull(embeddings, "embeddings");
+        this.embeddings = embeddings;
+        this.cachedEmbeddings = cachedEmbeddings;
         this.tokenizer = Objects.requireNonNull(tokenizer, "tokenizer");
         this.groundingAssembler = new LightRagGroundingAssembler(tokenizer);
         this.reranker = Objects.requireNonNull(reranker, "reranker");
@@ -271,7 +308,13 @@ public final class LightRagQueryEngine {
         if (inputs.isEmpty()) {
             return new EmbeddingPlan(List.of(), null, null, null);
         }
-        List<FloatVector> vectors = embeddings.embedAll(inputs);
+        List<FloatVector> vectors = cachedEmbeddings == null
+                ? embeddings.embedAll(inputs)
+                : cachedEmbeddings.embedAll(
+                        request.snapshot().namespace(),
+                        request.embeddingProfileId(),
+                        request.embeddingDimensions(),
+                        inputs);
         if (vectors.size() != inputs.size()) {
             throw new IllegalStateException("embedding adapter returned an incomplete batch");
         }
