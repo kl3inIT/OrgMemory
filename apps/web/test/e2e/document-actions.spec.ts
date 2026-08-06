@@ -171,7 +171,8 @@ async function documentHarness(
           userId: USER_ID,
           organizationId: ORGANIZATION_ID,
           departmentId: null,
-          role: "USER",
+          clearance: "STANDARD",
+          canManageMembers: false,
         }),
       })
     }
@@ -184,6 +185,21 @@ async function documentHarness(
           headerName: "X-XSRF-TOKEN",
           parameterName: "_csrf",
           token: "document-actions-csrf",
+        }),
+      })
+    }
+    if (url.pathname === "/api/me") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          userId: USER_ID,
+          organizationId: ORGANIZATION_ID,
+          name: "Employee",
+          email: "employee@example.test",
+          departmentId: null,
+          departmentName: null,
+          clearance: "STANDARD",
         }),
       })
     }

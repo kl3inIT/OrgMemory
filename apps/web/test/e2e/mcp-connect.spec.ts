@@ -20,7 +20,23 @@ test("shows generic MCP onboarding for Claude, Codex, and compatible clients", a
         userId: "66666666-6666-4666-8666-666666666666",
         organizationId: "11111111-1111-4111-8111-111111111111",
         departmentId: "33333333-3333-4333-8333-333333333333",
-        role: "EMPLOYEE",
+        clearance: "STANDARD",
+        canManageMembers: false,
+      }),
+    }),
+  )
+  await page.route("**/api/me", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        userId: "66666666-6666-4666-8666-666666666666",
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        name: "Support Agent",
+        email: "agent@example.test",
+        departmentId: "33333333-3333-4333-8333-333333333333",
+        departmentName: "Customer Support",
+        clearance: "STANDARD",
       }),
     }),
   )

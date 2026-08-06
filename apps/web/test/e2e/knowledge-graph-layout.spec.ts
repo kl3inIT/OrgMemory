@@ -90,7 +90,8 @@ async function graphHarness(page: Page) {
         userId: USER_ID,
         organizationId: ORGANIZATION_ID,
         departmentId: null,
-        role: "EMPLOYEE",
+        clearance: "STANDARD",
+        canManageMembers: false,
       })
     }
     if (url.pathname === "/api/session/csrf") {
@@ -103,6 +104,17 @@ async function graphHarness(page: Page) {
           parameterName: "_csrf",
           token: "graph-layout-csrf",
         }),
+      })
+    }
+    if (url.pathname === "/api/me") {
+      return json(route, {
+        userId: USER_ID,
+        organizationId: ORGANIZATION_ID,
+        name: "Employee",
+        email: "employee@example.test",
+        departmentId: null,
+        departmentName: null,
+        clearance: "STANDARD",
       })
     }
     if (url.pathname === "/api/sources") return json(route, [])

@@ -111,6 +111,17 @@ async function spacesHarness(page: Page, createBodies: unknown[]) {
         }),
       })
     }
+    if (url.pathname === "/api/me") {
+      return json(route, {
+        userId: USER_ID,
+        organizationId: ORGANIZATION_ID,
+        name: "Organization Admin",
+        email: "admin@example.test",
+        departmentId: DEPARTMENT_ID,
+        departmentName: "Sales",
+        clearance: "STANDARD",
+      })
+    }
     if (url.pathname === "/api/organization/context") {
       return json(route, {
         organizationId: ORGANIZATION_ID,
