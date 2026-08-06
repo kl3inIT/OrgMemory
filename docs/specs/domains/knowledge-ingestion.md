@@ -7,7 +7,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/main/java/com/orgmemory/worker/connector`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-08-05-knowledge-operations-graph-inspector (47a53da1)`.
+Reconciled: `2026-08-06-source-provenance-ux (061b075d)`.
 
 ## Current Behavior
 
@@ -27,11 +27,16 @@ metadata, while revision/blob entities, repositories, and lifecycle enums remain
 internal to the closed module.
 
 The Documents list uses Source Object ids as its stable browser identity. A
-visible row exposes separate `contentAvailable` and `deletionAllowed` hints;
-each action rechecks authorization server-side. View always opens governed
-metadata, while original bytes are available only for the exact current READY
-revision whose active Knowledge Asset remains inside the caller's canonical
-evidence scope. Delivery verifies evidence hash and length, audits allow/deny,
+visible row identifies its Knowledge Space, owning department when present, and
+uploader when the source resolves to an application user. It exposes separate
+`publicationComplete`, `contentAvailable`, and `deletionAllowed` hints; each
+action rechecks authorization server-side. Publication is complete only for a
+READY revision linked to a Knowledge Asset, while original bytes additionally
+require that active Asset to remain inside the caller's canonical evidence
+scope. The governed viewer therefore keeps the publication-pending explanation
+for unfinished work and gives an already-visible published row neutral
+out-of-scope guidance, including the owning department as the access-request
+target when available. Delivery verifies evidence hash and length, audits allow/deny,
 uses `no-store` and `nosniff`, and applies a closed filename allowlist: PDF,
 plain text/Markdown-as-text, PNG, JPEG, GIF, and WebP may render inline; Office,
 HTML, SVG, XML, JSON, and unknown types are download-only. On desktop the
