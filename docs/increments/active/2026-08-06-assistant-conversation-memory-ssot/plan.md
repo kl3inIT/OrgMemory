@@ -4,7 +4,7 @@
   deployment; retire the incorrect drift claim.
 - [x] Complete the independent architecture challenge as a two-architect debate
   with a no-tools judge; record brief and verdict.
-- [ ] Port status-mapped failure sentences so a failed turn names its cause.
+- [x] Port status-mapped failure sentences so a failed turn names its cause.
   Independent of the store change and shippable on its own.
 - [ ] Add `turn_id` to `assistant_conversation_messages` with partial uniqueness
   for one USER and one ASSISTANT per turn; leave legacy rows nullable,
