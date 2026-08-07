@@ -7303,7 +7303,7 @@
         "properties": {
           "message": {
             "type": "string",
-            "maxLength": 4000,
+            "maxLength": 1000,
             "minLength": 0
           },
           "limit": {
