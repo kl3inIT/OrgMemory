@@ -1,5 +1,6 @@
+import { ASSISTANT_MESSAGE_MAX_CHARACTERS } from "@/features/assistant/assistant-message-constraints"
+
 const DRAFT_PREFIX = "orgmemory:assistant-draft:v1:"
-const MAX_DRAFT_LENGTH = 4_000
 
 function draftKey(actorKey: string, conversationId?: string) {
   return `${DRAFT_PREFIX}${encodeURIComponent(actorKey)}:${conversationId ?? "new"}`
@@ -7,7 +8,10 @@ function draftKey(actorKey: string, conversationId?: string) {
 
 export function readAssistantDraft(actorKey: string, conversationId?: string) {
   try {
-    return sessionStorage.getItem(draftKey(actorKey, conversationId)) ?? ""
+    return (sessionStorage.getItem(draftKey(actorKey, conversationId)) ?? "").slice(
+      0,
+      ASSISTANT_MESSAGE_MAX_CHARACTERS,
+    )
   } catch {
     return ""
   }
@@ -18,7 +22,7 @@ export function writeAssistantDraft(
   conversationId: string | undefined,
   value: string,
 ) {
-  const bounded = value.slice(0, MAX_DRAFT_LENGTH)
+  const bounded = value.slice(0, ASSISTANT_MESSAGE_MAX_CHARACTERS)
   const key = draftKey(actorKey, conversationId)
   try {
     if (bounded.length === 0) {

@@ -21,9 +21,18 @@ describe("assistant draft storage", () => {
     expect(readAssistantDraft("actor-b", "conversation-1")).toBe("other actor")
   })
 
+  it("bounds drafts persisted by an older client", () => {
+    sessionStorage.setItem(
+      "orgmemory:assistant-draft:v1:actor-a:new",
+      "x".repeat(1_100),
+    )
+
+    expect(readAssistantDraft("actor-a")).toHaveLength(1_000)
+  })
+
   it("caps drafts at the server message limit and clears lifecycle scopes", () => {
-    const bounded = writeAssistantDraft("actor-a", "conversation-1", "x".repeat(4_100))
-    expect(bounded).toHaveLength(4_000)
+    const bounded = writeAssistantDraft("actor-a", "conversation-1", "x".repeat(1_100))
+    expect(bounded).toHaveLength(1_000)
 
     clearAssistantDraft("actor-a", "conversation-1")
     expect(readAssistantDraft("actor-a", "conversation-1")).toBe("")
