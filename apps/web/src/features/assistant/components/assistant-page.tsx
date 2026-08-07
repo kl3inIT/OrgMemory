@@ -52,6 +52,7 @@ import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion"
 import { Button } from "@/components/ui/button"
 import { createAssistantTransport } from "@/features/assistant/api/chat-transport"
+import { ASSISTANT_MESSAGE_MAX_CHARACTERS } from "@/features/assistant/assistant-message-constraints"
 import {
   activityLabel,
   hasVisibleAssistantOutput,
@@ -741,6 +742,12 @@ export function AssistantPage({
 
   function send(rawMessage: string, clearComposer = true) {
     const message = rawMessage.trim()
+    if (message.length > ASSISTANT_MESSAGE_MAX_CHARACTERS) {
+      toast.error(
+        `Messages can be at most ${ASSISTANT_MESSAGE_MAX_CHARACTERS.toLocaleString("en-US")} characters.`,
+      )
+      return
+    }
     if (
       !message ||
       busy ||
@@ -806,10 +813,15 @@ export function AssistantPage({
       <PromptInputBody>
         <PromptInputTextarea
           value={text}
-          onChange={(event) => setText(event.currentTarget.value)}
+          onChange={(event) =>
+            setText(
+              event.currentTarget.value.slice(0, ASSISTANT_MESSAGE_MAX_CHARACTERS),
+            )
+          }
           placeholder="Ask OrgMemory…"
           autoFocus
-          maxLength={4_000}
+          maxLength={ASSISTANT_MESSAGE_MAX_CHARACTERS}
+          aria-describedby="assistant-message-length"
           className="min-h-12"
         />
       </PromptInputBody>
@@ -822,6 +834,13 @@ export function AssistantPage({
             loading={modelOptions.isPending}
             onSelect={chooseModel}
           />
+          <span
+            id="assistant-message-length"
+            className="text-metadata tabular-nums text-content-muted"
+          >
+            {text.length.toLocaleString("en-US")} /{" "}
+            {ASSISTANT_MESSAGE_MAX_CHARACTERS.toLocaleString("en-US")} characters
+          </span>
         </PromptInputTools>
         <PromptInputSubmit
           status={status}

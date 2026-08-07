@@ -698,6 +698,27 @@ test("stop aborts one in-flight assistant request", async ({ page }) => {
   expect(harness.browserErrors).toEqual([])
 })
 
+test("aligns the composer with the server query limit", async ({ page }) => {
+  const harness = await assistantHarness(page)
+  await page.goto("/")
+
+  const composer = page.getByPlaceholder("Ask OrgMemory…")
+  await expect(composer).toHaveAttribute("maxlength", "1000")
+  await expect(composer).toHaveAttribute(
+    "aria-describedby",
+    "assistant-message-length",
+  )
+  const maximumMessage = "a".repeat(1_000)
+  await composer.fill(maximumMessage)
+  const counter = page.getByText("1,000 / 1,000 characters")
+  await expect(counter).toBeVisible()
+  await expect(counter).toHaveAttribute("id", "assistant-message-length")
+  await composer.press("a")
+  await expect(composer).toHaveValue(maximumMessage)
+  expect(harness.chatBodies).toEqual([])
+  expect(harness.unexpectedRequests).toEqual([])
+})
+
 test("loads server-owned starters and restores a session-scoped draft with focus", async ({ page }) => {
   const harness = await assistantHarness(page)
   await page.goto("/")
