@@ -4,10 +4,12 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/source`,
 `apps/web/src/features/sources`, `apps/web/test/e2e`,
-`apps/worker/src/test/java/com/orgmemory/worker/connector`, and
+`apps/worker/src/test/java/com/orgmemory/worker/ingestion`,
+`apps/worker/src/test/java/com/orgmemory/worker/connector`,
+`components/graph-rag-core/src/test/java/com/orgmemory/graphrag/chunking`, and
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-08-06-knowledge-filters (b9e2fbe1)`.
+Reconciled: `2026-08-10-structured-block-v1 (3db08fb2)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -24,6 +26,29 @@ Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIng
 | Refresh-window validity | `completeAclRejectsValidityBeyondRefreshWindow` |
 | Concurrent retries converge | `concurrentRetriesConvergeOnOneRawNormalizationAndAsset` |
 | Citation evidence read maps only a tenant-scoped ready matching revision plus validated blob into immutable metadata | `SourceCitationEvidenceQueryTests` |
+
+## Versioned Processing Policy Coverage
+
+Evidence classes: `RequestedProcessingPolicyTests`,
+`DocumentProcessingEngineTests`, `SourceIngestionJobProcessingProfileTests`,
+`SourceProcessingProfileMigrationTests`, `SourceIngestionPipelineIntegrationTests`, `TypedBlockParsingTests`,
+`PdfPageProvenanceTests`, and `ParagraphSemanticChunkerTests`.
+
+| Behavior | Automated evidence |
+| --- | --- |
+| The default is the complete named `structured-block-v1` snapshot and output-affecting option changes alter its SHA-256 | `defaultsToTheVersionedStructuredBlockPolicy`, `changesIdentityWhenAnOutputAffectingOptionChanges` |
+| A requested profile with reordered canonical keys is rejected instead of being normalized silently | `refusesAProfileWhoseCanonicalKeysWereReordered` |
+| Named operator policies resolve to registered chunkers; retries refuse a pinned component version no longer present | `preservesNamedOperatorPoliciesWithoutReadingARawChunkerId`, `refusesARetryWhenAPinnedComponentVersionIsUnavailable` |
+| Mixed Word paragraphs/tables reach the structured policy and table rows keep their header; PDF page provenance and plain text behavior remain intact | `runsAMixedWordDocumentThroughTheStructuredBlockPolicy`, `TypedBlockParsingTests`, `PdfPageProvenanceTests`, `ParagraphSemanticChunkerTests` |
+| Semantic-vector fallback pins recursive-character and retry neither calls semantic embedding again nor changes the resolved profile hash | `retryUsesThePinnedRecursiveFallbackWithoutCallingSemanticEmbeddingAgain` |
+| Retry rejects changed canonical evidence/chunk manifest against the pinned resolved snapshot | `retryRejectsContentThatNoLongerMatchesThePinnedChunkManifest` |
+| First requested and resolved snapshots win; later runtime defaults or conflicting resolved output cannot replace them | `SourceIngestionJobProcessingProfileTests` |
+| PostgreSQL migration stores requested/resolved snapshots, requires a complete profile on READY, and publication retry keeps both profile hashes unchanged | `sourceUploadFlowsThroughValidationParsingChunkingEmbeddingAndReady`, `keepsPublicationPendingWhenAuthorizationProjectionIsUnavailable` |
+| V29-to-V30 preserves a historical READY revision without manufacturing a profile while the new unvalidated constraint rejects a new READY row without one | `SourceProcessingProfileMigrationTests.preservesLegacyReadyIdentityWhileEnforcingProfilesForNewReadyRows` |
+| V30 refuses migration while a legacy ingestion job is PENDING instead of guessing the new deployment's policy | `SourceProcessingProfileMigrationTests.refusesToGuessAPolicyForLegacyNonterminalJobs` |
+
+Gap: HTML is not admitted by the current upload allowlist, so its full policy
+proof belongs to format-allowlist item 3.
 
 ## Documents View And Retirement Coverage
 

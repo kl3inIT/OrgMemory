@@ -4,10 +4,12 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/source`,
 `apps/web/src/features/sources`,
+`apps/worker/src/main/java/com/orgmemory/worker/ingestion`,
 `apps/worker/src/main/java/com/orgmemory/worker/connector`,
+`components/graph-rag-core/src/main/java/com/orgmemory/graphrag/chunking`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-08-06-knowledge-filters (b9e2fbe1)`.
+Reconciled: `2026-08-10-structured-block-v1 (3db08fb2)`.
 
 ## Current Behavior
 
@@ -100,8 +102,31 @@ so one queue's backlog cannot monopolize the shared scheduling thread.
 Postgres projection staging writes execute as bounded JDBC batches
 (configurable batch size) with unchanged SQL, transactions, and whole-stage
 failure behavior; graph replacement batches per dependency phase. The worker
-validates content integrity, parses and normalizes text through the
-Spring AI ETL readers, chunks it, and requests embeddings. Publication first
+validates content integrity and parses supported documents through the Spring
+AI ETL readers into canonical heading, paragraph, and table blocks. Its default
+named policy is `structured-block-v1`: the paragraph-semantic composite
+preserves headings, dispatches tables row-wise with repeated headers, and uses
+recursive-character splitting internally for unstructured or oversized
+content. Fixed-token, recursive-character, and semantic-vector behavior remain
+explicit named operator policies rather than raw chunker ids. Semantic-vector
+alone may resolve to its declared recursive-character fallback when semantic
+embedding is unavailable.
+
+The worker atomically pins the complete requested parser, policy, component,
+tokenizer, embedding, normalization, and limit snapshot on the ingestion job at
+first claim. Retries use that snapshot instead of current configuration. After
+parse/chunk succeeds, the job pins the resolved requested-versus-actual profile
+and chunk-manifest hash before any raw-source, normalized-record, Asset, vector,
+authorization, or READY publication side effect; a retry must reproduce it or
+fails permanently. New or updated READY revisions require the canonical
+processing profile and its SHA-256 at the database boundary. The constraint is
+introduced without validating historical rows, so an existing READY revision
+that predates the profile remains unchanged and cannot be silently reparsed or
+rechunked when defaults change; a rebuild requires a new explicit revision
+identity. The V30 cutover locks the ingestion-job table and refuses to migrate
+while a legacy job is `PENDING` or `PROCESSING`; deployment must stop and drain
+the old worker before migration because the new deployment cannot safely guess
+the old job's complete policy. Publication first
 commits a `PENDING` Knowledge Asset, inactive pgvector chunks, and a publication
 outbox row in one database transaction. It writes the target
 `knowledge_space#space` and uploader `owner` relationships to OpenFGA in one
