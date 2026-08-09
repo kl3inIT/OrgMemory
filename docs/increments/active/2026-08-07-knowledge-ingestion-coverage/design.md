@@ -142,9 +142,12 @@ Work in this order, because each step is unusable without the one before it:
    `HEADING` / `TABLE` / `PARAGRAPH` blocks from the markup. Make normalization
    block-kind aware instead of global, so a table's cell boundaries survive.
    This alone activates `ParagraphSemanticChunker`.
-2. **Strategy resolution by content type.** Replace the single global
-   `chunker-id` with a resolved policy, recorded in the existing
-   requested-versus-actual profile fields.
+2. **Versioned structured-block processing policy.** Replace the live global
+   `chunker-id` with the named `structured-block-v1` composite, selected and
+   snapshotted before the first processing side effect. Its block-kind dispatch
+   table, sub-algorithm identities, options, fallback result and chunk-manifest
+   hash are part of the immutable processing profile. Named/versioned operator
+   policies remain possible; retries never re-read live defaults.
 3. **Format allowlist.** Only now, and across all five gates together.
 4. **Limits per format.** One `maximum-chunks` and one upload size cannot serve
    both a 25 MB PDF and a 25 MB CSV.
@@ -225,6 +228,15 @@ idempotency input and that a revision's `chunker_version` is a check-constrained
 column. The challenge must state what re-ingesting the same bytes under a
 changed policy is expected to do, and whether the policy itself belongs in the
 profile hash.
+
+Completed 2026-08-10 with verdict **REJECT** for whole-document content-type
+resolution. The committed replacement is `structured-block-v1`, a versioned
+document-level composite that dispatches on canonical block kind and pins a
+complete requested snapshot atomically before the first processing side effect.
+The resolved profile records the dispatch/sub-algorithm identities, canonical
+text and chunk-manifest hashes, and any explicit fallback. Existing READY
+revisions remain immutable; rebuild is opt-in and creates new revision/Asset or
+current-upload identities. See [challenge-verdict.md](challenge-verdict.md).
 
 ## Open questions
 

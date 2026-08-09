@@ -100,7 +100,7 @@ orgmemory:
       lease-duration: ${ORGMEMORY_INGESTION_LEASE_DURATION:5m}
       pipeline-version: ${ORGMEMORY_INGESTION_PIPELINE_VERSION:source-pipeline-v1}
       parser-id: ${ORGMEMORY_INGESTION_PARSER:spring-ai-document-reader}
-      chunker-id: ${ORGMEMORY_INGESTION_CHUNKER:fixed-token}
+      policy-id: ${ORGMEMORY_INGESTION_POLICY:structured-block-v1}
       tokenizer-encoding: ${ORGMEMORY_INGESTION_TOKENIZER:o200k_base}
       normalizer-version: ${ORGMEMORY_INGESTION_NORMALIZER_VERSION:source-normalizer-v1}
       embedding-provider: ${ORGMEMORY_EMBEDDING_PROVIDER:openai}

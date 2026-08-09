@@ -203,6 +203,7 @@ class SourceIngestionPipelineIntegrationTests {
                 """
                 SELECT r.status, r.embedding_profile_id, r.embedding_dimensions,
                        r.raw_source_object_id, r.normalized_record_id, r.knowledge_asset_id,
+                       r.processing_profile, r.processing_profile_sha256,
                        p.profile_key, p.provider, p.model, p.distance_metric
                 FROM source_revisions r
                 JOIN embedding_profiles p ON p.id = r.embedding_profile_id
@@ -219,6 +220,46 @@ class SourceIngestionPipelineIntegrationTests {
         assertNotNull(revision.get("raw_source_object_id"));
         assertNotNull(revision.get("normalized_record_id"));
         assertNotNull(revision.get("knowledge_asset_id"));
+        assertTrue(revision.get("processing_profile").toString()
+                .contains("option.request.policy.id=structured-block-v1"));
+        assertTrue(revision.get("processing_profile_sha256").toString()
+                .matches("[0-9a-f]{64}"));
+        var ingestionProfile = jdbc.queryForMap(
+                """
+                SELECT requested_processing_profile, requested_processing_profile_sha256,
+                       resolved_processing_profile, resolved_processing_profile_sha256
+                FROM source_ingestion_jobs
+                WHERE source_revision_id = (
+                    SELECT latest_revision_id FROM source_objects WHERE id = ?
+                )
+                """,
+                source.id());
+        assertTrue(ingestionProfile.get("requested_processing_profile").toString()
+                .contains("policy.id=structured-block-v1"));
+        assertTrue(ingestionProfile.get("requested_processing_profile_sha256").toString()
+                .matches("[0-9a-f]{64}"));
+        assertEquals(
+                revision.get("processing_profile"),
+                ingestionProfile.get("resolved_processing_profile"));
+        assertEquals(
+                revision.get("processing_profile_sha256"),
+                ingestionProfile.get("resolved_processing_profile_sha256"));
+        assertThrows(
+                org.springframework.dao.DataIntegrityViolationException.class,
+                () -> jdbc.update(
+                        "UPDATE source_revisions SET processing_profile = NULL WHERE source_object_id = ?",
+                        source.id()));
+        assertThrows(
+                org.springframework.dao.DataIntegrityViolationException.class,
+                () -> jdbc.update(
+                        """
+                        UPDATE source_ingestion_jobs
+                        SET resolved_processing_profile_sha256 = NULL
+                        WHERE source_revision_id = (
+                            SELECT latest_revision_id FROM source_objects WHERE id = ?
+                        )
+                        """,
+                        source.id()));
         assertEquals(
                 "ACTIVE",
                 jdbc.queryForObject(
@@ -480,6 +521,18 @@ class SourceIngestionPipelineIntegrationTests {
 
         processor.processNext();
 
+        var pinnedProcessingProfile = jdbc.queryForMap(
+                """
+                SELECT requested_processing_profile_sha256, resolved_processing_profile_sha256
+                FROM source_ingestion_jobs
+                WHERE source_revision_id = (
+                    SELECT latest_revision_id FROM source_objects WHERE id = ?
+                )
+                """,
+                source.id());
+        assertNotNull(pinnedProcessingProfile.get("requested_processing_profile_sha256"));
+        assertNotNull(pinnedProcessingProfile.get("resolved_processing_profile_sha256"));
+
         var state = jdbc.queryForMap(
                 """
                         SELECT r.status AS revision_status,
@@ -527,6 +580,19 @@ class SourceIngestionPipelineIntegrationTests {
                 source.id());
 
         processor.processNext();
+
+        assertEquals(
+                pinnedProcessingProfile,
+                jdbc.queryForMap(
+                        """
+                        SELECT requested_processing_profile_sha256,
+                               resolved_processing_profile_sha256
+                        FROM source_ingestion_jobs
+                        WHERE source_revision_id = (
+                            SELECT latest_revision_id FROM source_objects WHERE id = ?
+                        )
+                        """,
+                        source.id()));
 
         var converged = jdbc.queryForMap(
                 """

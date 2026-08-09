@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.sourceledger.SourceFailureMessage;
-
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Entity
@@ -52,6 +51,18 @@ public class SourceIngestionJob extends BaseEntity {
     @Column(name = "last_error_message", length = 512)
     private String lastErrorMessage;
 
+    @Column(name = "requested_processing_profile", columnDefinition = "text")
+    private String requestedProcessingProfile;
+
+    @Column(name = "requested_processing_profile_sha256", length = 64)
+    private String requestedProcessingProfileSha256;
+
+    @Column(name = "resolved_processing_profile", columnDefinition = "text")
+    private String resolvedProcessingProfile;
+
+    @Column(name = "resolved_processing_profile_sha256", length = 64)
+    private String resolvedProcessingProfileSha256;
+
     protected SourceIngestionJob() {
     }
 
@@ -73,6 +84,37 @@ public class SourceIngestionJob extends BaseEntity {
         this.attemptCount++;
         this.lastErrorCode = null;
         this.lastErrorMessage = null;
+    }
+
+    DocumentProcessingProfileSnapshot bindRequestedProcessingProfile(
+            DocumentProcessingProfileSnapshot candidate) {
+        if (requestedProcessingProfile == null) {
+            requestedProcessingProfile = candidate.canonicalForm();
+            requestedProcessingProfileSha256 = candidate.sha256();
+        }
+        return new DocumentProcessingProfileSnapshot(
+                requestedProcessingProfile, requestedProcessingProfileSha256);
+    }
+
+    void bindResolvedProcessingProfile(DocumentProcessingProfileSnapshot candidate) {
+        if (resolvedProcessingProfile == null) {
+            resolvedProcessingProfile = candidate.canonicalForm();
+            resolvedProcessingProfileSha256 = candidate.sha256();
+            return;
+        }
+        if (!resolvedProcessingProfile.equals(candidate.canonicalForm())
+                || !resolvedProcessingProfileSha256.equals(candidate.sha256())) {
+            throw new ProcessingProfileMismatchException(
+                    "resolved processing profile changed during ingestion retry");
+        }
+    }
+
+    Optional<DocumentProcessingProfileSnapshot> resolvedProcessingProfile() {
+        if (resolvedProcessingProfile == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new DocumentProcessingProfileSnapshot(
+                resolvedProcessingProfile, resolvedProcessingProfileSha256));
     }
 
     boolean isClaimedBy(String workerId) {

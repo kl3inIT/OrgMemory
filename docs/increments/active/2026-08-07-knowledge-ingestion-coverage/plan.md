@@ -34,18 +34,35 @@
   and comes back as fragments that each repeat the header row, never split a
   row, and lose no row.
 
-## 2. Strategy resolution by content type
+## 2. Versioned structured-block processing policy
 
-- [ ] Complete the independent architecture challenge on per-content-type
+- [x] Complete the independent architecture challenge on per-content-type
   chunker resolution against the profile hash as an idempotency input; record
   proposal, strongest counterargument, evidence, choice and rejected
   alternative. It must also settle what happens to DOCX revisions already
-  ingested flat, since item 1 changes how they would parse.
-- [ ] Resolve the chunker from content type instead of one global property,
-  recording requested and actual in the existing profile fields.
-- [ ] Cover: a spreadsheet resolves to `paragraph-semantic`, resolution is
-  recorded in the canonical profile, and the existing semantic-vector failure
-  fallback still works.
+  ingested flat, since item 1 changes how they would parse. Verdict: reject
+  whole-document content-type resolution; adopt `structured-block-v1`. Existing
+  READY revisions stay immutable and rebuild is opt-in/new-identity only.
+- [x] Bind a complete named/versioned requested policy snapshot atomically
+  before the first processing side effect, return it on every claim, and never
+  re-read live defaults during retry.
+- [x] Execute `structured-block-v1` as the production default, dispatching from
+  canonical block kind through the existing paragraph-semantic composite while
+  recording the versioned dispatch table and invoked sub-algorithm identities.
+- [x] Persist the resolved execution snapshot and chunk-manifest hash before
+  downstream durable publication; extend profile hashing and READY database
+  constraints accordingly.
+- [x] Preserve semantic-vector's explicit requested/actual recursive fallback,
+  and allow operator override only through a named immutable policy.
+- [x] Cover mixed DOCX, plain TXT/PDF parser behavior, policy/profile hash
+  sensitivity, retry across configuration change, pinned fallback, unavailable
+  components, and READY constraints. HTML remains in item 3 because its upload
+  allowlist is not open yet.
+- [x] Add a V29-to-V30 migration fixture containing an existing READY revision
+  to prove the migration validates it without changing its processing identity.
+- [x] Lock the job table and fail the V30 cutover while legacy PENDING or
+  PROCESSING jobs exist; the rollout must stop and drain the old worker rather
+  than pin those jobs from new deployment defaults.
 
 ## 3. Format allowlist
 

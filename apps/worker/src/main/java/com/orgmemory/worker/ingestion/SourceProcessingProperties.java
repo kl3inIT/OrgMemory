@@ -11,7 +11,7 @@ public record SourceProcessingProperties(
         Duration leaseDuration,
         String pipelineVersion,
         String parserId,
-        String chunkerId,
+        String policyId,
         String tokenizerEncoding,
         String normalizerVersion,
         String embeddingProvider,
@@ -31,7 +31,7 @@ public record SourceProcessingProperties(
         leaseDuration = leaseDuration == null ? Duration.ofMinutes(5) : leaseDuration;
         pipelineVersion = defaultText(pipelineVersion, "source-pipeline-v1");
         parserId = defaultText(parserId, SpringAiDocumentParser.COMPONENT.id());
-        chunkerId = defaultText(chunkerId, "fixed-token");
+        policyId = defaultText(policyId, RequestedProcessingPolicy.STRUCTURED_BLOCK_V1);
         tokenizerEncoding = defaultText(tokenizerEncoding, "o200k_base");
         normalizerVersion = defaultText(normalizerVersion, "source-normalizer-v1");
         embeddingProvider = defaultText(embeddingProvider, "openai");

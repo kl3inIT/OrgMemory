@@ -2,6 +2,7 @@ package com.orgmemory.api.source;
 
 import com.orgmemory.core.knowledge.sourceledger.CreateUploadSourceCommand;
 import com.orgmemory.core.knowledge.sourceledger.SourceIngestionCoordinator;
+import com.orgmemory.core.knowledge.sourceledger.DocumentProcessingProfileSnapshot;
 import com.orgmemory.core.knowledge.sourceledger.SourceQueryService;
 import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
 import com.orgmemory.core.knowledge.sourceledger.SourceUploadService;
@@ -113,7 +114,11 @@ class SourceUploadIntegrationTests {
                 DEPARTMENT_ID,
                 jdbc.queryForObject("SELECT department_id FROM source_objects", UUID.class));
 
-        var claim = coordinator.claimNext("test-worker", Duration.ofMinutes(1)).orElseThrow();
+        var claim = coordinator.claimNext(
+                        "test-worker",
+                        Duration.ofMinutes(1),
+                        DocumentProcessingProfileSnapshot.from("test.requestedPolicy=v1\n"))
+                .orElseThrow();
         assertEquals(uploaded.id(), claim.sourceObjectId());
         assertEquals(sha, claim.contentSha256());
         assertTrue(claim.objectKey().startsWith("organizations/" + ORGANIZATION_ID + "/sources/"));

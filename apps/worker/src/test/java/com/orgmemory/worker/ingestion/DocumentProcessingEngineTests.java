@@ -5,11 +5,17 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.orgmemory.core.knowledge.sourceledger.DocumentProcessingProfileSnapshot;
+import com.orgmemory.core.knowledge.sourceledger.ProcessingProfileMismatchException;
+import com.orgmemory.graphrag.chunking.RecursiveCharacterChunker;
+import com.orgmemory.graphrag.chunking.SemanticVectorChunker;
 import com.orgmemory.graphrag.parsing.DocumentParseRequest;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
@@ -24,7 +30,7 @@ class DocumentProcessingEngineTests {
                 Duration.ofMinutes(1),
                 "test-pipeline",
                 "passthrough",
-                "semantic-vector",
+                RequestedProcessingPolicy.SEMANTIC_VECTOR_V1,
                 "o200k_base",
                 "normalizer",
                 "fixture",
@@ -64,7 +70,7 @@ class DocumentProcessingEngineTests {
     @Test
     void carriesTheParseAndChunkMeasurementsOutSeparately() {
         var engine = new DocumentProcessingEngine(
-                properties("passthrough", "fixed-token"),
+                properties("passthrough", RequestedProcessingPolicy.FIXED_TOKEN_V1),
                 new SpringAiDocumentParser());
 
         ProcessedSourceDocument processed = engine.process(
@@ -84,15 +90,90 @@ class DocumentProcessingEngineTests {
                 "CHUNK reports chunks produced");
     }
 
+    @Test
+    void runsAMixedWordDocumentThroughTheStructuredBlockPolicy() throws Exception {
+        var engine = new DocumentProcessingEngine(
+                properties("spring-ai-document-reader", null),
+                new SpringAiDocumentParser());
+
+        ProcessedSourceDocument processed = engine.process(
+                new DocumentParseRequest(
+                        "leave-policy.docx",
+                        "application/octet-stream",
+                        wordPolicy(),
+                        Optional.empty()),
+                new FailingEmbeddingModel());
+
+        assertEquals("paragraph-semantic", processed.profile().requestedChunker().id());
+        assertEquals(
+                RequestedProcessingPolicy.STRUCTURED_BLOCK_V1,
+                processed.profile().options().get("request.policy.id"));
+        assertTrue(processed.chunks().stream()
+                .anyMatch(chunk -> chunk.content().startsWith("Cấp\tSố ngày")));
+        assertTrue(processed.profile().options().containsKey("chunkManifest.sha256"));
+    }
+
+    @Test
+    void retryUsesThePinnedRecursiveFallbackWithoutCallingSemanticEmbeddingAgain() {
+        var engine = new DocumentProcessingEngine(
+                properties("passthrough", RequestedProcessingPolicy.SEMANTIC_VECTOR_V1),
+                new SpringAiDocumentParser());
+        DocumentParseRequest request = new DocumentParseRequest(
+                "notes.txt",
+                "text/plain",
+                "Alpha has context. Beta changes topic. Gamma closes the note."
+                        .getBytes(StandardCharsets.UTF_8),
+                Optional.empty());
+        DocumentProcessingProfileSnapshot requested = engine.requestedProcessingProfile();
+
+        ProcessedSourceDocument first = engine.process(
+                request, new UnavailableEmbeddingModel(), requested, Optional.empty());
+        DocumentProcessingProfileSnapshot resolved = new DocumentProcessingProfileSnapshot(
+                first.profile().canonicalForm(), first.profile().profileSha256());
+
+        ProcessedSourceDocument retry = engine.process(
+                request, new FailingEmbeddingModel(), requested, Optional.of(resolved));
+
+        assertEquals(SemanticVectorChunker.COMPONENT, retry.profile().requestedChunker());
+        assertEquals(RecursiveCharacterChunker.COMPONENT, retry.profile().actualChunker());
+        assertEquals(first.profile().profileSha256(), retry.profile().profileSha256());
+        assertEquals(
+                "SEMANTIC_EMBEDDING_UNAVAILABLE",
+                retry.profile().options().get("fallback.code"));
+    }
+
+    @Test
+    void retryRejectsContentThatNoLongerMatchesThePinnedChunkManifest() {
+        var engine = new DocumentProcessingEngine(
+                properties("passthrough", RequestedProcessingPolicy.FIXED_TOKEN_V1),
+                new SpringAiDocumentParser());
+        DocumentProcessingProfileSnapshot requested = engine.requestedProcessingProfile();
+        ProcessedSourceDocument first = engine.process(
+                textRequest("Original evidence remains immutable."),
+                new FailingEmbeddingModel(),
+                requested,
+                Optional.empty());
+        DocumentProcessingProfileSnapshot resolved = new DocumentProcessingProfileSnapshot(
+                first.profile().canonicalForm(), first.profile().profileSha256());
+
+        assertThrows(
+                ProcessingProfileMismatchException.class,
+                () -> engine.process(
+                        textRequest("Changed evidence must not reuse the old manifest."),
+                        new FailingEmbeddingModel(),
+                        requested,
+                        Optional.of(resolved)));
+    }
+
     private static SourceProcessingProperties properties(
             String parserId,
-            String chunkerId) {
+            String policyId) {
         return new SourceProcessingProperties(
                 "test-worker",
                 Duration.ofMinutes(1),
                 "test-pipeline",
                 parserId,
-                chunkerId,
+                policyId,
                 "o200k_base",
                 "normalizer",
                 "fixture",
@@ -101,9 +182,37 @@ class DocumentProcessingEngineTests {
                 8,
                 0,
                 64,
-                1,
+                64,
                 null,
                 null);
+    }
+
+    private static DocumentParseRequest textRequest(String content) {
+        return new DocumentParseRequest(
+                "notes.txt",
+                "text/plain",
+                content.getBytes(StandardCharsets.UTF_8),
+                Optional.empty());
+    }
+
+    private static byte[] wordPolicy() throws Exception {
+        try (XWPFDocument document = new XWPFDocument();
+                ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            document.createParagraph().createRun().setText("Chính sách nghỉ phép.");
+            var table = document.createTable(3, 2);
+            String[][] cells = {
+                {"Cấp", "Số ngày"},
+                {"Nhân viên", "12"},
+                {"Quản lý", "15"}
+            };
+            for (int row = 0; row < cells.length; row++) {
+                for (int column = 0; column < cells[row].length; column++) {
+                    table.getRow(row).getCell(column).setText(cells[row][column]);
+                }
+            }
+            document.write(out);
+            return out.toByteArray();
+        }
     }
 
     private static final class FailingEmbeddingModel implements EmbeddingModel {
@@ -116,6 +225,19 @@ class DocumentProcessingEngineTests {
         @Override
         public float[] embed(Document document) {
             throw new AssertionError("embedding provider must not be called");
+        }
+    }
+
+    private static final class UnavailableEmbeddingModel implements EmbeddingModel {
+
+        @Override
+        public EmbeddingResponse call(EmbeddingRequest request) {
+            throw new IllegalStateException("embedding provider is unavailable");
+        }
+
+        @Override
+        public float[] embed(Document document) {
+            throw new IllegalStateException("embedding provider is unavailable");
         }
     }
 }
