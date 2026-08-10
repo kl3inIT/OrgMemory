@@ -14,6 +14,8 @@ import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
 import com.orgmemory.core.assetregistry.api.AssetRegistrationCommand;
 import com.orgmemory.core.assetregistry.api.AssetRole;
 import com.orgmemory.core.assetregistry.api.AssetRoleCommand;
+import com.orgmemory.core.assetregistry.api.AssetSharingCommand;
+import com.orgmemory.core.assetregistry.api.AssetSharingState;
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.authorization.PrincipalRef;
 import java.lang.reflect.Method;
@@ -92,6 +94,74 @@ class AssetKernelServiceTests {
     }
 
     @Test
+    void organizationViewerShareUsesTheMemberUsersetAndMakesAuthorizationPending() {
+        Fixture fixture = fixture();
+        Asset asset = asset();
+        PrincipalRef organization = new PrincipalRef("organization", ORGANIZATION_ID.toString());
+        when(fixture.assets.findForUpdate(asset.getId(), ORGANIZATION_ID))
+                .thenReturn(Optional.of(asset));
+        when(fixture.roles
+                        .findByAssetIdAndPrincipalTypeAndPrincipalIdAndRoleAndValidUntilIsNull(
+                                asset.getId(), "organization", ORGANIZATION_ID.toString(), AssetRole.VIEWER))
+                .thenReturn(Optional.empty());
+        when(fixture.roles.saveAndFlush(any(AssetRoleAssignment.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var identity = fixture.service.share(new AssetSharingCommand.Share(
+                ORGANIZATION_ID,
+                asset.getId(),
+                organization,
+                AssetRole.VIEWER,
+                USER_ID));
+
+        assertEquals(AssetSharingState.ORGANIZATION, identity.sharingState());
+        assertEquals(2, identity.relationshipGeneration());
+        assertTrue(!identity.authorizationReady());
+        verify(fixture.outbox).saveAndFlush(org.mockito.ArgumentMatchers.argThat(intent ->
+                intent.getOperation() == AssetAuthorizationOperation.WRITE
+                        && intent.getRelationshipGeneration() == 2
+                        && intent.tuple().user().equals(
+                                "organization:" + ORGANIZATION_ID + "#member")
+                        && intent.tuple().relation().equals("viewer")));
+    }
+
+    @Test
+    void unshareExpiresTheCanonicalAssignmentAndQueuesTupleDeletion() {
+        Fixture fixture = fixture();
+        Asset asset = asset();
+        PrincipalRef viewer = PrincipalRef.user(UUID.randomUUID());
+        AssetRoleAssignment assignment = new AssetRoleAssignment(
+                ORGANIZATION_ID,
+                asset.getId(),
+                viewer,
+                AssetRole.VIEWER,
+                USER_ID,
+                java.time.Instant.now().minusSeconds(60));
+        when(fixture.assets.findForUpdate(asset.getId(), ORGANIZATION_ID))
+                .thenReturn(Optional.of(asset));
+        when(fixture.roles
+                        .findByAssetIdAndPrincipalTypeAndPrincipalIdAndRoleAndValidUntilIsNull(
+                                asset.getId(), "user", viewer.id(), AssetRole.VIEWER))
+                .thenReturn(Optional.of(assignment));
+        when(fixture.roles.findByAssetIdAndValidUntilIsNull(asset.getId()))
+                .thenReturn(List.of());
+
+        var identity = fixture.service.unshare(new AssetSharingCommand.Unshare(
+                ORGANIZATION_ID,
+                asset.getId(),
+                viewer,
+                AssetRole.VIEWER,
+                USER_ID));
+
+        assertEquals(AssetSharingState.PRIVATE, identity.sharingState());
+        assertTrue(assignment.getValidUntil() != null);
+        verify(fixture.outbox).saveAndFlush(org.mockito.ArgumentMatchers.argThat(intent ->
+                intent.getOperation() == AssetAuthorizationOperation.DELETE
+                        && intent.tuple().user().equals(viewer.openFgaUser())
+                        && intent.tuple().relation().equals("viewer")));
+    }
+
+    @Test
     void portfolioTransitionsRemainOwnedByTheLockedCanonicalAsset() {
         Fixture fixture = fixture();
         Asset asset = asset();
@@ -158,7 +228,8 @@ class AssetKernelServiceTests {
                 AssetType.PROMPT_TEMPLATE,
                 "support",
                 "triage",
-                SPACE_ID);
+                SPACE_ID,
+                USER_ID);
     }
 
     private static Fixture fixture() {

@@ -118,6 +118,8 @@ interface AssetCatalogReadModelRepository extends Repository<AssetDraft, UUID> {
                 draft.summary,
                 asset.knowledgeSpaceId,
                 asset.portfolioState,
+                asset.ownerUserId,
+                asset.sharingState,
                 asset.updatedAt)
             """
             + SUMMARY_FROM_AND_PREDICATES
@@ -140,6 +142,8 @@ interface AssetCatalogReadModelRepository extends Repository<AssetDraft, UUID> {
                         draft.summary,
                         asset.knowledgeSpaceId,
                         asset.portfolioState,
+                        asset.ownerUserId,
+                        asset.sharingState,
                         asset.updatedAt)
                     """
                     + SUMMARY_FROM_AND_PREDICATES
@@ -164,6 +168,8 @@ interface AssetCatalogReadModelRepository extends Repository<AssetDraft, UUID> {
                         release.summary,
                         asset.knowledgeSpaceId,
                         asset.portfolioState,
+                        asset.ownerUserId,
+                        asset.sharingState,
                         release.id,
                         release.versionLabel,
                         release.digest,

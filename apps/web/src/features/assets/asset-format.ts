@@ -6,7 +6,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
-import type { AssetSummary, AssetView, Release } from "@/lib/hey-api"
+import type { AssetSummary, Release } from "@/lib/hey-api"
 
 export type AssetType = NonNullable<AssetSummary["type"]>
 
@@ -47,7 +47,7 @@ export const ASSET_TYPE_META: Record<
   },
 }
 
-export function latestUsableRelease(asset: AssetView): Release | undefined {
+export function latestUsableRelease(asset: { releases?: Array<Release> }): Release | undefined {
   return asset.releases?.find((release) => release.availability !== "WITHDRAWN")
 }
 

@@ -39,6 +39,8 @@ class SkillReleaseDeliveryServiceTests {
                 "Triage customer issues",
                 UUID.randomUUID(),
                 AssetPortfolioState.ACTIVE,
+                USER_ID,
+                com.orgmemory.core.assetregistry.api.AssetSharingState.PRIVATE,
                 RELEASE_ID,
                 "1.2.0",
                 "c".repeat(64),
@@ -229,7 +231,11 @@ class SkillReleaseDeliveryServiceTests {
                 "triage",
                 UUID.randomUUID(),
                 AssetPortfolioState.DRAFT_ONLY,
-                true);
+                true,
+                USER_ID,
+                com.orgmemory.core.assetregistry.api.AssetSharingState.PRIVATE,
+                1,
+                1);
     }
 
     private record Fixture(

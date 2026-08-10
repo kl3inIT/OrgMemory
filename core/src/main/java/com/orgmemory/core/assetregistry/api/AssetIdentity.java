@@ -12,7 +12,11 @@ public record AssetIdentity(
         String slug,
         UUID knowledgeSpaceId,
         AssetPortfolioState portfolioState,
-        boolean authorizationReady) {
+        boolean authorizationReady,
+        UUID ownerUserId,
+        AssetSharingState sharingState,
+        long relationshipGeneration,
+        long projectedRelationshipGeneration) {
 
     public AssetIdentity {
         Objects.requireNonNull(organizationId, "organizationId");
@@ -22,5 +26,11 @@ public record AssetIdentity(
         Objects.requireNonNull(slug, "slug");
         Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
         Objects.requireNonNull(portfolioState, "portfolioState");
+        Objects.requireNonNull(sharingState, "sharingState");
+        if (relationshipGeneration <= 0
+                || projectedRelationshipGeneration < 0
+                || projectedRelationshipGeneration > relationshipGeneration) {
+            throw new IllegalArgumentException("Asset relationship generations are inconsistent");
+        }
     }
 }

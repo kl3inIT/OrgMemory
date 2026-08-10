@@ -57,6 +57,8 @@ class AssetRegistryControllerTests {
                 SPACE_ID,
                 null,
                 true,
+                ACTOR.userId(),
+                com.orgmemory.core.assetregistry.api.AssetSharingState.PRIVATE,
                 null,
                 List.of(),
                 List.of(),
@@ -95,6 +97,7 @@ class AssetRegistryControllerTests {
                 assets,
                 mock(SkillPackageOperations.class),
                 github,
+                mock(com.orgmemory.core.assetregistry.skill.SkillActivationOperations.class),
                 actors);
 
         AssetRegistryController.ImportResult result = controller.importGitHubSkills(

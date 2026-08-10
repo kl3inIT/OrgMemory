@@ -17,6 +17,7 @@ class AssetValidationTests {
                         AssetType.PROMPT_TEMPLATE,
                         "a".repeat(129),
                         "valid-slug",
+                        UUID.randomUUID(),
                         UUID.randomUUID()));
         assertThrows(
                 IllegalArgumentException.class,
@@ -25,6 +26,7 @@ class AssetValidationTests {
                         AssetType.PROMPT_TEMPLATE,
                         "valid.namespace",
                         "a".repeat(129),
+                        UUID.randomUUID(),
                         UUID.randomUUID()));
     }
 }
