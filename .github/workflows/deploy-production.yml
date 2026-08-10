@@ -348,7 +348,8 @@ jobs:
 
           # shellcheck disable=SC2029
           ssh "${ssh_args[@]}" \
-            "if [[ -e /apps/orgmemory-runtime/deployment-intervention-required ]]; then
+            "set -euo pipefail
+             if [[ -e /apps/orgmemory-runtime/deployment-intervention-required ]]; then
                printf '%s\n' 'Production deployment is latched for operator intervention.' >&2
                exit 78
              fi
@@ -368,6 +369,7 @@ jobs:
           printf '%s\n' "$GHCR_TOKEN" |
             ssh "${ssh_args[@]}" \
               "set -Eeuo pipefail
+             umask 077
              launch_confirmed=false
              reconcilers_started=false
              cleanup_on_error() {

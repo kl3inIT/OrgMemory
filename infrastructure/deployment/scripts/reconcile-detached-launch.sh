@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+umask 077
 
 if [[ "$#" -ne 5 || ! "$3" =~ ^[1-9][0-9]{0,3}$ || ! "$5" =~ ^[1-9][0-9]{0,4}$ ]]; then
   printf 'Usage: %s <state-directory> <gate-directory> <launch-timeout-seconds> <intervention-latch> <controller-timeout-seconds>\n' "$0" >&2

@@ -16,6 +16,8 @@ case "$state_directory" in
     ;;
 esac
 
+umask 077
+
 environment_file="$state_directory/launch.env"
 log_file="$state_directory/deploy.log"
 status_file="$state_directory/status"

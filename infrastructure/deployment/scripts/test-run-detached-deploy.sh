@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 runner="$repo_root/infrastructure/deployment/scripts/run-detached-deploy.sh"
+launch_verifier="$repo_root/infrastructure/deployment/scripts/verify-detached-controller.sh"
 reconciler="$repo_root/infrastructure/deployment/scripts/reconcile-detached-launch.sh"
 signal_helper="$repo_root/infrastructure/deployment/scripts/signal-qualified-process.py"
 ln_signal_fixture="$repo_root/infrastructure/deployment/scripts/test-fixtures/ln-signal-parent.sh"
@@ -33,6 +34,8 @@ tombstone_release="/tmp/orgmemory-tombstone-release.$$"
 post_marker_kill_state="$(mktemp -d /tmp/orgmemory-deploy-state.test-post-marker-kill.XXXXXX)"
 touch_wrapper_directory="$(mktemp -d /tmp/orgmemory-touch-wrapper.XXXXXX)"
 active_child_kill_state="$(mktemp -d /tmp/orgmemory-deploy-state.test-active-child-kill.XXXXXX)"
+transition_state="$(mktemp -d /tmp/orgmemory-deploy-state.test-terminal-transition.XXXXXX)"
+transition_flock_directory="$(mktemp -d /tmp/orgmemory-flock-wrapper.XXXXXX)"
 rm_failure_active_state="$(mktemp -d /tmp/orgmemory-deploy-state.test-rm-failure-active.XXXXXX)"
 finalizer_rm_failure_state="$(mktemp -d /tmp/orgmemory-deploy-state.test-finalizer-rm-failure.XXXXXX)"
 rm_failure_tombstone_state="$(mktemp -d /tmp/orgmemory-deploy-state.test-rm-failure-tombstone.XXXXXX)"
@@ -81,6 +84,8 @@ cleanup() {
     "$post_marker_kill_state" \
     "$touch_wrapper_directory" \
     "$active_child_kill_state" \
+    "$transition_state" \
+    "$transition_flock_directory" \
     "$rm_failure_active_state" \
     "$finalizer_rm_failure_state" \
     "$rm_failure_tombstone_state" \
@@ -154,9 +159,109 @@ write_environment "$failure_state" "$failure_deploy" 5
 "$runner" "$failure_state"
 read -r failure_status <"$failure_state/status"
 [[ "$failure_status" == 23 ]]
+[[ "$(stat -c '%a' "$failure_state")" == 700 ]]
+[[ "$(stat -c '%a' "$failure_state/controller-started")" == 600 ]]
+[[ "$(stat -c '%a' "$failure_state/status")" == 600 ]]
 [[ "$(readlink "$failure_state/ownership")" == controller.* ]]
 [[ ! -e "$failure_state/docker-config" ]]
 grep -Fx 'detached failure exercised' "$failure_state/deploy.log" >/dev/null
+"$launch_verifier" "$failure_state"
+printf '256\n' >"$failure_state/status"
+if "$launch_verifier" "$failure_state" >/dev/null 2>&1; then
+  printf 'Terminal launch verification accepted an out-of-range status.\n' >&2
+  exit 1
+fi
+printf '23\n' >"$failure_state/status"
+mkdir --mode=0700 "$failure_state/docker-config"
+if "$launch_verifier" "$failure_state" >/dev/null 2>&1; then
+  printf 'Terminal launch verification accepted retained registry credentials.\n' >&2
+  exit 1
+fi
+rm -rf -- "$failure_state/docker-config"
+"$launch_verifier" "$failure_state"
+printf '23\nextra\n' >"$failure_state/status"
+if "$launch_verifier" "$failure_state" >/dev/null 2>&1; then
+  printf 'Terminal launch verification accepted multiline status data.\n' >&2
+  exit 1
+fi
+printf '23\n\n' >"$failure_state/status"
+if "$launch_verifier" "$failure_state" >/dev/null 2>&1; then
+  printf 'Terminal launch verification accepted trailing blank status lines.\n' >&2
+  exit 1
+fi
+printf '23\n' >"$failure_state/status"
+chmod 0755 "$failure_state"
+if "$launch_verifier" "$failure_state" >/dev/null 2>&1; then
+  printf 'Terminal launch verification accepted an insecure state directory.\n' >&2
+  exit 1
+fi
+chmod 0700 "$failure_state"
+mv "$failure_state/status" "$failure_state/status-target"
+ln -s status-target "$failure_state/status"
+if "$launch_verifier" "$failure_state" >/dev/null 2>&1; then
+  printf 'Terminal launch verification accepted a symlinked status.\n' >&2
+  exit 1
+fi
+rm -f -- "$failure_state/status"
+mv "$failure_state/status-target" "$failure_state/status"
+ln -s missing-credential-directory "$failure_state/docker-config"
+if "$launch_verifier" "$failure_state" >/dev/null 2>&1; then
+  printf 'Terminal launch verification accepted a dangling credential symlink.\n' >&2
+  exit 1
+fi
+rm -f -- "$failure_state/docker-config"
+"$launch_verifier" "$failure_state"
+
+transition_pid="$BASHPID"
+transition_starttime="$(cut -d ' ' -f 22 "/proc/$transition_pid/stat")"
+touch "$transition_state/controller-started" "$transition_state/ownership.lease"
+chmod 0600 "$transition_state/controller-started" "$transition_state/ownership.lease"
+ln -s "controller.$transition_pid.$transition_starttime" "$transition_state/ownership"
+mkdir --mode=0700 "$transition_state/docker-config"
+# shellcheck disable=SC2016  # Generated fixture expands this variable at runtime.
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'set -Eeuo pipefail' \
+  'rm -rf -- "$ORGMEMORY_TRANSITION_STATE/docker-config"' \
+  'printf "%s\\n" "$ORGMEMORY_TRANSITION_STATUS" >"$ORGMEMORY_TRANSITION_STATE/status.tmp"' \
+  'chmod 0600 "$ORGMEMORY_TRANSITION_STATE/status.tmp"' \
+  'mv -f -- "$ORGMEMORY_TRANSITION_STATE/status.tmp" "$ORGMEMORY_TRANSITION_STATE/status"' \
+  'if [[ "$ORGMEMORY_TRANSITION_CREDENTIAL_SYMLINK" == true ]]; then' \
+  '  ln -s missing-credential-directory "$ORGMEMORY_TRANSITION_STATE/docker-config"' \
+  'fi' \
+  'exit "$ORGMEMORY_TRANSITION_FLOCK_RC"' >"$transition_flock_directory/flock"
+chmod 0700 "$transition_flock_directory/flock"
+PATH="$transition_flock_directory:$PATH" \
+  ORGMEMORY_TRANSITION_STATE="$transition_state" \
+  ORGMEMORY_TRANSITION_STATUS=23 \
+  ORGMEMORY_TRANSITION_CREDENTIAL_SYMLINK=false \
+  ORGMEMORY_TRANSITION_FLOCK_RC=0 \
+  "$launch_verifier" "$transition_state"
+[[ "$(<"$transition_state/status")" == 23 ]]
+[[ ! -e "$transition_state/docker-config" ]]
+
+rm -f -- "$transition_state/status"
+mkdir --mode=0700 "$transition_state/docker-config"
+if PATH="$transition_flock_directory:$PATH" \
+  ORGMEMORY_TRANSITION_STATE="$transition_state" \
+  ORGMEMORY_TRANSITION_STATUS=256 \
+  ORGMEMORY_TRANSITION_CREDENTIAL_SYMLINK=true \
+  ORGMEMORY_TRANSITION_FLOCK_RC=1 \
+  "$launch_verifier" "$transition_state" >/dev/null 2>&1; then
+  printf 'Active lease verification accepted an invalid concurrent terminal state.\n' >&2
+  exit 1
+fi
+
+rm -f -- "$transition_state/status" "$transition_state/docker-config"
+mkdir --mode=0700 "$transition_state/docker-config"
+PATH="$transition_flock_directory:$PATH" \
+  ORGMEMORY_TRANSITION_STATE="$transition_state" \
+  ORGMEMORY_TRANSITION_STATUS=23 \
+  ORGMEMORY_TRANSITION_CREDENTIAL_SYMLINK=false \
+  ORGMEMORY_TRANSITION_FLOCK_RC=1 \
+  "$launch_verifier" "$transition_state"
+[[ "$(<"$transition_state/status")" == 23 ]]
+[[ ! -e "$transition_state/docker-config" ]]
 
 inherited_deploy="$inherited_lease_state/deploy"
 printf '%s\n' '#!/usr/bin/env bash' 'exit 0' >"$inherited_deploy"
@@ -298,6 +403,13 @@ for _ in {1..100}; do
 done
 [[ -f "$active_child_kill_state/child-processes" ]]
 read -r active_deploy_pid active_timeout_pid <"$active_child_kill_state/child-processes"
+ln -s missing-status-target "$active_child_kill_state/status"
+if "$launch_verifier" "$active_child_kill_state" >/dev/null 2>&1; then
+  printf 'Active launch verification accepted a dangling status symlink.\n' >&2
+  exit 1
+fi
+rm -f -- "$active_child_kill_state/status"
+"$launch_verifier" "$active_child_kill_state"
 kill -KILL "$active_controller_pid"
 wait "$active_controller_pid" 2>/dev/null || true
 kill -KILL "$active_timeout_pid"

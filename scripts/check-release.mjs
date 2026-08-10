@@ -341,11 +341,28 @@ for (const reconcilerCleanupContract of [
 for (const verifierContract of [
   "controller-started",
   "^controller\\.([1-9][0-9]*)\\.([1-9][0-9]*)$",
+  '[[ -d "$state_directory" && ! -L "$state_directory" ]]',
+  '"$current_uid:700"',
+  '! -L "$state_directory/status"',
+  '"$current_uid:600"',
+  "verify_terminal_status()",
+  "stat -c '%s'",
+  '(( deployment_status <= 255 ))',
+  '! -L "$state_directory/docker-config"',
   "flock -n 197",
 ]) {
   if (!detachedControllerVerifier.includes(verifierContract)) {
     failures.push(`detached controller handshake verifier is missing ${verifierContract}`);
   }
+}
+const terminalStatusProbe = 'if [[ -e "$state_directory/status" || -L "$state_directory/status" ]]';
+if (
+  detachedControllerVerifier.split(terminalStatusProbe).length - 1 < 3 ||
+  detachedControllerVerifier.split("verify_terminal_status").length - 1 < 4
+) {
+  failures.push(
+    "detached controller verifier must fully validate terminal status before ACTIVE validation, while the lease is held, and after a concurrent lease release",
+  );
 }
 for (const pidfdContract of ["SYS_PIDFD_OPEN", "SYS_PIDFD_SEND_SIGNAL", "libc.syscall", "observed_starttime"]) {
   if (!qualifiedSignalHelper.includes(pidfdContract)) {
@@ -353,16 +370,22 @@ for (const pidfdContract of ["SYS_PIDFD_OPEN", "SYS_PIDFD_SEND_SIGNAL", "libc.sy
   }
 }
 const reconcilerReady = productionDeploy.indexOf("reconcilers_ready=true");
+const strictRemotePreparation = productionDeploy.indexOf('"set -euo pipefail');
+const stateDirectoryCreation = productionDeploy.indexOf("mkdir --mode=0700 '$state_directory'");
 const launcherLease = productionDeploy.indexOf("exec 198>'$state_directory/ownership.lease'");
 const linkedWorktree = productionDeploy.indexOf("git worktree add --detach");
 const registryLogin = productionDeploy.indexOf("docker login ghcr.io");
 if (
+  strictRemotePreparation < 0 ||
+  stateDirectoryCreation < strictRemotePreparation ||
   reconcilerReady < 0 ||
   launcherLease < reconcilerReady ||
   linkedWorktree < launcherLease ||
   registryLogin < linkedWorktree
 ) {
-  failures.push("deploy-production.yml must acknowledge reconcilers before lease, worktree, and login");
+  failures.push(
+    "deploy-production.yml must enable strict remote preparation before exclusive state creation, then acknowledge reconcilers before lease, worktree, and login",
+  );
 }
 const controllerLaunch = productionDeploy.indexOf("if ! setsid -f");
 const launchAcknowledgement = productionDeploy.indexOf("touch '$state_directory/launch-acknowledged'");
