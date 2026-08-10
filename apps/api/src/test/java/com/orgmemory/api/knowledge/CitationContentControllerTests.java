@@ -129,7 +129,7 @@ class CitationContentControllerTests {
                 new CloseTrackingInputStream(new byte[0]),
                 0,
                 "text/html",
-                "leave-policy.html");
+                "leave-policy.bin");
         CitationContentService citations =
                 mock(CitationContentService.class);
         CurrentActorProvider actors = mock(CurrentActorProvider.class);
@@ -151,6 +151,33 @@ class CitationContentControllerTests {
         assertEquals(
                 MediaType.APPLICATION_OCTET_STREAM,
                 response.getHeaders().getContentType());
+        assertTrue(response.getHeaders()
+                .getFirst(HttpHeaders.CONTENT_DISPOSITION)
+                .startsWith("attachment;"));
+    }
+
+    @Test
+    void downloadsAdmittedHtmlWithAPlainTextResponseType() {
+        CitationContent citation = citation(
+                new CloseTrackingInputStream(new byte[0]),
+                0,
+                "text/html",
+                "leave-policy.html");
+        CitationContentService citations = mock(CitationContentService.class);
+        CurrentActorProvider actors = mock(CurrentActorProvider.class);
+        Authentication authentication = mock(Authentication.class);
+        when(actors.current(authentication)).thenReturn(ACTOR);
+        when(citations.open(
+                        org.mockito.ArgumentMatchers.eq(ACTOR),
+                        org.mockito.ArgumentMatchers.eq(CHUNK_ID),
+                        org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(citation);
+
+        var response = new CitationContentController(
+                        citations, mock(CitationEvidenceService.class), actors)
+                .content(CHUNK_ID, authentication);
+
+        assertEquals(MediaType.TEXT_PLAIN, response.getHeaders().getContentType());
         assertTrue(response.getHeaders()
                 .getFirst(HttpHeaders.CONTENT_DISPOSITION)
                 .startsWith("attachment;"));

@@ -75,7 +75,8 @@ Evidence classes: `SourceQueryServiceTests`, `SourceListingIntegrationTests`,
 `SourceDocumentEvidenceQueryTests`,
 `SecureSourceActionAuthorizationAdapterTests`,
 `KnowledgeAssetLifecycleServiceTests`, `SourceLifecycleServiceTests`,
-`SourceContentWebMvcTests`, `governed-document-viewer.test.tsx`,
+`SourceContentWebMvcTests`, `CitationContentControllerTests`,
+`governed-document-viewer.test.tsx`,
 `source-preview.test.ts`, `source-status.test.ts`, and
 `document-actions.spec.ts`.
 
@@ -92,6 +93,7 @@ Evidence classes: `SourceQueryServiceTests`, `SourceListingIntegrationTests`,
 | Markdown is delivered as plain text with `no-store`, `nosniff`, and inline disposition | `streamsMarkdownAsPlainTextWithClosedDeliveryHeaders` |
 | Delete resolves only a READY native upload, rechecks `can_delete`, retires both aggregates, and accepts a consistent retry | `deleteReadyUploadResolvesTheSourceThenRetiresBothAggregates`, `repeatedSourceDeleteReturnsTheExistingRetirementWithoutMutatingAgain`, `resolvesAndArchivesOnlyAReadyNativeUpload`, `rejectsConnectorAndNonReadySources` |
 | Preview allowlist keeps active types exact, refines only delivered plain text plus declared Markdown into the restricted renderer, labels common formats concisely, and leaves every unsafe response download-only | `source-preview.test.ts` |
+| Citation delivery treats admitted HTML as plain text and attachment while a genuinely unknown suffix remains binary and attachment-only | `CitationContentControllerTests.downloadsAdmittedHtmlWithAPlainTextResponseType`, `CitationContentControllerTests.forcesUnknownTypesToDownloadAsBinary` |
 | Browser opens protected text, confirms/deletes an eligible row, and disables Delete for processing work | `document-actions.spec.ts#views protected evidence and deletes only an eligible ready upload` |
 | Browser proves the Knowledge navigation hierarchy, compositional classification/Knowledge Space copy, desktop master-detail, mobile Sheet, visible FAILED/QUARANTINED details, corrected-upload action, safe rendered/raw Markdown, inline PDF and raster image, plain text, download-only Office, preview retry, and narrow-screen overflow behavior | `document-actions.spec.ts#Knowledge presents safe cross-format evidence in a responsive right-side reader` |
 
