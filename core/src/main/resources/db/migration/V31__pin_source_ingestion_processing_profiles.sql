@@ -11,7 +11,7 @@ BEGIN
         WHERE status IN ('PENDING', 'PROCESSING')
     ) THEN
         RAISE EXCEPTION
-            'V30 requires legacy source ingestion jobs to be drained before migration';
+            'V31 requires legacy source ingestion jobs to be drained before migration';
     END IF;
 END
 $$;

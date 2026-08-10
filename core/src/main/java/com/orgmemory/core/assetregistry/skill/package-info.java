@@ -9,6 +9,7 @@
             "assetregistry::skill-delivery",
             "organization",
             "permission",
+            "shared",
             "shared::error"
         })
 package com.orgmemory.core.assetregistry.skill;

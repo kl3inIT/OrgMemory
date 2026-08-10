@@ -31,6 +31,9 @@ tuples:
   - user: user:evelyn
     relation: knowledge_reader
     object: organization:acme
+  - user: user:evelyn
+    relation: knowledge_contributor
+    object: organization:acme
   - user: user:laura
     relation: knowledge_contributor
     object: organization:acme
@@ -128,7 +131,13 @@ tuples:
   - user: user:evelyn
     relation: reviewer
     object: asset:support-triage
+  - user: user:evelyn
+    relation: editor
+    object: asset:support-triage
   - user: user:minh
+    relation: viewer
+    object: asset:support-triage
+  - user: organization:acme#member
     relation: viewer
     object: asset:support-triage
   - user: user:local-only
@@ -388,43 +397,74 @@ tests:
             - knowledge_asset:finance-private-draft
             - knowledge_asset:financial-forecast
 
-  - name: Asset roles are explicit and separation of duty stays in application policy
+  - name: Asset library permissions keep owner editor viewer and administrator duties separate
     check:
       - user: user:laura
         object: asset:support-triage
         assertions:
           can_manage_roles: true
+          can_manage_sharing: true
+          can_transfer_ownership: true
           can_edit: true
+          can_edit_draft: true
           can_submit_review: true
           can_publish_skill: true
+          can_publish_direct: true
           can_review: false
           can_publish: false
           can_withdraw: true
+          can_recover_ownership: false
+          can_emergency_withdraw: false
           can_view: true
+          can_view_released: true
+          can_view_governance_history: true
           can_use: true
       - user: user:evelyn
         object: asset:support-triage
         assertions:
           can_manage_roles: false
-          can_edit: false
+          can_manage_sharing: false
+          can_transfer_ownership: false
+          can_edit: true
+          can_edit_draft: true
           can_publish_skill: false
+          can_publish_direct: false
           can_review: true
           can_publish: false
+          can_withdraw: false
+          can_recover_ownership: false
+          can_emergency_withdraw: false
           can_view: true
+          can_view_released: true
+          can_view_governance_history: true
       - user: user:minh
         object: asset:support-triage
         assertions:
           can_edit: false
+          can_edit_draft: false
           can_publish_skill: false
+          can_publish_direct: false
           can_review: false
+          can_manage_sharing: false
+          can_transfer_ownership: false
+          can_withdraw: false
+          can_view_governance_history: false
           can_view: true
+          can_view_released: true
           can_use: true
       - user: user:unknown
         object: asset:support-triage
         assertions:
           can_submit_review: false
           can_publish_skill: false
+          can_publish_direct: false
+          can_manage_sharing: false
+          can_transfer_ownership: false
           can_withdraw: false
+          can_recover_ownership: false
+          can_emergency_withdraw: false
+          can_view_released: false
+          can_view_governance_history: false
           can_view: false
           can_use: false
       - user: user:local-only
@@ -434,20 +474,35 @@ tests:
           can_edit: false
           can_submit_review: false
           can_publish_skill: false
+          can_publish_direct: false
+          can_manage_sharing: false
+          can_transfer_ownership: false
           can_review: false
           can_publish: false
           can_withdraw: false
+          can_recover_ownership: false
+          can_emergency_withdraw: false
+          can_view_released: false
+          can_view_governance_history: false
           can_view: false
           can_use: false
       - user: user:orgadmin
         object: asset:support-triage
         assertions:
           can_manage_roles: false
+          can_manage_sharing: false
+          can_transfer_ownership: false
           can_edit: false
+          can_edit_draft: false
           can_publish_skill: false
+          can_publish_direct: false
           can_review: false
           can_publish: false
           can_withdraw: false
+          can_recover_ownership: true
+          can_emergency_withdraw: true
+          can_view_released: false
+          can_view_governance_history: false
           can_view: false
     list_objects:
       - user: user:laura

@@ -224,6 +224,78 @@
         }
       }
     },
+    "/api/assets/{assetId}/skill-activation": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Read the current user's opt-in state for one visible Skill",
+        "operationId": "getSkillActivation",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillActivationView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Enable or disable one visible Skill for the current user",
+        "operationId": "setSkillActivation",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillActivationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillActivationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/assets/{assetId}/releases/{releaseId}/pack-progress/{itemKey}": {
       "put": {
         "tags": [
@@ -1673,6 +1745,48 @@
         }
       }
     },
+    "/api/assets/{assetId}/withdrawal": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Withdraw every Release and retire an owned Asset",
+        "operationId": "withdrawAsset",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetAvailabilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/assets/{assetId}/submissions": {
       "post": {
         "tags": [
@@ -1746,6 +1860,88 @@
         "responses": {
           "201": {
             "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{assetId}/shares": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Share an Asset with one Viewer or Editor audience",
+        "operationId": "shareAsset",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareAssetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Remove one Viewer or Editor share",
+        "operationId": "unshareAsset",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareAssetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
             "content": {
               "*/*": {
                 "schema": {
@@ -2305,6 +2501,174 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/PromptEvaluationComparison"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{assetId}/ownership-transfer": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Transfer Asset ownership to another user",
+        "operationId": "transferAssetOwnership",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferAssetOwnershipRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{assetId}/ownership-recovery": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Recover an owner-vacant Asset as an administrator",
+        "operationId": "recoverAssetOwnership",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferAssetOwnershipRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{assetId}/emergency-withdrawal": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Emergency-withdraw every Release from an Asset as an administrator",
+        "operationId": "emergencyWithdrawAsset",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetAvailabilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{assetId}/direct-releases": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Publish the current working copy as an immutable Release",
+        "operationId": "publishAssetDraft",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishSkillReleaseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetView"
                 }
               }
             }
@@ -4096,7 +4460,7 @@
         "tags": [
           "Assets"
         ],
-        "summary": "Read an authorized Asset and its governance history",
+        "summary": "Read an Asset's authoring and governance history",
         "operationId": "getAsset",
         "parameters": [
           {
@@ -4280,6 +4644,38 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/CapabilityPackDefinition"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{assetId}/released": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Read released Asset content without exposing its working copy or governance history",
+        "operationId": "getReleasedAsset",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetReleasedView"
                 }
               }
             }
@@ -4596,7 +4992,7 @@
           "Assets"
         ],
         "summary": "Read one exact usable immutable Asset release",
-        "operationId": "getReleasedAsset",
+        "operationId": "getReleasedAsset_1",
         "parameters": [
           {
             "name": "assetId",
@@ -5653,6 +6049,18 @@
           "authorizationReady": {
             "type": "boolean"
           },
+          "ownerUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sharingState": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "SHARED",
+              "ORGANIZATION"
+            ]
+          },
           "draft": {
             "$ref": "#/components/schemas/Draft"
           },
@@ -5983,6 +6391,26 @@
           "projectedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "SkillActivationRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SkillActivationView": {
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "enabled": {
+            "type": "boolean"
           }
         }
       },
@@ -7370,6 +7798,14 @@
           }
         }
       },
+      "AssetAvailabilityRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
       "SubmitAssetRevisionRequest": {
         "type": "object",
         "properties": {
@@ -7383,6 +7819,29 @@
         "properties": {
           "versionLabel": {
             "type": "string"
+          }
+        }
+      },
+      "ShareAssetRequest": {
+        "type": "object",
+        "properties": {
+          "principalType": {
+            "type": "string"
+          },
+          "principalId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "BACKUP_OWNER",
+              "STEWARD",
+              "VIEWER",
+              "EDITOR",
+              "REVIEWER",
+              "PUBLISHER"
+            ]
           }
         }
       },
@@ -7542,14 +8001,6 @@
           }
         }
       },
-      "AssetAvailabilityRequest": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          }
-        }
-      },
       "PromptVariablesRequest": {
         "type": "object",
         "properties": {
@@ -7656,6 +8107,18 @@
             "format": "int32"
           }
         }
+      },
+      "TransferAssetOwnershipRequest": {
+        "type": "object",
+        "properties": {
+          "nextOwnerUserId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "nextOwnerUserId"
+        ]
       },
       "FileEntry": {
         "type": "object",
@@ -9110,6 +9573,18 @@
               "RETIRED"
             ]
           },
+          "ownerUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sharingState": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "SHARED",
+              "ORGANIZATION"
+            ]
+          },
           "releaseId": {
             "type": "string",
             "format": "uuid"
@@ -9329,6 +9804,18 @@
               "RETIRED"
             ]
           },
+          "ownerUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sharingState": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "SHARED",
+              "ORGANIZATION"
+            ]
+          },
           "updatedAt": {
             "type": "string",
             "format": "date-time"
@@ -9485,6 +9972,61 @@
           }
         }
       },
+      "AssetReleasedView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "PROMPT_TEMPLATE",
+              "WORK_INSTRUCTION",
+              "CAPABILITY_PACK",
+              "SKILL"
+            ]
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "knowledgeSpaceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "portfolioState": {
+            "type": "string",
+            "enum": [
+              "DRAFT_ONLY",
+              "ACTIVE",
+              "SUNSETTING",
+              "RETIRED"
+            ]
+          },
+          "ownerUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sharingState": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "SHARED",
+              "ORGANIZATION"
+            ]
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Release"
+            }
+          }
+        }
+      },
       "AssetGovernanceActions": {
         "type": "object",
         "properties": {
@@ -9516,6 +10058,15 @@
             "type": "boolean"
           },
           "canWithdraw": {
+            "type": "boolean"
+          },
+          "canManageSharing": {
+            "type": "boolean"
+          },
+          "canTransferOwnership": {
+            "type": "boolean"
+          },
+          "canPublishDirect": {
             "type": "boolean"
           },
           "canOpenGovernance": {

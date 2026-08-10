@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":integrations:ai-model-gateways"))
     implementation(project(":integrations:authorization-openfga"))
     implementation(project(":integrations:connectors"))
+    implementation(project(":integrations:document-parsing-spring-ai"))
     implementation(project(":integrations:graph-rag-postgres"))
     implementation(project(":integrations:graph-rag-observability"))
     implementation(project(":integrations:graph-rag-spring-ai"))
@@ -14,14 +15,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
     implementation(libs.spring.ai.starter.openai)
-    implementation("org.springframework.ai:spring-ai-tika-document-reader")
-    implementation("org.springframework.ai:spring-ai-pdf-document-reader")
 
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     testImplementation(libs.apache.poi.ooxml)
+    testImplementation("org.springframework.ai:spring-ai-pdf-document-reader")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")

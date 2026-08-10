@@ -27,11 +27,11 @@ import com.orgmemory.graphrag.processing.ProcessingComponentRef;
 import com.orgmemory.graphrag.processing.ResolvedDocumentProcessingProfile;
 import com.orgmemory.integrations.graphrag.springai.JtokkitTextTokenizer;
 import com.orgmemory.integrations.graphrag.springai.SpringAiTextEmbeddingPort;
+import com.orgmemory.integrations.documentparsing.springai.SpringAiDocumentParser;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.TreeMap;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.stereotype.Component;
@@ -40,8 +40,6 @@ import org.springframework.stereotype.Component;
 @Component
 final class DocumentProcessingEngine {
 
-    private static final Set<String> SPRING_AI_READER_SUFFIXES = Set.of(
-            "txt", "md", "pdf", "docx", "pptx");
     private final SourceProcessingProperties properties;
     private final ParserRegistrySnapshot parsers;
     private final ChunkerRegistrySnapshot chunkers;
@@ -54,21 +52,21 @@ final class DocumentProcessingEngine {
         this.parsers = new ParserRegistry()
                 .register(new ParserSpec(
                         documentParser.component(),
-                        SPRING_AI_READER_SUFFIXES,
+                        documentParser.supportedSuffixes(),
                         true,
                         true,
                         "",
                         documentParser))
                 .register(new ParserSpec(
                         PassthroughParser.COMPONENT,
-                        Set.of("txt", "md"),
+                        java.util.Set.of("txt", "md"),
                         false,
                         true,
                         "",
                         new PassthroughParser()))
                 .register(new ParserSpec(
                         ReuseParser.COMPONENT,
-                        Set.of("canonical"),
+                        java.util.Set.of("canonical"),
                         false,
                         true,
                         "",
@@ -117,15 +115,17 @@ final class DocumentProcessingEngine {
         }
         long parseStartedAt = System.nanoTime();
         var parsed = parser.parser().parse(request);
+        int maximumChunks = policy.maximumChunks(request.suffix());
         Duration parseDuration =
                 Duration.ofNanos(Math.max(0, System.nanoTime() - parseStartedAt));
         long minimumChunks = Math.ceilDiv(
                 (long) tokenizer.count(parsed.document().content()),
                 policy.chunkSize());
-        if (minimumChunks > policy.maximumChunks()) {
+        if (minimumChunks > maximumChunks) {
             throw new RejectedSourceException(
                     "CHUNK_LIMIT_EXCEEDED",
-                    "The document exceeds the configured chunk limit");
+                    "The ." + request.suffix() + " document exceeds its "
+                            + maximumChunks + " chunk limit");
         }
         var semanticEmbedding = new SpringAiTextEmbeddingPort(
                 embeddingModel,
@@ -186,10 +186,11 @@ final class DocumentProcessingEngine {
         // failing over to the recursive one is time this document actually spent chunking.
         Duration chunkDuration =
                 Duration.ofNanos(Math.max(0, System.nanoTime() - chunkStartedAt));
-        if (output.size() > policy.maximumChunks()) {
+        if (output.size() > maximumChunks) {
             throw new RejectedSourceException(
                     "CHUNK_LIMIT_EXCEEDED",
-                    "The document exceeds the configured chunk limit");
+                    "The ." + request.suffix() + " document exceeds its "
+                            + maximumChunks + " chunk limit");
         }
         var actual = chunkers.require(actualChunker).component();
         Map<String, String> resolvedOptions = resolvedOptions(

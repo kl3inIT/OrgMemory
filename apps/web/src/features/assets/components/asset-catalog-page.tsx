@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import {
   ArrowUpRight,
@@ -28,6 +28,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
+import { toast } from "sonner"
 import { scopeAssetQueryKey } from "@/features/assets/actor-key"
 import type {
   AssetCatalogScope,
@@ -46,6 +48,9 @@ import type { AssetRecommendation, AssetSummary } from "@/lib/hey-api"
 import {
   listAssetCatalogOptions,
   listOwnedAssetsOptions,
+  getSkillActivationOptions,
+  getSkillActivationQueryKey,
+  setSkillActivationMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import { formatDate } from "@/lib/format"
 
@@ -181,6 +186,9 @@ type AssetItemViewModel = {
   detail: string
   timestamp?: string
   actionLabel: string
+  sharingLabel: string
+  ownerLabel?: string
+  skillAssetId?: string
   link: (children: ReactNode, className: string) => ReactNode
 }
 
@@ -199,6 +207,14 @@ function catalogItem(asset: CatalogAsset): AssetItemViewModel {
     detail: asset.versionLabel ?? "—",
     timestamp: asset.releasedAt,
     actionLabel: assetActionLabel(asset.type),
+    sharingLabel:
+      asset.sharingState === "ORGANIZATION"
+        ? "Company"
+        : asset.sharingState === "SHARED"
+          ? "Shared"
+          : "Private",
+    ownerLabel: asset.ownerUserId ? `Owner ${asset.ownerUserId.slice(0, 8)}` : "Owner recovery needed",
+    skillAssetId: asset.type === "SKILL" ? asset.assetId : undefined,
     link: (children, className) => (
       <AssetLink asset={asset} className={className}>
         {children}
@@ -218,6 +234,13 @@ function ownedItem(asset: OwnedAsset): AssetItemViewModel {
     detail: portfolioLabel(asset.portfolioState),
     timestamp: asset.updatedAt,
     actionLabel: "Manage asset",
+    sharingLabel:
+      asset.sharingState === "ORGANIZATION"
+        ? "Company"
+        : asset.sharingState === "SHARED"
+          ? "Shared"
+          : "Private",
+    ownerLabel: "Created by you",
     link: (children, className) => (
       <OwnedAssetLink asset={asset} className={className}>
         {children}
@@ -261,7 +284,12 @@ function AssetCard({ asset }: { asset: AssetItemViewModel }) {
           {asset.secondaryBadge ? (
             <Badge className={asset.secondaryBadgeClassName}>{asset.secondaryBadge}</Badge>
           ) : null}
+          <Badge variant="outline">{asset.sharingLabel}</Badge>
         </div>
+        {asset.ownerLabel ? (
+          <p className="mt-3 text-metadata text-content-muted">{asset.ownerLabel}</p>
+        ) : null}
+        {asset.skillAssetId ? <SkillActivationToggle assetId={asset.skillAssetId} /> : null}
       </CardContent>
       <CardFooter className="mt-auto px-5 pt-0 pb-5">
         {asset.link(
@@ -276,6 +304,38 @@ function AssetCard({ asset }: { asset: AssetItemViewModel }) {
         )}
       </CardFooter>
     </Card>
+  )
+}
+
+function SkillActivationToggle({ assetId }: { assetId: string }) {
+  const queryClient = useQueryClient()
+  const options = getSkillActivationOptions({ path: { assetId } })
+  const activation = useQuery(options)
+  const update = useMutation({
+    ...setSkillActivationMutation(),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({
+        queryKey: getSkillActivationQueryKey({ path: { assetId } }),
+      })
+      toast.success(result.enabled ? "Skill enabled" : "Skill disabled")
+    },
+    onError: () => toast.error("Skill activation could not be updated"),
+  })
+  return (
+    <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-border-subtle bg-surface-subtle px-3 py-2">
+      <div>
+        <p className="text-label text-content-primary">Use in Assistant</p>
+        <p className="text-metadata text-content-muted">Personal setting</p>
+      </div>
+      <Switch
+        aria-label="Use this Skill in Assistant"
+        checked={Boolean(activation.data?.enabled)}
+        disabled={activation.isPending || activation.isError || update.isPending}
+        onCheckedChange={(enabled) =>
+          update.mutate({ body: { enabled }, path: { assetId } })
+        }
+      />
+    </div>
   )
 }
 
@@ -508,13 +568,13 @@ export function AssetCatalogPage({
                 value="ALL"
                 className="text-sm data-[state=active]:border-border-strong data-[state=active]:bg-action-secondary-hover sm:text-base"
               >
-                All Assets
+                Available to me
               </TabsTrigger>
               <TabsTrigger
                 value="MINE"
                 className="text-sm data-[state=active]:border-border-strong data-[state=active]:bg-action-secondary-hover sm:text-base"
               >
-                My Assets
+                Created by me
               </TabsTrigger>
             </TabsList>
           </Tabs>

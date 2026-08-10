@@ -36,7 +36,12 @@ public class AssetRegistryService implements AssetReleaseUseQuery {
     private static final String SPACE_RESOURCE = "knowledge_space";
     private static final PermissionKey CAN_CREATE_ASSET = PermissionKey.of("can_create_asset");
     private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
+    private static final PermissionKey CAN_VIEW_RELEASED =
+            PermissionKey.of("can_view_released");
+    private static final PermissionKey CAN_VIEW_GOVERNANCE_HISTORY =
+            PermissionKey.of("can_view_governance_history");
     private static final PermissionKey CAN_EDIT = PermissionKey.of("can_edit");
+    private static final PermissionKey CAN_EDIT_DRAFT = PermissionKey.of("can_edit_draft");
     private static final PermissionKey CAN_SUBMIT_REVIEW =
             PermissionKey.of("can_submit_review");
     private static final PermissionKey CAN_REVIEW = PermissionKey.of("can_review");
@@ -47,6 +52,16 @@ public class AssetRegistryService implements AssetReleaseUseQuery {
     private static final PermissionKey CAN_USE = PermissionKey.of("can_use");
     private static final PermissionKey CAN_MANAGE_ROLES =
             PermissionKey.of("can_manage_roles");
+    private static final PermissionKey CAN_MANAGE_SHARING =
+            PermissionKey.of("can_manage_sharing");
+    private static final PermissionKey CAN_TRANSFER_OWNERSHIP =
+            PermissionKey.of("can_transfer_ownership");
+    private static final PermissionKey CAN_PUBLISH_DIRECT =
+            PermissionKey.of("can_publish_direct");
+    private static final PermissionKey CAN_RECOVER_OWNERSHIP =
+            PermissionKey.of("can_recover_ownership");
+    private static final PermissionKey CAN_EMERGENCY_WITHDRAW =
+            PermissionKey.of("can_emergency_withdraw");
 
     private final AssetRegistryCoordinator coordinator;
     private final AssetAuthorizationProjectionCommand projection;
@@ -214,13 +229,18 @@ public class AssetRegistryService implements AssetReleaseUseQuery {
     }
 
     public AssetView get(CurrentActor actor, UUID assetId) {
-        require(actor, assetId, CAN_VIEW);
+        require(actor, assetId, CAN_VIEW_GOVERNANCE_HISTORY);
         return coordinator.view(actor.organizationId(), assetId);
+    }
+
+    public AssetReleasedView getReleased(CurrentActor actor, UUID assetId) {
+        require(actor, assetId, CAN_VIEW_RELEASED);
+        return coordinator.releasedView(actor.organizationId(), assetId);
     }
 
     public AssetGovernanceActions governanceActions(
             CurrentActor actor, UUID assetId) {
-        AssetAuthorizationTarget target = require(actor, assetId, CAN_VIEW);
+        AssetAuthorizationTarget target = require(actor, assetId, CAN_VIEW_RELEASED);
         ResourceRef resource =
                 ResourceRef.of(actor.organizationId(), ASSET_RESOURCE, assetId);
         boolean canEdit = allowed(actor, resource, CAN_EDIT);
@@ -233,6 +253,9 @@ public class AssetRegistryService implements AssetReleaseUseQuery {
         boolean canPublishSkill = target.type() == AssetType.SKILL
                 && allowed(actor, resource, CAN_PUBLISH_SKILL);
         boolean canWithdraw = allowed(actor, resource, CAN_WITHDRAW);
+        boolean canManageSharing = allowed(actor, resource, CAN_MANAGE_SHARING);
+        boolean canTransferOwnership = allowed(actor, resource, CAN_TRANSFER_OWNERSHIP);
+        boolean canPublishDirect = allowed(actor, resource, CAN_PUBLISH_DIRECT);
         AssetReviewDecisionActions review =
                 coordinator.reviewDecisionActions(actor, assetId);
         boolean canApprove = canReview && review.canApprove();
@@ -249,7 +272,10 @@ public class AssetRegistryService implements AssetReleaseUseQuery {
                 || canCancel
                 || canPublish
                 || canPublishSkill
-                || canWithdraw;
+                || canWithdraw
+                || canManageSharing
+                || canTransferOwnership
+                || canPublishDirect;
         return new AssetGovernanceActions(
                 canEdit,
                 canSubmitReview,
@@ -261,6 +287,9 @@ public class AssetRegistryService implements AssetReleaseUseQuery {
                 canPublish,
                 canPublishSkill,
                 canWithdraw,
+                canManageSharing,
+                canTransferOwnership,
+                canPublishDirect,
                 canOpenGovernance);
     }
 
@@ -325,12 +354,12 @@ public class AssetRegistryService implements AssetReleaseUseQuery {
             UUID assetId,
             long expectedLockVersion,
             AssetDraftInput input) {
-        require(actor, assetId, CAN_EDIT);
+        require(actor, assetId, CAN_EDIT_DRAFT);
         return coordinator.updateDraft(actor, assetId, expectedLockVersion, input);
     }
 
     void requireSkillEdit(CurrentActor actor, UUID assetId) {
-        require(actor, assetId, CAN_EDIT);
+        require(actor, assetId, CAN_EDIT_DRAFT);
     }
 
     SkillDraftReplacement replaceValidatedSkillDraft(
@@ -339,7 +368,7 @@ public class AssetRegistryService implements AssetReleaseUseQuery {
             long expectedLockVersion,
             AssetDraftInput input,
             SkillPackageStoragePort.StoredSkillPackage storedPackage) {
-        require(actor, assetId, CAN_EDIT);
+        require(actor, assetId, CAN_EDIT_DRAFT);
         return coordinator.replaceSkillDraft(
                 actor, assetId, expectedLockVersion, input, storedPackage);
     }
@@ -376,8 +405,65 @@ public class AssetRegistryService implements AssetReleaseUseQuery {
             CurrentActor actor,
             UUID assetId,
             String versionLabel) {
-        require(actor, assetId, CAN_PUBLISH_SKILL);
-        return coordinator.publishSkillDraft(actor, assetId, versionLabel);
+        return publishDraft(actor, assetId, versionLabel);
+    }
+
+    public AssetView publishDraft(CurrentActor actor, UUID assetId, String versionLabel) {
+        require(actor, assetId, CAN_PUBLISH_DIRECT);
+        return coordinator.publishDraft(actor, assetId, versionLabel);
+    }
+
+    public AssetView share(
+            CurrentActor actor,
+            UUID assetId,
+            String principalType,
+            String principalId,
+            AssetRole role) {
+        require(actor, assetId, CAN_MANAGE_SHARING);
+        PrincipalRef principal = sharingPrincipal(principalType, principalId);
+        coordinator.share(actor, assetId, principal, role);
+        projection.project(actor.organizationId(), assetId);
+        return coordinator.view(actor.organizationId(), assetId);
+    }
+
+    public AssetView unshare(
+            CurrentActor actor,
+            UUID assetId,
+            String principalType,
+            String principalId,
+            AssetRole role) {
+        require(actor, assetId, CAN_MANAGE_SHARING);
+        PrincipalRef principal = sharingPrincipal(principalType, principalId);
+        coordinator.unshare(actor, assetId, principal, role);
+        projection.project(actor.organizationId(), assetId);
+        return coordinator.view(actor.organizationId(), assetId);
+    }
+
+    public AssetView transferOwnership(
+            CurrentActor actor, UUID assetId, UUID nextOwnerUserId) {
+        require(actor, assetId, CAN_TRANSFER_OWNERSHIP);
+        coordinator.transferOwnership(actor, assetId, nextOwnerUserId);
+        projection.project(actor.organizationId(), assetId);
+        return coordinator.view(actor.organizationId(), assetId);
+    }
+
+    public AssetView recoverOwnership(
+            CurrentActor actor, UUID assetId, UUID nextOwnerUserId) {
+        require(actor, assetId, CAN_RECOVER_OWNERSHIP);
+        coordinator.recoverOwnership(actor, assetId, nextOwnerUserId);
+        projection.project(actor.organizationId(), assetId);
+        return coordinator.view(actor.organizationId(), assetId);
+    }
+
+    public AssetView withdrawAsset(CurrentActor actor, UUID assetId, String reason) {
+        require(actor, assetId, CAN_WITHDRAW);
+        return coordinator.withdrawAsset(actor, assetId, reason, false);
+    }
+
+    public AssetView emergencyWithdrawAsset(
+            CurrentActor actor, UUID assetId, String reason) {
+        require(actor, assetId, CAN_EMERGENCY_WITHDRAW);
+        return coordinator.withdrawAsset(actor, assetId, reason, true);
     }
 
     public AssetView deprecate(
@@ -406,26 +492,17 @@ public class AssetRegistryService implements AssetReleaseUseQuery {
             String principalType,
             String principalId,
             AssetRole role) {
+        if (role == AssetRole.VIEWER || role == AssetRole.EDITOR) {
+            return share(actor, assetId, principalType, principalId, role);
+        }
+        if (role != AssetRole.REVIEWER && role != AssetRole.PUBLISHER) {
+            throw new BusinessValidationException(
+                    "asset.role-assignment-disabled",
+                    "Ownership uses transfer and Asset collaboration uses Viewer or Editor");
+        }
         require(actor, assetId, CAN_MANAGE_ROLES);
-        if (role == null || principalType == null || principalId == null) {
-            throw new BusinessValidationException(
-                    "asset.role-assignment-invalid",
-                    "The Asset role assignment is invalid");
-        }
-        PrincipalRef principal;
-        try {
-            principal = new PrincipalRef(principalType, principalId);
-        } catch (IllegalArgumentException invalidRole) {
-            throw new BusinessValidationException(
-                    "asset.role-assignment-invalid",
-                    "The Asset role assignment is invalid",
-                    invalidRole);
-        }
-        UUID projectedAssetId = coordinator.assignRole(
-                actor,
-                assetId,
-                principal,
-                role);
+        PrincipalRef principal = sharingPrincipal(principalType, principalId);
+        UUID projectedAssetId = coordinator.assignRole(actor, assetId, principal, role);
         projection.project(actor.organizationId(), projectedAssetId);
         return coordinator.view(actor.organizationId(), projectedAssetId);
     }
@@ -465,5 +542,18 @@ public class AssetRegistryService implements AssetReleaseUseQuery {
         return authorization.check(new RelationshipAuthorizationQuery(
                         actor.principal(), permission, resource))
                 .allowed();
+    }
+
+    private static PrincipalRef sharingPrincipal(String principalType, String principalId) {
+        if (principalType == null || principalId == null) {
+            throw new BusinessValidationException(
+                    "asset.share-invalid", "The Asset share is invalid");
+        }
+        try {
+            return new PrincipalRef(principalType, principalId);
+        } catch (IllegalArgumentException invalidPrincipal) {
+            throw new BusinessValidationException(
+                    "asset.share-invalid", "The Asset share is invalid", invalidPrincipal);
+        }
     }
 }

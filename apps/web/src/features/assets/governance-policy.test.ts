@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   canOpenGovernance,
-  canPublishSkillDirectly,
+  canPublishDirectly,
   initialGovernanceTab,
 } from "./governance-policy"
 
@@ -17,37 +17,37 @@ describe("Asset Governance policy", () => {
     ).toBe("draft")
   })
 
-  it("opens an active review before historical changes", () => {
+  it("keeps the working copy primary even when legacy review history exists", () => {
     expect(
       initialGovernanceTab({
         revisions: [{ id: "revision-1" }],
         reviews: [{ id: "review-1", state: "IN_REVIEW" }],
         draft: { id: "draft-1" },
       }),
-    ).toBe("review")
+    ).toBe("draft")
   })
 
-  it("falls back to Changes when there is no active review", () => {
+  it("opens Release history when no working copy is available", () => {
     expect(
       initialGovernanceTab({
         revisions: [{ id: "revision-1" }],
         reviews: [],
-        draft: { id: "draft-1" },
+        draft: undefined,
       }),
-    ).toBe("changes")
+    ).toBe("releases")
   })
 
-  it("offers direct Skill publication only when no review is active", () => {
-    const actions = { canPublishSkill: true }
+  it("offers direct publication for every Asset type when no legacy review is active", () => {
+    const actions = { canPublishDirect: true }
 
     expect(
-      canPublishSkillDirectly(
+      canPublishDirectly(
         { type: "SKILL", reviews: [] },
         actions,
       ),
     ).toBe(true)
     expect(
-      canPublishSkillDirectly(
+      canPublishDirectly(
         {
           type: "SKILL",
           reviews: [{ id: "review-1", state: "IN_REVIEW" }],
@@ -56,11 +56,11 @@ describe("Asset Governance policy", () => {
       ),
     ).toBe(false)
     expect(
-      canPublishSkillDirectly(
+      canPublishDirectly(
         { type: "PROMPT_TEMPLATE", reviews: [] },
         actions,
       ),
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it("treats an absent server governance verdict as denied", () => {

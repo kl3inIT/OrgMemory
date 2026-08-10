@@ -20,6 +20,8 @@ interface AssetRoleAssignmentRepository extends JpaRepository<AssetRoleAssignmen
 
     List<AssetRoleAssignment> findByAssetIdOrderByValidFromAsc(UUID assetId);
 
+    List<AssetRoleAssignment> findByAssetIdAndValidUntilIsNull(UUID assetId);
+
     @Query("""
             select assignment.assetId
             from AssetRoleAssignment assignment

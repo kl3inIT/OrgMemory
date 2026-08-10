@@ -1,13 +1,9 @@
-package com.orgmemory.worker.ingestion;
+package com.orgmemory.integrations.documentparsing.springai;
 
 import com.orgmemory.graphrag.parsing.DocumentBlockKind;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * One block a reader extracted, before it is placed into canonical text. Spans
- * are assigned later, once every block's position is known.
- */
 record ParsedBlock(
         DocumentBlockKind kind,
         String text,

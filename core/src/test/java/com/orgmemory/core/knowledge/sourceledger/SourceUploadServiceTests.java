@@ -1,7 +1,7 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -146,6 +146,39 @@ class SourceUploadServiceTests {
                                 new byte[] {1, 2, 3, 4})));
 
         assertEquals("source.upload-filename-invalid", failure.code());
+        verifyNoInteractions(objects, registrations);
+    }
+
+    @Test
+    void rejectsASpreadsheetAboveItsFormatLimitWithAnActionableMessage() {
+        CurrentActor actor = new CurrentActor(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "Uploader",
+                "uploader@example.com");
+        ObjectStoragePort objects = mock(ObjectStoragePort.class);
+        SourceUploadRegistrationService registrations = mock(SourceUploadRegistrationService.class);
+        SourceUploadService service = new SourceUploadService(
+                objects,
+                registrations,
+                new KnowledgePermissionPolicy(),
+                new SourceIngestionProperties(DataSize.ofMegabytes(25), 5),
+                mock(SourceKnowledgeSpacePort.class));
+
+        BusinessValidationException failure = assertThrows(
+                BusinessValidationException.class,
+                () -> service.upload(
+                        new CreateUploadSourceCommand(
+                                actor,
+                                "headcount.xlsx",
+                                DataSize.ofMegabytes(16).toBytes(),
+                                KnowledgeClassification.INTERNAL,
+                                UUID.randomUUID()),
+                        new ByteArrayInputStream(new byte[] {1})));
+
+        assertEquals("source.upload-size-invalid", failure.code());
+        assertEquals("file exceeds the 15 MB limit for .xlsx documents", failure.getMessage());
         verifyNoInteractions(objects, registrations);
     }
 }

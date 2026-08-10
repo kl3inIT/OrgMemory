@@ -7,6 +7,7 @@ import com.orgmemory.graphrag.parsing.CanonicalDocument;
 import com.orgmemory.graphrag.parsing.DocumentBlock;
 import com.orgmemory.graphrag.parsing.DocumentBlockKind;
 import com.orgmemory.graphrag.parsing.DocumentParseRequest;
+import com.orgmemory.integrations.documentparsing.springai.SpringAiDocumentParser;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.Optional;

@@ -5,6 +5,7 @@ import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.assetregistry.kernel.AssetAuthorizationBatch;
 import com.orgmemory.core.assetregistry.kernel.AssetAuthorizationProjectionQueue;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
+import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import java.util.Objects;
@@ -23,12 +24,15 @@ class AssetAuthorizationProjectionService implements AssetAuthorizationProjectio
 
     private final AssetAuthorizationProjectionQueue queue;
     private final RelationshipTupleWritePort relationshipTuples;
+    private final RelationshipTupleReconciliationPort relationshipReconciliation;
 
     AssetAuthorizationProjectionService(
             AssetAuthorizationProjectionQueue queue,
-            RelationshipTupleWritePort relationshipTuples) {
+            RelationshipTupleWritePort relationshipTuples,
+            RelationshipTupleReconciliationPort relationshipReconciliation) {
         this.queue = queue;
         this.relationshipTuples = relationshipTuples;
+        this.relationshipReconciliation = relationshipReconciliation;
     }
 
     @Override
@@ -44,9 +48,7 @@ class AssetAuthorizationProjectionService implements AssetAuthorizationProjectio
     void project(AssetAuthorizationBatch batch) {
         RelationshipTupleWriteResult result;
         try {
-            result = Objects.requireNonNull(
-                    relationshipTuples.write(new RelationshipTupleWriteRequest(batch.tuples())),
-                    "relationship tuple write result");
+            result = apply(batch);
         } catch (RuntimeException exception) {
             log.warn(
                     "Asset authorization projection failed for organization {} and asset {}",
@@ -69,5 +71,25 @@ class AssetAuthorizationProjectionService implements AssetAuthorizationProjectio
                     "Asset authorization is waiting for projection");
         }
         queue.complete(batch, result.policyVersion());
+    }
+
+    private RelationshipTupleWriteResult apply(AssetAuthorizationBatch batch) {
+        RelationshipTupleWriteResult last = null;
+        if (!batch.deletes().isEmpty()) {
+            last = Objects.requireNonNull(
+                    relationshipReconciliation.delete(
+                            new RelationshipTupleWriteRequest(batch.deletes())),
+                    "relationship tuple delete result");
+            if (!last.applied()) {
+                return last;
+            }
+        }
+        if (!batch.writes().isEmpty()) {
+            last = Objects.requireNonNull(
+                    relationshipTuples.write(
+                            new RelationshipTupleWriteRequest(batch.writes())),
+                    "relationship tuple write result");
+        }
+        return Objects.requireNonNull(last, "relationship tuple projection result");
     }
 }

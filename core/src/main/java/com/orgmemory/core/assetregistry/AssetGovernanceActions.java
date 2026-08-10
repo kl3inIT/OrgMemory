@@ -18,5 +18,8 @@ public record AssetGovernanceActions(
         boolean canPublish,
         boolean canPublishSkill,
         boolean canWithdraw,
+        boolean canManageSharing,
+        boolean canTransferOwnership,
+        boolean canPublishDirect,
         boolean canOpenGovernance) {
 }

@@ -6,22 +6,15 @@ import type {
 export type GovernanceTab = "draft" | "changes" | "review" | "releases"
 
 export function initialGovernanceTab(asset: AssetView): GovernanceTab {
-  if (asset.reviews?.some((review) => review.state === "IN_REVIEW")) {
-    return "review"
-  }
-  if ((asset.revisions?.length ?? 0) === 0 && asset.draft) {
-    return "draft"
-  }
-  return "changes"
+  return asset.draft ? "draft" : "releases"
 }
 
-export function canPublishSkillDirectly(
+export function canPublishDirectly(
   asset: AssetView,
   actions: AssetGovernanceActions | undefined,
 ): boolean {
   return Boolean(
-    asset.type === "SKILL" &&
-      actions?.canPublishSkill &&
+    actions?.canPublishDirect &&
       !asset.reviews?.some((review) => review.state === "IN_REVIEW"),
   )
 }

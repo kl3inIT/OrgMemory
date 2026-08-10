@@ -128,7 +128,7 @@ class AssetRegistryServiceTests {
         when(authorization.check(any())).thenAnswer(invocation -> {
             RelationshipAuthorizationQuery query = invocation.getArgument(0);
             return switch (query.permission().value()) {
-                case "can_view", "can_edit", "can_submit_review", "can_review",
+                case "can_view_released", "can_edit", "can_submit_review", "can_review",
                         "can_publish", "can_publish_skill" ->
                     AuthorizationDecision.allow("model-v1");
                 default -> AuthorizationDecision.deny(
@@ -203,7 +203,7 @@ class AssetRegistryServiceTests {
                         null,
                         AssetRole.VIEWER));
 
-        assertEquals("asset.role-assignment-invalid", missingType.code());
-        assertEquals("asset.role-assignment-invalid", missingId.code());
+        assertEquals("asset.share-invalid", missingType.code());
+        assertEquals("asset.share-invalid", missingId.code());
     }
 }

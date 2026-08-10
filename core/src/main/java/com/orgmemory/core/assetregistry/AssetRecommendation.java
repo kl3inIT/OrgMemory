@@ -4,6 +4,7 @@ import com.orgmemory.core.assetregistry.consumption.AssetAvailability;
 
 import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
 import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.api.AssetSharingState;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -16,6 +17,8 @@ public record AssetRecommendation(
         String summary,
         UUID knowledgeSpaceId,
         AssetPortfolioState portfolioState,
+        UUID ownerUserId,
+        AssetSharingState sharingState,
         UUID releaseId,
         String versionLabel,
         String releaseDigest,

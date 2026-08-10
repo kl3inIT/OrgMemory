@@ -9,6 +9,7 @@ import com.orgmemory.graphrag.parsing.DocumentBlock;
 import com.orgmemory.graphrag.parsing.DocumentBlockKind;
 import com.orgmemory.graphrag.parsing.DocumentParseRequest;
 import com.orgmemory.graphrag.parsing.DocumentParseResult;
+import com.orgmemory.integrations.documentparsing.springai.SpringAiDocumentParser;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;

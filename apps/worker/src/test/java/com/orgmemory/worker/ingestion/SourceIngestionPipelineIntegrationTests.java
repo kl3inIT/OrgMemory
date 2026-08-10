@@ -1,8 +1,5 @@
 package com.orgmemory.worker.ingestion;
 
-import com.orgmemory.core.knowledge.sourceledger.CreateUploadSourceCommand;
-import com.orgmemory.core.knowledge.sourceledger.SourceUploadService;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,6 +29,8 @@ import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileSpec;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbedding;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalProperties;
+import com.orgmemory.core.knowledge.sourceledger.CreateUploadSourceCommand;
+import com.orgmemory.core.knowledge.sourceledger.SourceUploadService;
 import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearchConfiguration;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
@@ -482,6 +481,54 @@ class SourceIngestionPipelineIntegrationTests {
                 chunk.operationId(),
                 "both stages belong to the one job, so an upload reads as one operation");
         assertEquals(ORGANIZATION_ID, parse.organizationId());
+    }
+
+    @Test
+    @SuppressWarnings("SqlResolve")
+    void quarantinesDeterministicParserFailureWithoutSchedulingARetry() throws Exception {
+        byte[] content = new byte[] {'M', 'Z', 0, 0, 1, 2, 3, 4};
+        String sha256 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+        when(objects.put(any(), any())).thenAnswer(invocation -> {
+            ObjectWriteRequest request = invocation.getArgument(0);
+            return new StoredObject(request.key(), content.length, "text/plain", sha256, "etag-binary", null);
+        });
+        when(objects.open(any())).thenAnswer(invocation -> {
+            var key = (com.orgmemory.core.knowledge.storage.ObjectKey) invocation.getArgument(0);
+            return new ObjectContent(
+                    new ByteArrayInputStream(content),
+                    new StoredObject(key, content.length, "text/plain", sha256, "etag-binary", null));
+        });
+        when(entryAuthorization.check(any())).thenReturn(AuthorizationDecision.allow("model-1"));
+
+        var source = uploads.upload(
+                new CreateUploadSourceCommand(
+                        ACTOR,
+                        "renamed-binary.txt",
+                        content.length,
+                        KnowledgeClassification.CONFIDENTIAL,
+                        SALES_SPACE_ID),
+                new ByteArrayInputStream(content));
+
+        assertEquals(WorkProcessingResult.PROCESSED, processor.processNext());
+
+        Map<String, Object> state = jdbc.queryForMap(
+                """
+                SELECT r.status AS revision_status,
+                       r.failure_code,
+                       j.status AS job_status,
+                       j.attempt_count,
+                       j.last_error_code
+                FROM source_objects s
+                JOIN source_revisions r ON r.id = s.latest_revision_id
+                JOIN source_ingestion_jobs j ON j.source_revision_id = r.id
+                WHERE s.id = ?
+                """,
+                source.id());
+        assertEquals("QUARANTINED", state.get("revision_status"));
+        assertEquals("MEDIA_TYPE_MISMATCH", state.get("failure_code"));
+        assertEquals("FAILED", state.get("job_status"));
+        assertEquals(1, state.get("attempt_count"));
+        assertEquals("MEDIA_TYPE_MISMATCH", state.get("last_error_code"));
     }
 
     @Test

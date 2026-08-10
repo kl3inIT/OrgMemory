@@ -3,8 +3,10 @@ package com.orgmemory.worker.ingestion;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.orgmemory.graphrag.parsing.DocumentParseException;
 import com.orgmemory.graphrag.parsing.DocumentParseRequest;
 import com.orgmemory.graphrag.parsing.DocumentParseResult;
+import com.orgmemory.integrations.documentparsing.springai.SpringAiDocumentParser;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,27 +39,24 @@ class SpringAiDocumentParserTests {
         Path file = temporaryDirectory.resolve("payload.exe");
         Files.write(file, new byte[] {'M', 'Z', 0, 0, 1, 2});
 
-        RejectedSourceException failure = assertThrows(
-                RejectedSourceException.class,
+        DocumentParseException failure = assertThrows(
+                DocumentParseException.class,
                 () -> parse(file));
 
         assertEquals("UNSUPPORTED_MEDIA_TYPE", failure.code());
     }
 
     @Test
-    void routesDetectedOoxmlThroughTheDocumentReaderEvenWithATextExtension() throws Exception {
+    void rejectsOoxmlBytesRenamedWithATextExtension() throws Exception {
         Path file = temporaryDirectory.resolve("renamed.txt");
         try (var document = new XWPFDocument(); var output = Files.newOutputStream(file)) {
             document.createParagraph().createRun().setText("Review the request before approval.");
             document.write(output);
         }
 
-        DocumentParseResult parsed = parse(file);
+        DocumentParseException failure = assertThrows(DocumentParseException.class, () -> parse(file));
 
-        assertEquals(
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                parsed.detectedMediaType());
-        assertEquals("Review the request before approval.", parsed.document().content());
+        assertEquals("MEDIA_TYPE_MISMATCH", failure.code());
     }
 
     @Test

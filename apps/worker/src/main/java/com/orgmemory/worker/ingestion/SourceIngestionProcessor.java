@@ -36,6 +36,7 @@ import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
 import com.orgmemory.graphrag.parsing.DocumentParseRequest;
 import com.orgmemory.graphrag.parsing.DocumentParseResult;
+import com.orgmemory.graphrag.parsing.DocumentParseException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -325,6 +326,15 @@ class SourceIngestionProcessor {
                     "The immutable processing profile did not reproduce",
                     false,
                     false);
+        } catch (DocumentParseException rejected) {
+            log.info("Source revision {} was quarantined: {}", claim.sourceRevisionId(), rejected.code());
+            coordinator.fail(
+                    claim.jobId(),
+                    properties.workerId(),
+                    rejected.code(),
+                    rejected.getMessage(),
+                    false,
+                    true);
         } catch (RejectedSourceException rejected) {
             log.info("Source revision {} was quarantined: {}", claim.sourceRevisionId(), rejected.code());
             coordinator.fail(

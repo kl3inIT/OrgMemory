@@ -206,6 +206,8 @@ class SkillPackageAssetServiceTests {
                 SPACE_ID,
                 AssetPortfolioState.DRAFT_ONLY,
                 true,
+                USER_ID,
+                com.orgmemory.core.assetregistry.api.AssetSharingState.PRIVATE,
                 new AssetView.Draft(
                         UUID.randomUUID(),
                         4,

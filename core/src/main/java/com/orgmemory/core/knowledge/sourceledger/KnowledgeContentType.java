@@ -12,43 +12,69 @@ import java.util.Set;
  * active or unsupported content into same-origin executable content.
  */
 public enum KnowledgeContentType {
-    PDF(Set.of("pdf"), "application/pdf", "application/pdf", true, true),
+    PDF(Set.of("pdf"), "application/pdf", "application/pdf", true, true, 25),
     WORD(
             Set.of("docx"),
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             true,
-            false),
+            false,
+            25),
+    WORD_LEGACY(Set.of("doc"), "application/msword", "application/msword", true, false, 25),
     POWERPOINT(
             Set.of("pptx"),
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
             true,
-            false),
-    MARKDOWN(Set.of("md"), "text/markdown", "text/plain", true, true),
-    TEXT(Set.of("txt"), "text/plain", "text/plain", true, true),
-    PNG(Set.of("png"), "image/png", "image/png", false, true),
-    JPEG(Set.of("jpg", "jpeg"), "image/jpeg", "image/jpeg", false, true),
-    GIF(Set.of("gif"), "image/gif", "image/gif", false, true),
-    WEBP(Set.of("webp"), "image/webp", "image/webp", false, true);
+            false,
+            25),
+    POWERPOINT_LEGACY(
+            Set.of("ppt"), "application/vnd.ms-powerpoint", "application/vnd.ms-powerpoint", true, false, 25),
+    EXCEL(
+            Set.of("xlsx"),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            true,
+            false,
+            15),
+    EXCEL_LEGACY(
+            Set.of("xls"), "application/vnd.ms-excel", "application/vnd.ms-excel", true, false, 15),
+    CSV(Set.of("csv"), "text/csv", "text/plain", true, true, 10),
+    HTML(Set.of("html", "htm"), "text/html", "text/plain", true, false, 10),
+    RTF(Set.of("rtf"), "application/rtf", "text/plain", true, false, 10),
+    OPEN_DOCUMENT_TEXT(
+            Set.of("odt"), "application/vnd.oasis.opendocument.text", "application/vnd.oasis.opendocument.text", true, false, 25),
+    OPEN_DOCUMENT_SPREADSHEET(
+            Set.of("ods"), "application/vnd.oasis.opendocument.spreadsheet", "application/vnd.oasis.opendocument.spreadsheet", true, false, 15),
+    OPEN_DOCUMENT_PRESENTATION(
+            Set.of("odp"), "application/vnd.oasis.opendocument.presentation", "application/vnd.oasis.opendocument.presentation", true, false, 25),
+    MARKDOWN(Set.of("md"), "text/markdown", "text/plain", true, true, 10),
+    TEXT(Set.of("txt"), "text/plain", "text/plain", true, true, 10),
+    PNG(Set.of("png"), "image/png", "image/png", false, true, 25),
+    JPEG(Set.of("jpg", "jpeg"), "image/jpeg", "image/jpeg", false, true, 25),
+    GIF(Set.of("gif"), "image/gif", "image/gif", false, true, 25),
+    WEBP(Set.of("webp"), "image/webp", "image/webp", false, true, 25);
 
     private final Set<String> extensions;
     private final String canonicalMediaType;
     private final String browserSafeMediaType;
     private final boolean uploadAllowed;
     private final boolean inlinePreviewAllowed;
+    private final long maximumUploadBytes;
 
     KnowledgeContentType(
             Set<String> extensions,
             String canonicalMediaType,
             String browserSafeMediaType,
             boolean uploadAllowed,
-            boolean inlinePreviewAllowed) {
+            boolean inlinePreviewAllowed,
+            long maximumUploadMegabytes) {
         this.extensions = Set.copyOf(extensions);
         this.canonicalMediaType = canonicalMediaType;
         this.browserSafeMediaType = browserSafeMediaType;
         this.uploadAllowed = uploadAllowed;
         this.inlinePreviewAllowed = inlinePreviewAllowed;
+        this.maximumUploadBytes = maximumUploadMegabytes * 1024 * 1024;
     }
 
     public static Optional<KnowledgeContentType> fromFileName(String fileName) {
@@ -86,5 +112,9 @@ public enum KnowledgeContentType {
 
     public boolean inlinePreviewAllowed() {
         return inlinePreviewAllowed;
+    }
+
+    public long maximumUploadBytes() {
+        return maximumUploadBytes;
     }
 }

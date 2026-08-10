@@ -63,6 +63,19 @@ class SkillRuntimeServiceTests {
     }
 
     @Test
+    void disabledSkillsStayOutOfSearchAndCannotActivate() {
+        Fixture fixture = fixture();
+        when(fixture.activations.isEnabled(ACTOR, ASSET_ID)).thenReturn(false);
+        when(fixture.deliveries.search(ACTOR, "incident", 5))
+                .thenReturn(List.of(summary()));
+
+        assertEquals(List.of(), fixture.service.search(ACTOR, "incident", 5));
+        assertThrows(
+                AssetUnavailableException.class,
+                () -> fixture.service.activate(ACTOR, ASSET_ID, RELEASE_ID));
+    }
+
+    @Test
     void activatesExactSkillInstructionsAndListsResources() throws Exception {
         Fixture fixture = fixture();
         Map<String, byte[]> files = files(
@@ -150,10 +163,25 @@ class SkillRuntimeServiceTests {
     private static Fixture fixture() {
         SkillReleaseDeliveryQuery deliveries = mock(SkillReleaseDeliveryQuery.class);
         SkillDistributionOperations distribution = mock(SkillDistributionOperations.class);
+        SkillActivationOperations activations = mock(SkillActivationOperations.class);
+        when(activations.isEnabled(ACTOR, ASSET_ID)).thenReturn(true);
         return new Fixture(
-                new SkillRuntimeService(deliveries, distribution),
+                new SkillRuntimeService(deliveries, distribution, activations),
                 deliveries,
-                distribution);
+                distribution,
+                activations);
+    }
+
+    private static SkillReleaseSummary summary() {
+        return new SkillReleaseSummary(
+                ASSET_ID,
+                RELEASE_ID,
+                "support",
+                "incident-response",
+                "1.0.0",
+                "Incident response",
+                "Coordinate incidents",
+                "a".repeat(64));
     }
 
     private static void openedPackage(
@@ -223,6 +251,7 @@ class SkillRuntimeServiceTests {
     private record Fixture(
             SkillRuntimeService service,
             SkillReleaseDeliveryQuery deliveries,
-            SkillDistributionOperations distribution) {
+            SkillDistributionOperations distribution,
+            SkillActivationOperations activations) {
     }
 }

@@ -192,6 +192,12 @@ const productionDeploy = await readFile(join(root, ".github", "workflows", "depl
 if (!productionDeploy.includes("Verify immutable image set")) {
   failures.push("deploy-production.yml must require a verified image-set job");
 }
+if (!productionDeploy.includes("worktree add --detach")) {
+  failures.push("deploy-production.yml must deploy from a clean linked worktree");
+}
+if (productionDeploy.includes("git checkout --detach '$COMMIT_SHA'")) {
+  failures.push("deploy-production.yml must not mutate the operator checkout");
+}
 const docsDeploy = await readFile(join(root, ".github", "workflows", "deploy-docs.yml"), "utf8");
 if (!docsDeploy.includes("Publish immutable docs image")) {
   failures.push("deploy-docs.yml must require a published docs-image job");

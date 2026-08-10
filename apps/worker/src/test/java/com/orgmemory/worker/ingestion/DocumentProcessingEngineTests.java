@@ -10,12 +10,13 @@ import com.orgmemory.core.knowledge.sourceledger.ProcessingProfileMismatchExcept
 import com.orgmemory.graphrag.chunking.RecursiveCharacterChunker;
 import com.orgmemory.graphrag.chunking.SemanticVectorChunker;
 import com.orgmemory.graphrag.parsing.DocumentParseRequest;
+import com.orgmemory.integrations.documentparsing.springai.SpringAiDocumentParser;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
-import org.junit.jupiter.api.Test;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
@@ -40,6 +41,7 @@ class DocumentProcessingEngineTests {
                 0,
                 2,
                 1,
+                null,
                 null,
                 null);
         var engine = new DocumentProcessingEngine(properties, new SpringAiDocumentParser());
@@ -183,6 +185,7 @@ class DocumentProcessingEngineTests {
                 0,
                 64,
                 64,
+                null,
                 null,
                 null);
     }

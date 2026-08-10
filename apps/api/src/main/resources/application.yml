@@ -167,7 +167,7 @@ orgmemory:
       rerank-provider: ${ORGMEMORY_GRAPH_QUERY_RERANK_PROVIDER:none}
       minimum-rerank-score: ${ORGMEMORY_GRAPH_QUERY_MINIMUM_RERANK_SCORE:0.0}
   ingestion:
-    maximum-upload-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
+    maximum-request-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
     maximum-attempts: ${ORGMEMORY_INGESTION_MAX_ATTEMPTS:5}
   storage:
     object:

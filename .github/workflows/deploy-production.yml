@@ -174,7 +174,14 @@ jobs:
               "$SSH_USER@$SSH_HOST" \
               "set -Eeuo pipefail
              docker_config=\$(mktemp -d /tmp/orgmemory-docker.XXXXXX)
+             deploy_root=\$(mktemp -d /tmp/orgmemory-deploy.XXXXXX)
+             deploy_checkout=\$deploy_root/repo
              cleanup() {
+               if git -C /apps/orgmemory worktree list --porcelain |
+                    grep -Fxq \"worktree \$deploy_checkout\"; then
+                 git -C /apps/orgmemory worktree remove --force \
+                   \"\$deploy_checkout\"
+               fi
                case \"\$docker_config\" in
                  /tmp/orgmemory-docker.*)
                    rm -rf -- \"\$docker_config\"
@@ -182,6 +189,16 @@ jobs:
                  *)
                    printf 'Refusing unsafe Docker config cleanup: %s\n' \
                      \"\$docker_config\" >&2
+                   return 1
+                   ;;
+               esac
+               case \"\$deploy_root\" in
+                 /tmp/orgmemory-deploy.*)
+                   rm -rf -- \"\$deploy_root\"
+                   ;;
+                 *)
+                   printf 'Refusing unsafe deployment checkout cleanup: %s\n' \
+                     \"\$deploy_root\" >&2
                    return 1
                    ;;
                esac
@@ -194,7 +211,9 @@ jobs:
                  --username '${{ github.actor }}' \
                  --password-stdin
              unset ghcr_token
-             cd /apps/orgmemory
-             git fetch --no-tags origin '$COMMIT_SHA' &&
-             git checkout --detach '$COMMIT_SHA' &&
-             ./infrastructure/deployment/scripts/deploy.sh '$COMMIT_SHA'"
+             git -C /apps/orgmemory fetch --no-tags origin '$COMMIT_SHA'
+             git -C /apps/orgmemory worktree add --detach \
+               \"\$deploy_checkout\" '$COMMIT_SHA'
+             ORGMEMORY_ENV_FILE=/apps/orgmemory/.env.production \
+               \"\$deploy_checkout/infrastructure/deployment/scripts/deploy.sh\" \
+               '$COMMIT_SHA'"
