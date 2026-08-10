@@ -188,7 +188,9 @@ test("two users prove governed release and second-user Pack completion", async (
   expect(filterBarBox).not.toBeNull()
   expect(assetGridBox).not.toBeNull()
   expect(assetGridBox!.y - (filterBarBox!.y + filterBarBox!.height)).toBeGreaterThanOrEqual(16)
-  await supportPage.getByRole("link", { name: "View pack" }).click()
+  await supportPage
+    .getByRole("link", { name: "L1 Customer Support Capability Onboarding" })
+    .click()
   await expect(supportPage.getByText(`Owner: ${SUPPORT_AGENT_ID}`)).toHaveCount(0)
   await expect(supportPage.getByText(`Backup: ${BACKUP_OWNER_ID}`)).toHaveCount(0)
   await expect(supportPage.getByText("Support SLA and escalation")).toBeVisible()
