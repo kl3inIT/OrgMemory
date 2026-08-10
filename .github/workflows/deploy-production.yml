@@ -286,7 +286,7 @@ jobs:
           )
           deployment_active=false
           remote_prepared=false
-          # shellcheck disable=SC2329  # Invoked by the EXIT trap below.
+          # shellcheck disable=SC2317,SC2329  # Invoked by the EXIT trap below.
           cleanup_deployment() {
             local exit_code="$?"
             trap - EXIT
