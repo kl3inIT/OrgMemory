@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-05-agentic-skill-beta (673b4276)`.
+Reconciled: `2026-08-10-asset-library-sharing-lifecycle (03993bca)`.
 
 ## Current Behavior
 
@@ -22,6 +22,35 @@ drafts, immutable revisions, review decisions, and immutable releases.
 `PROMPT_TEMPLATE`, `WORK_INSTRUCTION`, `CAPABILITY_PACK`, and `SKILL` are the
 enabled payload profiles. Each profile validates its own versioned JSON
 contract while the shared registry remains free of type-specific columns.
+
+### Library lifecycle and access
+
+Each new Asset has one canonical human owner and starts as a private mutable
+working copy. The owner may publish the working copy directly for every enabled
+profile. Publication creates a new immutable Revision and Release with
+`publicationMode=DIRECT`; an existing Release is never edited. The first Viewer
+share creates version `1.0.0` when no Release exists. Existing reviewed
+Releases, review cases, and compatibility commands remain readable, but the
+browser contribution path does not create new reviews.
+
+Sharing is explicit Viewer or Editor intent for a user or group. Company-wide
+sharing is Viewer-only. Viewers receive a released-only projection that omits
+the Draft, unreleased revisions, review comments, and role principals. Editors
+may update the working copy. Only the owner may share, publish directly,
+transfer ownership, or ordinarily withdraw the Asset. Administrator ownership
+recovery is allowed only when the canonical owner is vacant; emergency
+withdrawal is a separate permission and does not grant ordinary authoring.
+
+Canonical relationship changes increment an Asset generation, mark
+authorization unready, and append versioned `WRITE` or `DELETE` outbox records.
+Projection deletes stale tuples before writing replacements. Reads remain
+fail-closed until the current generation converges. Group and organization
+subjects are projected through their `#member` usersets.
+
+Asset-level withdrawal appends `WITHDRAWN` evidence for every non-withdrawn
+Release and retires the identity. Each visible Skill also has a per-user
+Enabled preference, defaulting to disabled; Assistant discovery and activation
+require both current visibility and Enabled state.
 
 Cross-module Asset vocabulary and business errors are exposed through the
 exact parent-owned `assetregistry::api` named interface. Nested implementation
@@ -48,7 +77,7 @@ Consumers always address an exact authorized release. A withdrawn release
 cannot start new consumption. Forking creates a new Asset draft from an exact
 release payload and does not copy reviews or approvals.
 
-Every Asset view derives ownership health from active role assignments:
+Governance views retain legacy ownership-health derivation from active role assignments:
 `ownerPresent`, `backupOwnerPresent`, `orphaned`, and `continuityAtRisk`.
 Missing ownership coverage is visible in the shared release header; it never
 changes release bytes or grants authorization.
@@ -137,8 +166,8 @@ before performing any storage write, then separately verifies the metadata
 reported by storage before changing the Asset ledger.
 The storage object key remains only in the
 internal payload-reference ledger. The draft reference is created atomically
-with the Asset. An accountable owner-class actor may publish that Draft
-directly: one transaction creates an immutable Revision and Release, verifies
+with the Asset. The canonical owner may publish that Draft through the same
+profile-independent direct command: one transaction creates an immutable Revision and Release, verifies
 and copies the exact blob reference through both records, and records
 `publicationMode=DIRECT`. The optional reviewed path still copies the reference
 on submission and publication and records `publicationMode=REVIEWED`. An active
@@ -336,12 +365,12 @@ execution action.
 
 The authenticated web application provides four generic surfaces:
 
-- **Assets** is one surface with `All Assets | My Assets` scope navigation.
-  `All Assets` lists only the latest non-withdrawn exact release the current
-  actor can use. `My Assets` is an owner workspace that includes Draft-only and
+- **Assets** is one surface with `Available to me | Created by me` scope navigation.
+  `Available to me` lists only the latest non-withdrawn exact release the current
+  actor can use. `Created by me` is an owner workspace that includes Draft-only and
   released Assets whose active direct `OWNER` assignment belongs to the actor
   and whose live `can_view` decision still allows access; owned results link to
-  Governance. The clean URL selects `All Assets`, while `scope=MINE` selects the
+  the Asset workspace. The clean URL selects `Available to me`, while `scope=MINE` selects the
   owner workspace. Search and scope form the primary row; compact type, sort,
   layout, and result controls form a secondary row so additional Asset types do
   not expand the page horizontally. Search, scope, type, sort, layout, and page
@@ -367,20 +396,20 @@ The authenticated web application provides four generic surfaces:
   compatibility metadata or authorization.
 - **Pack journey** preserves ordered exact pins, required/optional progress,
   opaque access gaps, and replacement-release impact.
-- **Governance workspace** exposes revision comparison, optional review,
-  release history, deprecation, and withdrawal through the registry's existing
-  authorization checks. A newly authored Draft opens in a dedicated Draft
-  section. Skill Drafts disclose their bounded package metadata and full
-  digest; an authorized owner-class actor chooses a version and publishes the
-  package directly. The confirmation states that structural validation is not
-  an independent content review. Historical review evidence remains readable.
+- **Asset workspace** makes the working copy primary, then exposes sharing,
+  ownership transfer, direct immutable publication, asset-level withdrawal,
+  revision history, Release history, and read-only legacy review history.
+  Skill working copies also disclose bounded package metadata and full digest.
+  The confirmation states that structural validation is not an independent
+  content review. Per-Release deprecation is not a primary browser action.
 
 Before rendering mutation controls, the web application asks Core for the
-current actor's live `can_edit`, `can_submit_review`, `can_review`, `can_publish`,
-`can_publish_skill`, and `can_withdraw` decisions on the Asset. The Skill-only
-direct permission is owner-class and still requires `can_create_asset` on the
-parent Space. Core first requires `can_view` and does not return denial reasons
-or relationship data. These decisions are display affordances only: every
+current actor's live `can_edit_draft`, `can_manage_sharing`,
+`can_transfer_ownership`, `can_publish_direct`, and `can_withdraw` decisions,
+plus compatibility review decisions when historical cases exist. Direct
+owner permissions still require the action-specific parent Space ceiling.
+Core first requires `can_view_released` and does not return denial reasons.
+These decisions are display affordances only: every
 mutation repeats authorization and remains authoritative. For an open review,
 Core also publishes per-decision affordances — `canApprove`,
 `canRequestChanges`, `canReject`, `canCancel` — computed by the same predicate

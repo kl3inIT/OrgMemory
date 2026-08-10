@@ -1,6 +1,7 @@
 package com.orgmemory.core.assetregistry.kernel;
 
 import com.orgmemory.core.assetregistry.api.AssetRole;
+import com.orgmemory.core.assetregistry.api.AssetConflictException;
 import com.orgmemory.core.authorization.PrincipalRef;
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
@@ -58,8 +59,11 @@ class AssetRoleAssignment extends BaseEntity {
         this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
         this.assetId = Objects.requireNonNull(assetId, "assetId");
         PrincipalRef subject = Objects.requireNonNull(principal, "principal");
-        if (!subject.type().equals("user") && !subject.type().equals("group")) {
-            throw new IllegalArgumentException("Asset roles may be assigned only to users or groups");
+        if (!subject.type().equals("user")
+                && !subject.type().equals("group")
+                && !subject.type().equals("organization")) {
+            throw new IllegalArgumentException(
+                    "Asset roles may be assigned only to users, groups, or organizations");
         }
         this.principalType = subject.type();
         this.principalId = subject.id();
@@ -70,6 +74,17 @@ class AssetRoleAssignment extends BaseEntity {
 
     void markProjected(Instant timestamp) {
         projectedAt = Objects.requireNonNull(timestamp, "timestamp");
+    }
+
+    void expire(Instant timestamp) {
+        Instant expiry = Objects.requireNonNull(timestamp, "timestamp");
+        if (!expiry.isAfter(validFrom)) {
+            throw new IllegalArgumentException("Asset role expiry must follow its assignment");
+        }
+        if (validUntil != null) {
+            throw new AssetConflictException("Asset role assignment is already inactive");
+        }
+        validUntil = expiry;
     }
 
     String getPrincipalType() {

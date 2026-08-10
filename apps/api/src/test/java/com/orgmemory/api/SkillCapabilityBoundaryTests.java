@@ -52,7 +52,8 @@ class SkillCapabilityBoundaryTests {
                         "com.orgmemory.core.assetregistry.skill.SkillInstallManifest",
                         "com.orgmemory.core.assetregistry.skill.SkillPackageContent",
                         "com.orgmemory.core.assetregistry.skill.SkillPackageInspection",
-                        "com.orgmemory.core.assetregistry.skill.SkillPackageOperations"),
+                        "com.orgmemory.core.assetregistry.skill.SkillPackageOperations",
+                        "com.orgmemory.core.assetregistry.skill.SkillActivationOperations"),
                 dependencies);
     }
 }

@@ -16,6 +16,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { formatAssetCoordinate } from "@/features/assets/asset-format"
@@ -30,14 +37,17 @@ import {
 } from "@/features/assets/governance-policy"
 import {
   decideAssetReviewMutation,
-  deprecateAssetReleaseMutation,
   getAssetGovernanceActionsOptions,
   getAssetGovernanceActionsQueryKey,
   evaluatePromptReleaseMutation,
   getAssetOptions,
   getAssetQueryKey,
   publishAssetReleaseMutation,
-  withdrawAssetReleaseMutation,
+  shareAssetMutation,
+  unshareAssetMutation,
+  transferAssetOwnershipMutation,
+  contextOptions,
+  withdrawAssetMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type {
   AssetGovernanceActions,
@@ -69,9 +79,17 @@ export function GovernanceWorkspacePage({
   const queryClient = useQueryClient()
   const refresh = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: getAssetQueryKey({ path: { assetId } }) }),
       queryClient.invalidateQueries({
-        queryKey: getAssetGovernanceActionsQueryKey({ path: { assetId } }),
+        queryKey: scopeAssetQueryKey(
+          getAssetQueryKey({ path: { assetId } }),
+          actorKey,
+        ),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: scopeAssetQueryKey(
+          getAssetGovernanceActionsQueryKey({ path: { assetId } }),
+          actorKey,
+        ),
       }),
     ])
   }
@@ -95,7 +113,7 @@ export function GovernanceWorkspacePage({
   return (
     <PageLayout.Root variant="wide">
       <PageLayout.Header
-        title="Governance workspace"
+        title="Asset workspace"
         description={
           <span className="font-mono text-metadata">{formatAssetCoordinate(asset.data)}</span>
         }
@@ -103,7 +121,7 @@ export function GovernanceWorkspacePage({
           <AssetBreadcrumb
             assetId={assetId}
             assetTitle={asset.data.draft?.title}
-            current="Governance"
+            current="Manage"
           />
         }
         metadata={
@@ -115,6 +133,11 @@ export function GovernanceWorkspacePage({
       />
 
       <PageLayout.Body>
+        <AssetSharingPanel
+          asset={asset.data}
+          actions={actions.data}
+          onChanged={refresh}
+        />
         <Tabs
           value={activeTab}
           onValueChange={(value: string) => setSelectedTab(value as GovernanceTab)}
@@ -122,10 +145,10 @@ export function GovernanceWorkspacePage({
         >
           <PageLayout.Tabs>
             <TabsList aria-label="Governance sections">
-              {asset.data.draft ? <TabsTrigger value="draft">Draft</TabsTrigger> : null}
-              <TabsTrigger value="changes">Changes</TabsTrigger>
-              {showReviewTab ? <TabsTrigger value="review">Review</TabsTrigger> : null}
-              <TabsTrigger value="releases">Releases</TabsTrigger>
+              {asset.data.draft ? <TabsTrigger value="draft">Working copy</TabsTrigger> : null}
+              <TabsTrigger value="changes">Revision history</TabsTrigger>
+              {showReviewTab ? <TabsTrigger value="review">Legacy reviews</TabsTrigger> : null}
+              <TabsTrigger value="releases">Release history</TabsTrigger>
             </TabsList>
           </PageLayout.Tabs>
           {asset.data.draft ? (
@@ -134,7 +157,6 @@ export function GovernanceWorkspacePage({
                 asset={asset.data}
                 actions={actions.data}
                 onChanged={refresh}
-                onSubmitted={() => setSelectedTab("review")}
                 onPublished={() => setSelectedTab("releases")}
               />
             </TabsContent>
@@ -159,6 +181,218 @@ export function GovernanceWorkspacePage({
         </Tabs>
       </PageLayout.Body>
     </PageLayout.Root>
+  )
+}
+
+function AssetSharingPanel({
+  asset,
+  actions,
+  onChanged,
+}: {
+  asset: AssetView
+  actions?: AssetGovernanceActions
+  onChanged: () => Promise<unknown>
+}) {
+  const [principalType, setPrincipalType] = useState<"user" | "group" | "organization">("user")
+  const [principalId, setPrincipalId] = useState("")
+  const [role, setRole] = useState<"VIEWER" | "EDITOR">("VIEWER")
+  const [nextOwnerUserId, setNextOwnerUserId] = useState("")
+  const organization = useQuery(contextOptions())
+  const share = useMutation({
+    ...shareAssetMutation(),
+    onSuccess: async () => {
+      setPrincipalId("")
+      await onChanged()
+      toast.success("Asset access updated")
+    },
+    onError: () => toast.error("Asset access could not be updated"),
+  })
+  const unshare = useMutation({
+    ...unshareAssetMutation(),
+    onSuccess: async () => {
+      await onChanged()
+      toast.success("Asset access removed")
+    },
+    onError: () => toast.error("Asset access could not be removed"),
+  })
+  const transfer = useMutation({
+    ...transferAssetOwnershipMutation(),
+    onSuccess: async () => {
+      setNextOwnerUserId("")
+      await onChanged()
+      toast.success("Ownership transferred")
+    },
+    onError: () => toast.error("Ownership could not be transferred"),
+  })
+  const activeShares = (asset.roleAssignments ?? []).filter(
+    (assignment) =>
+      !assignment.validUntil && (assignment.role === "VIEWER" || assignment.role === "EDITOR"),
+  )
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle>Ownership and access</CardTitle>
+            <p className="mt-1 text-supporting text-content-secondary">
+              One owner controls publishing and sharing. Editors change only the working copy;
+              Viewers receive immutable Releases.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Badge variant="outline">{asset.sharingState ?? "PRIVATE"}</Badge>
+            <Badge variant="outline" className="font-mono">
+              Owner {asset.ownerUserId?.slice(0, 8) ?? "vacant"}
+            </Badge>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {activeShares.length ? (
+          <div className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
+            {activeShares.map((assignment) => (
+              <div key={assignment.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-mono text-metadata text-content-primary">
+                    {assignment.principalType}:{assignment.principalId}
+                  </p>
+                  <p className="text-metadata text-content-muted">{assignment.role}</p>
+                </div>
+                {actions?.canManageSharing ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={unshare.isPending}
+                    onClick={() =>
+                      unshare.mutate({
+                        path: { assetId: asset.id! },
+                        body: {
+                          principalType: assignment.principalType,
+                          principalId: assignment.principalId,
+                          role: assignment.role,
+                        },
+                      })
+                    }
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-dashed border-border-default px-4 py-3 text-supporting text-content-secondary">
+            Private — no Viewer or Editor audience yet.
+          </p>
+        )}
+
+        {actions?.canManageSharing ? (
+          <div className="grid gap-3 lg:grid-cols-[10rem_10rem_minmax(16rem,1fr)_auto]">
+            <Select
+              value={principalType}
+              onValueChange={(value) => {
+                const type = value as "user" | "group" | "organization"
+                setPrincipalType(type)
+                setPrincipalId(type === "organization" ? (organization.data?.organizationId ?? "") : "")
+                if (type === "organization") setRole("VIEWER")
+              }}
+            >
+              <SelectTrigger aria-label="Audience type"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">Person</SelectItem>
+                <SelectItem value="group">Group</SelectItem>
+                <SelectItem value="organization">Company</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={role}
+              onValueChange={(value) => setRole(value as "VIEWER" | "EDITOR")}
+              disabled={principalType === "organization"}
+            >
+              <SelectTrigger aria-label="Access role"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="VIEWER">Viewer</SelectItem>
+                <SelectItem value="EDITOR">Editor</SelectItem>
+              </SelectContent>
+            </Select>
+            {principalType === "user" ? (
+              <Select value={principalId} onValueChange={setPrincipalId}>
+                <SelectTrigger aria-label="Person"><SelectValue placeholder="Choose a person" /></SelectTrigger>
+                <SelectContent>
+                  {(organization.data?.users ?? []).map((user) => (
+                    <SelectItem key={user.id} value={user.id!}>
+                      {user.name ?? user.email ?? user.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : principalType === "group" ? (
+              <Input
+                aria-label="Group identifier"
+                placeholder="Group UUID"
+                value={principalId}
+                onChange={(event) => setPrincipalId(event.currentTarget.value)}
+              />
+            ) : (
+              <Input
+                aria-label="Company identifier"
+                value={principalId}
+                readOnly
+                className="font-mono"
+              />
+            )}
+            <Button
+              type="button"
+              disabled={!principalId.trim() || share.isPending}
+              onClick={() =>
+                share.mutate({
+                  path: { assetId: asset.id! },
+                  body: {
+                    principalType,
+                    principalId: principalId.trim(),
+                    role: principalType === "organization" ? "VIEWER" : role,
+                  },
+                })
+              }
+            >
+              Share
+            </Button>
+          </div>
+        ) : null}
+
+        {actions?.canTransferOwnership ? (
+          <div className="grid gap-3 border-t border-border-subtle pt-5 sm:grid-cols-[minmax(16rem,1fr)_auto]">
+            <Select value={nextOwnerUserId} onValueChange={setNextOwnerUserId}>
+              <SelectTrigger aria-label="Next owner"><SelectValue placeholder="Choose the next owner" /></SelectTrigger>
+              <SelectContent>
+                {(organization.data?.users ?? [])
+                  .filter((user) => user.id && user.id !== asset.ownerUserId)
+                  .map((user) => (
+                    <SelectItem key={user.id} value={user.id!}>
+                      {user.name ?? user.email ?? user.id}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!nextOwnerUserId.trim() || transfer.isPending}
+              onClick={() =>
+                transfer.mutate({
+                  path: { assetId: asset.id! },
+                  body: { nextOwnerUserId: nextOwnerUserId.trim() },
+                })
+              }
+            >
+              Transfer ownership
+            </Button>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -453,18 +687,11 @@ function ReleaseHistory({
   onChanged: () => Promise<unknown>
 }) {
   const [reason, setReason] = useState("")
-  const deprecate = useMutation({
-    ...deprecateAssetReleaseMutation(),
-    onSuccess: async () => {
-      await onChanged()
-      toast.success("Release deprecated")
-    },
-  })
   const withdraw = useMutation({
-    ...withdrawAssetReleaseMutation(),
+    ...withdrawAssetMutation(),
     onSuccess: async () => {
       await onChanged()
-      toast.success("Release withdrawn from new use")
+      toast.success("Asset withdrawn and retired")
     },
   })
   if (!asset.releases?.length) return <EmptyGovernance title="No release history yet" />
@@ -474,15 +701,45 @@ function ReleaseHistory({
       {asset.type === "PROMPT_TEMPLATE" ? (
         <EvaluationCard assetId={asset.id!} releases={asset.releases} />
       ) : null}
+      {actions?.canWithdraw && asset.portfolioState !== "RETIRED" ? (
+        <Card className="border-status-danger-border">
+          <CardContent className="grid gap-4 p-6 lg:grid-cols-[1fr_20rem]">
+            <div>
+              <h2 className="text-section-title">Withdraw Asset</h2>
+              <p className="mt-2 text-supporting text-content-secondary">
+                Withdraw every current Release and retire this Asset. Immutable history remains
+                available here, but no new use can start.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <Label htmlFor="asset-withdrawal-reason">Reason</Label>
+              <Textarea
+                id="asset-withdrawal-reason"
+                value={reason}
+                onChange={(event) => setReason(event.currentTarget.value)}
+                rows={3}
+                placeholder="Why is this Asset being withdrawn?"
+              />
+              <GovernanceDecisionDialog
+                label="Withdraw Asset"
+                description="This withdraws every non-withdrawn Release and permanently retires the Asset."
+                variant="destructive"
+                disabled={!reason.trim() || withdraw.isPending}
+                icon={TriangleAlert}
+                onConfirm={() =>
+                  withdraw.mutate({
+                    path: { assetId: asset.id! },
+                    body: { reason: reason.trim() },
+                  })
+                }
+              />
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
       {asset.releases.map((release) => (
         <Card key={release.id}>
-          <CardContent
-            className={
-              actions?.canWithdraw
-                ? "grid gap-6 p-6 lg:grid-cols-[1fr_18rem]"
-                : "p-6"
-            }
-          >
+          <CardContent className="p-6">
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="font-mono">
@@ -516,45 +773,6 @@ function ReleaseHistory({
                 </div>
               ) : null}
             </div>
-            {actions?.canWithdraw && release.availability !== "WITHDRAWN" ? (
-              <div className="space-y-3">
-                <Label htmlFor={`reason-${release.id}`}>Governance reason</Label>
-                <Textarea
-                  id={`reason-${release.id}`}
-                  value={reason}
-                  onChange={(event) => setReason(event.currentTarget.value)}
-                  rows={3}
-                  placeholder="Required for availability changes"
-                />
-                {release.availability === "AVAILABLE" ? (
-                  <GovernanceDecisionDialog
-                    label="Deprecate"
-                    description="Existing exact pins remain usable, but consumers will see update impact."
-                    variant="outline"
-                    disabled={!reason.trim()}
-                    onConfirm={() =>
-                      deprecate.mutate({
-                        path: { assetId: asset.id!, releaseId: release.id! },
-                        body: { reason },
-                      })
-                    }
-                  />
-                ) : null}
-                <GovernanceDecisionDialog
-                  label="Withdraw"
-                  description="This prevents new use of the release. Existing audit and Pack pins remain historical."
-                  variant="destructive"
-                  disabled={!reason.trim()}
-                  icon={TriangleAlert}
-                  onConfirm={() =>
-                    withdraw.mutate({
-                      path: { assetId: asset.id!, releaseId: release.id! },
-                      body: { reason },
-                    })
-                  }
-                />
-              </div>
-            ) : null}
           </CardContent>
         </Card>
       ))}

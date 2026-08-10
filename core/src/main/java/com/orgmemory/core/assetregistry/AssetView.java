@@ -6,6 +6,7 @@ import com.orgmemory.core.assetregistry.consumption.AssetPublicationMode;
 import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
 import com.orgmemory.core.assetregistry.api.AssetRole;
 import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.api.AssetSharingState;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -18,6 +19,8 @@ public record AssetView(
         UUID knowledgeSpaceId,
         AssetPortfolioState portfolioState,
         boolean authorizationReady,
+        UUID ownerUserId,
+        AssetSharingState sharingState,
         Draft draft,
         List<Revision> revisions,
         List<Review> reviews,

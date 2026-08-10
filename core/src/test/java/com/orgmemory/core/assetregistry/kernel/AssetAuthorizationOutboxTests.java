@@ -59,6 +59,8 @@ class AssetAuthorizationOutboxTests {
                 UUID.randomUUID(),
                 assetId,
                 null,
+                AssetAuthorizationOperation.WRITE,
+                1,
                 RelationshipTuple.of(
                         "user:" + UUID.randomUUID(),
                         "owner",

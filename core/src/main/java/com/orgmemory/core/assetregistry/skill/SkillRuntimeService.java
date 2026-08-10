@@ -32,18 +32,22 @@ class SkillRuntimeService implements SkillRuntimeOperations {
 
     private final SkillReleaseDeliveryQuery deliveries;
     private final SkillDistributionOperations distribution;
+    private final SkillActivationOperations activations;
 
     SkillRuntimeService(
             SkillReleaseDeliveryQuery deliveries,
-            SkillDistributionOperations distribution) {
+            SkillDistributionOperations distribution,
+            SkillActivationOperations activations) {
         this.deliveries = deliveries;
         this.distribution = distribution;
+        this.activations = activations;
     }
 
     @Override
     public List<SkillSummary> search(
             CurrentActor actor, String query, int limit) {
         return deliveries.search(actor, query, limit).stream()
+                .filter(release -> activations.isEnabled(actor, release.assetId()))
                 .map(SkillRuntimeService::summary)
                 .toList();
     }
@@ -51,6 +55,7 @@ class SkillRuntimeService implements SkillRuntimeOperations {
     @Override
     public ActivatedSkill activate(
             CurrentActor actor, UUID assetId, UUID releaseId) {
+        requireEnabled(actor, assetId);
         SkillPackageContent content = distribution.open(actor, assetId, releaseId);
         SkillInstallManifest manifest = content.manifest();
         String instructions = readEntry(content, "SKILL.md");
@@ -68,6 +73,7 @@ class SkillRuntimeService implements SkillRuntimeOperations {
             UUID releaseId,
             String path) {
         String safePath = requirePath(path);
+        requireEnabled(actor, assetId);
         SkillPackageContent content = distribution.open(actor, assetId, releaseId);
         return new SkillResource(
                 summary(content.manifest()),
@@ -194,6 +200,12 @@ class SkillRuntimeService implements SkillRuntimeOperations {
                     MessageDigest.getInstance("SHA-256").digest(bytes));
         } catch (NoSuchAlgorithmException impossible) {
             throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
+    }
+
+    private void requireEnabled(CurrentActor actor, UUID assetId) {
+        if (!activations.isEnabled(actor, assetId)) {
+            throw new AssetUnavailableException("The Skill is not enabled for this user");
         }
     }
 

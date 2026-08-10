@@ -2,6 +2,7 @@ package com.orgmemory.core.assetregistry.kernel;
 
 import com.orgmemory.core.assetregistry.api.AssetConflictException;
 import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
+import com.orgmemory.core.assetregistry.api.AssetSharingState;
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
@@ -46,6 +47,19 @@ class Asset extends BaseEntity {
     @Column(name = "authorization_ready", nullable = false)
     private boolean authorizationReady;
 
+    @Column(name = "owner_user_id")
+    private UUID ownerUserId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sharing_state", nullable = false, length = 32)
+    private AssetSharingState sharingState;
+
+    @Column(name = "relationship_generation", nullable = false)
+    private long relationshipGeneration;
+
+    @Column(name = "projected_relationship_generation", nullable = false)
+    private long projectedRelationshipGeneration;
+
     protected Asset() {
     }
 
@@ -54,18 +68,49 @@ class Asset extends BaseEntity {
             AssetType type,
             String namespace,
             String slug,
-            UUID knowledgeSpaceId) {
+            UUID knowledgeSpaceId,
+            UUID ownerUserId) {
         super(UUID.randomUUID());
         this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
         this.type = Objects.requireNonNull(type, "type");
         this.namespace = coordinate(namespace, NAMESPACE, "namespace");
         this.slug = coordinate(slug, SLUG, "slug");
         this.knowledgeSpaceId = Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
+        this.ownerUserId = Objects.requireNonNull(ownerUserId, "ownerUserId");
         this.portfolioState = AssetPortfolioState.DRAFT_ONLY;
+        this.sharingState = AssetSharingState.PRIVATE;
+        this.relationshipGeneration = 1;
     }
 
-    void markAuthorizationReady() {
+    void markAuthorizationReady(long generation) {
+        if (generation != relationshipGeneration) {
+            return;
+        }
+        projectedRelationshipGeneration = generation;
         authorizationReady = true;
+    }
+
+    long beginRelationshipChange() {
+        relationshipGeneration++;
+        authorizationReady = false;
+        return relationshipGeneration;
+    }
+
+    void updateSharingState(AssetSharingState nextState) {
+        sharingState = Objects.requireNonNull(nextState, "nextState");
+    }
+
+    UUID transferOwnership(UUID nextOwnerUserId) {
+        UUID previousOwnerUserId = ownerUserId;
+        ownerUserId = Objects.requireNonNull(nextOwnerUserId, "nextOwnerUserId");
+        return previousOwnerUserId;
+    }
+
+    void recoverOwnership(UUID nextOwnerUserId) {
+        if (ownerUserId != null) {
+            throw new AssetConflictException("Asset ownership recovery requires an owner vacancy");
+        }
+        ownerUserId = Objects.requireNonNull(nextOwnerUserId, "nextOwnerUserId");
     }
 
     void activate() {
@@ -111,6 +156,22 @@ class Asset extends BaseEntity {
 
     boolean isAuthorizationReady() {
         return authorizationReady;
+    }
+
+    UUID getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    AssetSharingState getSharingState() {
+        return sharingState;
+    }
+
+    long getRelationshipGeneration() {
+        return relationshipGeneration;
+    }
+
+    long getProjectedRelationshipGeneration() {
+        return projectedRelationshipGeneration;
     }
 
     private static String coordinate(String value, Pattern format, String field) {

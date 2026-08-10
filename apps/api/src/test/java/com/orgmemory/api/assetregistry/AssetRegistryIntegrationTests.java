@@ -31,6 +31,7 @@ import com.orgmemory.core.assetregistry.AssetDraftInput;
 import com.orgmemory.core.assetregistry.AssetOwnedSort;
 import com.orgmemory.core.assetregistry.consumption.AssetPublicationMode;
 import com.orgmemory.core.assetregistry.AssetRecommendationPage;
+import com.orgmemory.core.assetregistry.AssetReleasedView;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.AssetReviewDecisionType;
 import com.orgmemory.core.assetregistry.AssetSummaryPage;
@@ -54,6 +55,7 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
+import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
@@ -64,7 +66,6 @@ import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
-import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -117,8 +118,6 @@ class AssetRegistryIntegrationTests {
             UUID.fromString("55555555-5555-5555-5555-555555555555");
     private static final UUID SUPPORT_AGENT_ID =
             UUID.fromString("66666666-6666-6666-6666-666666666666");
-    private static final UUID BACKUP_OWNER_ID =
-            UUID.fromString("77777777-7777-7777-7777-777777777777");
     private static final UUID SPACE_ID =
             UUID.fromString("88888888-8888-4888-8888-888888888802");
     private static final UUID GOLDEN_KNOWLEDGE_ASSET_ID =
@@ -193,6 +192,9 @@ class AssetRegistryIntegrationTests {
     RelationshipTupleWritePort tupleWrites;
 
     @MockitoBean
+    RelationshipTupleReconciliationPort tupleReconciliation;
+
+    @MockitoBean
     QueryEmbeddingPort queryEmbeddings;
 
     @MockitoBean
@@ -214,6 +216,8 @@ class AssetRegistryIntegrationTests {
         when(authorizationSets.listAuthorizedResources(any()))
                 .thenReturn(AuthorizedResourceSetResult.resolved(List.of(), MODEL_ID));
         when(tupleWrites.write(any())).thenReturn(
+                RelationshipTupleWriteResult.applied(MODEL_ID));
+        when(tupleReconciliation.delete(any())).thenReturn(
                 RelationshipTupleWriteResult.applied(MODEL_ID));
         when(chat.stream(
                         eq(ORGANIZATION_ID),
@@ -1284,9 +1288,9 @@ class AssetRegistryIntegrationTests {
                         SELECT count(*)
                         FROM asset_audit_events
                         WHERE asset_id = ?
-                          AND event_type = 'SKILL_RELEASE_PUBLISHED_DIRECTLY'
-                          AND decision_context ->> 'policy' = 'skill-direct-v1'
-                          AND decision_context ->> 'permission' = 'can_publish_skill'
+                          AND event_type = 'RELEASE_PUBLISHED_DIRECTLY'
+                          AND decision_context ->> 'policy' = 'owner-direct-v1'
+                          AND decision_context ->> 'permission' = 'can_publish_direct'
                         """,
                         Integer.class,
                         created.id()));
@@ -1317,14 +1321,14 @@ class AssetRegistryIntegrationTests {
                 () -> assets.publishSkillDraft(AUTHOR, created.id(), "1.0.0"));
 
         assertEquals(
-                "This Skill already has a revision in review; finish or cancel it first",
+                "This Asset already has a revision in review; finish or cancel it first",
                 failure.getMessage());
         assertEquals(1, submitted.reviews().size());
         assertTrue(assets.get(AUTHOR, created.id()).releases().isEmpty());
     }
 
     @Test
-    void directSkillPublicationRejectsEveryOtherAssetProfile() {
+    void directPublicationSupportsEveryAssetProfile() {
         AssetView prompt = assets.create(
                 AUTHOR,
                 AssetType.PROMPT_TEMPLATE,
@@ -1333,12 +1337,91 @@ class AssetRegistryIntegrationTests {
                 SPACE_ID,
                 input("Classify {{ticket_text}}"));
 
-        BusinessValidationException failure = assertThrows(
-                BusinessValidationException.class,
-                () -> assets.publishSkillDraft(AUTHOR, prompt.id(), "1.0.0"));
+        AssetView published = assets.publishDraft(AUTHOR, prompt.id(), "1.0.0");
 
-        assertEquals("skill.direct-publish-unsupported", failure.code());
-        assertTrue(assets.get(AUTHOR, prompt.id()).releases().isEmpty());
+        assertEquals(1, published.revisions().size());
+        assertEquals(1, published.releases().size());
+        assertEquals(AssetPublicationMode.DIRECT, published.releases().getFirst().publicationMode());
+    }
+
+    @Test
+    void firstViewerSharePublishesAnImmutableReleaseAndExposesOnlyReleasedContent() {
+        AssetView created = assets.create(
+                AUTHOR,
+                AssetType.PROMPT_TEMPLATE,
+                "support",
+                "share-first-release",
+                SPACE_ID,
+                input("Classify {{ticket_text}}"));
+
+        AssetView shared = assets.share(
+                AUTHOR,
+                created.id(),
+                "user",
+                SUPPORT_AGENT_ID.toString(),
+                AssetRole.VIEWER);
+        AssetReleasedView released = assets.getReleased(SUPPORT_AGENT, created.id());
+
+        assertEquals("SHARED", shared.sharingState().name());
+        assertEquals(1, shared.releases().size());
+        assertEquals("1.0.0", shared.releases().getFirst().versionLabel());
+        assertEquals(AssetPublicationMode.DIRECT, shared.releases().getFirst().publicationMode());
+        assertEquals(created.ownerUserId(), released.ownerUserId());
+        assertEquals(shared.releases(), released.releases());
+        assertTrue(shared.authorizationReady());
+    }
+
+    @Test
+    void assetWithdrawalRetiresTheIdentityAndWithdrawsEveryRelease() {
+        AssetView created = assets.create(
+                AUTHOR,
+                AssetType.PROMPT_TEMPLATE,
+                "support",
+                "withdraw-all-releases",
+                SPACE_ID,
+                input("Classify {{ticket_text}}"));
+        assets.publishDraft(AUTHOR, created.id(), "1.0.0");
+        AssetView published = assets.publishDraft(AUTHOR, created.id(), "1.1.0");
+
+        AssetView withdrawn = assets.withdrawAsset(
+                AUTHOR, created.id(), "Replaced by a different governed capability");
+
+        assertEquals("RETIRED", withdrawn.portfolioState().name());
+        assertEquals(2, withdrawn.releases().size());
+        assertTrue(withdrawn.releases().stream()
+                .allMatch(release -> release.availability() == AssetAvailability.WITHDRAWN));
+        assertThrows(
+                AssetConflictException.class,
+                () -> assets.publishDraft(AUTHOR, created.id(), "2.0.0"));
+    }
+
+    @Test
+    void administratorRecoveryRequiresAndFillsACanonicalOwnerVacancy() {
+        AssetView created = assets.create(
+                AUTHOR,
+                AssetType.PROMPT_TEMPLATE,
+                "support",
+                "recover-owner-vacancy",
+                SPACE_ID,
+                input("Classify {{ticket_text}}"));
+        jdbc.update(
+                "UPDATE asset_role_assignments SET valid_until = CURRENT_TIMESTAMP, "
+                        + "updated_at = CURRENT_TIMESTAMP, version = version + 1 "
+                        + "WHERE asset_id = ? AND role = 'OWNER' AND valid_until IS NULL",
+                created.id());
+        jdbc.update(
+                "UPDATE assets SET owner_user_id = NULL, updated_at = CURRENT_TIMESTAMP, "
+                        + "version = version + 1 WHERE id = ?",
+                created.id());
+
+        AssetView recovered = assets.recoverOwnership(
+                AUTHOR, created.id(), SUPPORT_AGENT_ID);
+
+        assertEquals(SUPPORT_AGENT_ID, recovered.ownerUserId());
+        assertTrue(recovered.ownershipHealth().ownerPresent());
+        assertThrows(
+                AssetConflictException.class,
+                () -> assets.recoverOwnership(AUTHOR, created.id(), AUTHOR_ID));
     }
 
     @Test
@@ -1423,39 +1506,23 @@ class AssetRegistryIntegrationTests {
         assertTrue(pack.ownershipHealth().ownerPresent());
         assertFalse(pack.ownershipHealth().backupOwnerPresent());
         assertTrue(pack.ownershipHealth().continuityAtRisk());
-        assets.assignRole(
-                AUTHOR,
-                pack.id(),
-                "user",
-                SUPPORT_AGENT_ID.toString(),
-                AssetRole.OWNER);
-        AssetView handedOver = assets.assignRole(
-                AUTHOR,
-                pack.id(),
-                "user",
-                BACKUP_OWNER_ID.toString(),
-                AssetRole.BACKUP_OWNER);
+        AssetView handedOver = assets.transferOwnership(
+                AUTHOR, pack.id(), SUPPORT_AGENT_ID);
         assertTrue(handedOver.ownershipHealth().ownerPresent());
-        assertTrue(handedOver.ownershipHealth().backupOwnerPresent());
+        assertFalse(handedOver.ownershipHealth().backupOwnerPresent());
         assertFalse(handedOver.ownershipHealth().orphaned());
-        assertFalse(handedOver.ownershipHealth().continuityAtRisk());
+        assertTrue(handedOver.ownershipHealth().continuityAtRisk());
+        assertEquals(SUPPORT_AGENT_ID, handedOver.ownerUserId());
 
         for (UUID assetId : List.of(prompt.id(), instruction.id(), pack.id())) {
             if (!assetId.equals(pack.id())) {
-                AssetView covered = assets.assignRole(
+                assets.share(
                         AUTHOR,
                         assetId,
                         "user",
-                        BACKUP_OWNER_ID.toString(),
-                        AssetRole.BACKUP_OWNER);
-                assertFalse(covered.ownershipHealth().continuityAtRisk());
+                        SUPPORT_AGENT_ID.toString(),
+                        AssetRole.VIEWER);
             }
-            assets.assignRole(
-                    AUTHOR,
-                    assetId,
-                    "user",
-                    SUPPORT_AGENT_ID.toString(),
-                    AssetRole.VIEWER);
         }
         List<ResourceRef> supportResources = List.of(
                 ResourceRef.of(ORGANIZATION_ID, "asset", prompt.id()),

@@ -100,7 +100,7 @@ class AssetAuthorizationCoordinator implements AssetAuthorizationProjectionQueue
             roles.saveAllAndFlush(assignments);
         }
         if (outbox.countUnresolved(batch.assetId()) == 0) {
-            asset.markAuthorizationReady();
+            asset.markAuthorizationReady(batch.generation());
             assets.save(asset);
         }
     }
@@ -144,6 +144,11 @@ class AssetAuthorizationCoordinator implements AssetAuthorizationProjectionQueue
                 assetId,
                 claimToken,
                 records.stream().map(AssetAuthorizationOutbox::getId).toList(),
-                records.stream().map(AssetAuthorizationOutbox::tuple).toList());
+                records.stream()
+                        .map(record -> new AssetAuthorizationBatch.Entry(
+                                record.getOperation(),
+                                record.getRelationshipGeneration(),
+                                record.tuple()))
+                        .toList());
     }
 }

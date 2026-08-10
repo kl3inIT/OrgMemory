@@ -2,6 +2,7 @@ package com.orgmemory.core.assetregistry;
 
 import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
 import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.api.AssetSharingState;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -14,5 +15,7 @@ public record AssetSummary(
         String summary,
         UUID knowledgeSpaceId,
         AssetPortfolioState portfolioState,
+        UUID ownerUserId,
+        AssetSharingState sharingState,
         Instant updatedAt) {
 }

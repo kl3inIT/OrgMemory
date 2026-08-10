@@ -18,6 +18,8 @@ import com.orgmemory.core.assetregistry.api.AssetRegistrationCommand;
 import com.orgmemory.core.assetregistry.api.AssetRole;
 import com.orgmemory.core.assetregistry.api.AssetRoleCommand;
 import com.orgmemory.core.assetregistry.api.AssetRoleQuery;
+import com.orgmemory.core.assetregistry.api.AssetSharingCommand;
+import com.orgmemory.core.assetregistry.api.AssetSharingState;
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
@@ -1459,12 +1461,13 @@ class ModulithVerificationTests {
                         "assetregistry::skill-package",
                         "organization",
                         "permission",
+                        "shared",
                         "shared::error"),
                 allowedDependencies);
     }
 
     @Test
-    void assetRegistrySkillExposesOnlyItsEightTopLevelContracts() {
+    void assetRegistrySkillExposesOnlyItsNineTopLevelContracts() {
         var publicTopLevelTypes = new ClassFileImporter()
                 .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
                 .importPackages("com.orgmemory.core.assetregistry.skill")
@@ -1483,6 +1486,7 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.assetregistry.skill.SkillPackageContent",
                         "com.orgmemory.core.assetregistry.skill.SkillPackageInspection",
                         "com.orgmemory.core.assetregistry.skill.SkillPackageOperations",
+                        "com.orgmemory.core.assetregistry.skill.SkillActivationOperations",
                         "com.orgmemory.core.assetregistry.skill.SkillRuntimeOperations"),
                 publicTopLevelTypes);
     }
@@ -1686,7 +1690,13 @@ class ModulithVerificationTests {
                         AssetRoleQuery.class.getName(),
                         AssetRoleQuery.OwnershipHealth.class.getName(),
                         AssetRoleQuery.RoleAssignment.class.getName(),
-                        AssetRoleQuery.RoleHistory.class.getName()),
+                        AssetRoleQuery.RoleHistory.class.getName(),
+                        AssetSharingCommand.class.getName(),
+                        AssetSharingCommand.RecoverOwnership.class.getName(),
+                        AssetSharingCommand.Share.class.getName(),
+                        AssetSharingCommand.TransferOwnership.class.getName(),
+                        AssetSharingCommand.Unshare.class.getName(),
+                        AssetSharingState.class.getName()),
                 exposedTypes);
     }
 
@@ -1719,6 +1729,7 @@ class ModulithVerificationTests {
         assertEquals(
                 Set.of(
                         "com.orgmemory.core.assetregistry.kernel.AssetAuthorizationBatch",
+                        "com.orgmemory.core.assetregistry.kernel.AssetAuthorizationOperation",
                         "com.orgmemory.core.assetregistry.kernel.AssetAuthorizationProjectionQueue"),
                 publicRootTypes);
     }
