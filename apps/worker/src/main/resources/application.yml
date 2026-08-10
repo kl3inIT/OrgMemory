@@ -91,7 +91,7 @@ orgmemory:
         gateway-id: ${ORGMEMORY_EMBEDDING_GATEWAY:openai}
         model-id: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
   ingestion:
-    maximum-upload-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
+    maximum-request-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
     maximum-attempts: ${ORGMEMORY_INGESTION_MAX_ATTEMPTS:5}
     processing:
       poll-interval: ${ORGMEMORY_INGESTION_POLL_INTERVAL:2s}
@@ -109,7 +109,6 @@ orgmemory:
       chunk-size: ${ORGMEMORY_INGESTION_CHUNK_SIZE:800}
       chunk-overlap: ${ORGMEMORY_INGESTION_CHUNK_OVERLAP:100}
       semantic-embedding-batch-size: ${ORGMEMORY_SEMANTIC_EMBEDDING_BATCH_SIZE:64}
-      maximum-chunks: ${ORGMEMORY_INGESTION_MAX_CHUNKS:500}
   graph-rag:
     processing:
       maximum-entities-per-chunk: ${ORGMEMORY_GRAPH_MAX_ENTITIES_PER_CHUNK:40}

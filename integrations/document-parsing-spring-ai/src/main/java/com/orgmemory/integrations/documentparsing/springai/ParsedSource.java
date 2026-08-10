@@ -1,4 +1,4 @@
-package com.orgmemory.worker.ingestion;
+package com.orgmemory.integrations.documentparsing.springai;
 
 import java.util.List;
 

@@ -121,7 +121,8 @@ class SourceIngestionSchedulerTests {
                 null,
                 null,
                 maxJobsPerInvocation,
-                maxWallClock);
+                maxWallClock,
+                null);
     }
 
     @Configuration(proxyBeanMethods = false)

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class KnowledgeContentTypeTests {
@@ -27,5 +28,30 @@ class KnowledgeContentTypeTests {
         assertEquals("image/jpeg", image.browserSafeMediaType());
         assertFalse(image.uploadAllowed());
         assertTrue(image.inlinePreviewAllowed());
+    }
+
+    @Test
+    void admitsEveryOrganizationalDocumentFormatAndNoArchive() {
+        Set<String> admitted = Set.of(
+                "csv", "doc", "docx", "htm", "html", "md", "odp", "ods", "odt",
+                "pdf", "ppt", "pptx", "rtf", "txt", "xls", "xlsx");
+
+        for (String extension : admitted) {
+            assertTrue(
+                    KnowledgeContentType.fromFileName("evidence." + extension)
+                            .filter(KnowledgeContentType::uploadAllowed)
+                            .isPresent(),
+                    extension);
+        }
+        assertTrue(KnowledgeContentType.fromFileName("evidence.zip").isEmpty());
+        assertTrue(KnowledgeContentType.fromFileName("evidence.7z").isEmpty());
+        assertTrue(KnowledgeContentType.fromFileName("evidence.tar").isEmpty());
+    }
+
+    @Test
+    void assignsLimitsByFormatCostInsteadOfOneGlobalDocumentLimit() {
+        assertEquals(10L * 1024 * 1024, KnowledgeContentType.CSV.maximumUploadBytes());
+        assertEquals(15L * 1024 * 1024, KnowledgeContentType.EXCEL.maximumUploadBytes());
+        assertEquals(25L * 1024 * 1024, KnowledgeContentType.PDF.maximumUploadBytes());
     }
 }

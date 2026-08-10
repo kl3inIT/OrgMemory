@@ -192,9 +192,17 @@ class DefaultCitationEvidenceService implements CitationEvidenceService {
                 .map(type -> switch (type) {
                     case PDF -> CitationPresentationKind.PDF;
                     case MARKDOWN -> CitationPresentationKind.MARKDOWN;
-                    case TEXT -> CitationPresentationKind.PLAIN_TEXT;
+                    case TEXT, CSV, HTML, RTF -> CitationPresentationKind.PLAIN_TEXT;
                     case PNG, JPEG, GIF, WEBP -> CitationPresentationKind.IMAGE;
-                    case WORD, POWERPOINT -> CitationPresentationKind.DOWNLOAD;
+                    case WORD,
+                            WORD_LEGACY,
+                            POWERPOINT,
+                            POWERPOINT_LEGACY,
+                            EXCEL,
+                            EXCEL_LEGACY,
+                            OPEN_DOCUMENT_TEXT,
+                            OPEN_DOCUMENT_SPREADSHEET,
+                            OPEN_DOCUMENT_PRESENTATION -> CitationPresentationKind.DOWNLOAD;
                 })
                 .orElse(CitationPresentationKind.DOWNLOAD);
     }

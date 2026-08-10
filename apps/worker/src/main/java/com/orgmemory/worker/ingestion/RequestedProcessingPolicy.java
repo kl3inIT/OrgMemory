@@ -78,7 +78,9 @@ record RequestedProcessingPolicy(Map<String, String> values) {
                 Integer.toString(properties.semanticEmbeddingBatchSize()));
         resolved.put("chunk.size", Integer.toString(properties.chunkSize()));
         resolved.put("chunk.overlap", Integer.toString(properties.chunkOverlap()));
-        resolved.put("chunk.maximum", Integer.toString(properties.maximumChunks()));
+        resolved.put("chunk.maximum.default", Integer.toString(properties.maximumChunks()));
+        properties.maximumChunksByFormat().forEach((suffix, maximum) ->
+                resolved.put("chunk.maximum." + suffix, Integer.toString(maximum)));
 
         if (STRUCTURED_BLOCK_V1.equals(policyId)) {
             resolved.put("dispatch.heading", "paragraph-semantic");
@@ -223,8 +225,9 @@ record RequestedProcessingPolicy(Map<String, String> values) {
         return integer("chunk.overlap");
     }
 
-    int maximumChunks() {
-        return integer("chunk.maximum");
+    int maximumChunks(String suffix) {
+        String key = "chunk.maximum." + suffix;
+        return values.containsKey(key) ? integer(key) : integer("chunk.maximum.default");
     }
 
     int shortAnchorChars() {

@@ -1,22 +1,11 @@
-package com.orgmemory.worker.ingestion;
+package com.orgmemory.integrations.documentparsing.springai;
 
 import java.util.ArrayList;
 import java.util.List;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.DefaultHandler;
 
-/**
- * Turns Tika's XHTML into typed blocks.
- *
- * <p>Tika exposes real structure in XHTML mode: a spreadsheet arrives as one
- * {@code <h1>} per sheet name followed by a {@code <table>}, a Word document as
- * paragraphs and tables, an HTML export as headings, paragraphs and tables. The
- * flat {@code BodyContentHandler} this replaced discarded all of it.
- *
- * <p>A table block carries one row per line with tab-separated cells, which is
- * the shape {@code ParagraphSemanticChunker} splits row-wise while repeating the
- * header line into every fragment.
- */
+/** Turns Tika XHTML into typed canonical blocks without active-page boilerplate. */
 final class XhtmlBlockHandler extends DefaultHandler {
 
     private static final String CELL_SEPARATOR = "\t";
@@ -32,6 +21,7 @@ final class XhtmlBlockHandler extends DefaultHandler {
 
     private int tableDepth;
     private int headingLevel;
+    private int suppressedDepth;
     private boolean inParagraph;
     private boolean inCell;
     private boolean headerFromMarkup;
@@ -44,6 +34,16 @@ final class XhtmlBlockHandler extends DefaultHandler {
     @Override
     public void startElement(String uri, String localName, String qName, Attributes attributes) {
         String element = name(localName, qName);
+        if (suppressedDepth > 0) {
+            suppressedDepth++;
+            return;
+        }
+        if (isSuppressed(element)) {
+            flushParagraph();
+            flushLoose();
+            suppressedDepth = 1;
+            return;
+        }
         switch (element) {
             case "table" -> {
                 if (tableDepth == 0) {
@@ -97,6 +97,10 @@ final class XhtmlBlockHandler extends DefaultHandler {
 
     @Override
     public void endElement(String uri, String localName, String qName) {
+        if (suppressedDepth > 0) {
+            suppressedDepth--;
+            return;
+        }
         String element = name(localName, qName);
         switch (element) {
             case "table" -> {
@@ -131,7 +135,9 @@ final class XhtmlBlockHandler extends DefaultHandler {
 
     @Override
     public void characters(char[] characters, int start, int length) {
-        append(new String(characters, start, length));
+        if (suppressedDepth == 0) {
+            append(new String(characters, start, length));
+        }
     }
 
     @Override
@@ -177,11 +183,6 @@ final class XhtmlBlockHandler extends DefaultHandler {
         }
     }
 
-    /**
-     * Emits text that appeared outside any recognized container. Navigation
-     * links in an HTML export arrive this way; keeping them as prose is
-     * deliberate, because deciding what is boilerplate is a separate concern.
-     */
     private void flushLoose() {
         String text = BlockText.prose(loose.toString());
         loose.setLength(0);
@@ -199,10 +200,13 @@ final class XhtmlBlockHandler extends DefaultHandler {
                 .reduce((left, right) -> left + ROW_SEPARATOR + right)
                 .orElse("");
         rows.clear();
-        if (text.isBlank()) {
-            return;
+        if (!text.isBlank()) {
+            blocks.add(ParsedBlock.table(text, headerFromMarkup));
         }
-        blocks.add(ParsedBlock.table(text, headerFromMarkup));
+    }
+
+    private static boolean isSuppressed(String element) {
+        return "nav".equals(element) || "script".equals(element) || "style".equals(element);
     }
 
     private static String name(String localName, String qName) {

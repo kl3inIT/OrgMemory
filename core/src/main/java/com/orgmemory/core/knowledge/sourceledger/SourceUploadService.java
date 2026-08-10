@@ -100,14 +100,21 @@ public class SourceUploadService {
                     "source.upload-request-invalid",
                     "actor, upload metadata, and content are required");
         }
-        if (command.contentLength() <= 0
-                || command.contentLength() > properties.maximumUploadSize().toBytes()) {
+        if (command.contentLength() <= 0) {
             throw invalidUpload(
                     "source.upload-size-invalid",
-                    "file size must be within the configured upload limit");
+                    "file size must be positive");
         }
         String fileName = safeFileName(command.fileName());
-        requiredUploadType(fileName);
+        KnowledgeContentType contentType = requiredUploadType(fileName);
+        long maximumBytes = Math.min(
+                properties.maximumRequestSize().toBytes(), contentType.maximumUploadBytes());
+        if (command.contentLength() > maximumBytes) {
+            throw invalidUpload(
+                    "source.upload-size-invalid",
+                    "file exceeds the " + (maximumBytes / (1024 * 1024))
+                            + " MB limit for ." + extension(fileName) + " documents");
+        }
         if (command.knowledgeSpaceId() == null) {
             throw invalidUpload(
                     "source.upload-space-required",
@@ -146,6 +153,11 @@ public class SourceUploadService {
                         invalidUpload(
                                 "source.upload-type-unsupported",
                                 "file type is not supported"));
+    }
+
+    private static String extension(String fileName) {
+        return fileName.substring(fileName.lastIndexOf('.') + 1)
+                .toLowerCase(java.util.Locale.ROOT);
     }
 
     private static BusinessValidationException invalidUpload(

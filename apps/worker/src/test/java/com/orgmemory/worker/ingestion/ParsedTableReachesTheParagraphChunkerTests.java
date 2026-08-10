@@ -10,6 +10,7 @@ import com.orgmemory.graphrag.chunking.ParagraphSemanticOptions;
 import com.orgmemory.graphrag.parsing.CanonicalDocument;
 import com.orgmemory.graphrag.parsing.DocumentParseRequest;
 import com.orgmemory.integrations.graphrag.springai.JtokkitTextTokenizer;
+import com.orgmemory.integrations.documentparsing.springai.SpringAiDocumentParser;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.Optional;
