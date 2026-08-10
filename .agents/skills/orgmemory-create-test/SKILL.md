@@ -26,13 +26,16 @@ Select the relevant layered gates from `docs/guidelines/testing-harness.md`.
 For changes spanning ingestion, publication, persistence, worker wiring, or the
 frontend contract, run at least:
 
-```powershell
-.\gradlew.bat --no-daemon :core:test :apps:api:test :apps:worker:test
-.\gradlew.bat --no-daemon clean test
+```bash
+./gradlew --no-daemon :core:test :apps:api:test :apps:worker:test
+./gradlew --no-daemon clean test
 corepack pnpm --filter @orgmemory/web typecheck
 corepack pnpm --filter @orgmemory/web test:unit
 corepack pnpm --filter @orgmemory/web build
 ```
+
+On native Windows replace `./gradlew` with `gradlew.bat`; the Corepack commands
+are unchanged.
 
 The terminating `clean test` command is the Spring context gate. Never use
 `bootRun` as verification because it does not terminate on success.
@@ -44,7 +47,8 @@ When a REST endpoint or DTO changes, the committed contracts under
 `apps/api/.../OpenApiContractTests.java`):
 
 1. Refresh: set `ORGMEMORY_OPENAPI_WRITE=true` and run
-   `.\gradlew.bat :apps:api:test --tests "*OpenApiContractTests*"`.
+   `./gradlew :apps:api:test --tests '*OpenApiContractTests*'`.
+   On native Windows use `gradlew.bat` in place of `./gradlew`.
 2. Regenerate the browser client:
    `corepack pnpm --filter @orgmemory/web gen:api` — the hey-api output is
    gitignored, so it is regenerated, never committed.

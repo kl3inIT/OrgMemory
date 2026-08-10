@@ -1,7 +1,30 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+mode="full"
+case "${1:-}" in
+  "")
+    ;;
+  --print-login-theme)
+    mode="print-login-theme"
+    ;;
+  --login-theme-only)
+    mode="login-theme-only"
+    ;;
+  --restore-login-theme)
+    mode="restore-login-theme"
+    ;;
+  *)
+    printf 'Usage: %s [--print-login-theme|--login-theme-only|--restore-login-theme]\n' "$0" >&2
+    exit 64
+    ;;
+esac
+if [[ "$#" -gt 1 ]]; then
+  printf 'Usage: %s [--print-login-theme|--login-theme-only|--restore-login-theme]\n' "$0" >&2
+  exit 64
+fi
+
+repo_root="${ORGMEMORY_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
 compose_file="$repo_root/infrastructure/deployment/compose.production.yaml"
 environment_file="${ORGMEMORY_ENV_FILE:-$repo_root/.env.production}"
 realm="${ORGMEMORY_KEYCLOAK_REALM:-orgmemory}"
@@ -16,6 +39,20 @@ team_dev_web_client_source="$repo_root/infrastructure/keycloak/team-dev-web-clie
 kcadm_config="/tmp/orgmemory-mcp-kcadm.config"
 tmp_root="${TMPDIR:-/tmp}"
 tmp_dir="$(mktemp -d "${tmp_root%/}/orgmemory-keycloak-mcp.XXXXXX")"
+
+validate_path_segment() {
+  local kind="$1"
+  local value="$2"
+  if [[ ${#value} -gt 128 || \
+        ! "$value" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ || \
+        "$value" == *..* || \
+        "$value" == *. ]]; then
+    printf 'Invalid Keycloak %s name: %s\n' "$kind" "$value" >&2
+    exit 64
+  fi
+}
+
+validate_path_segment realm "$realm"
 
 compose=(
   docker compose
@@ -60,6 +97,65 @@ keycloak_exec bash -ec \
     --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" >/dev/null'
 
 kcadm get "realms/$realm" >/dev/null
+
+realm_theme_path="$tmp_dir/realm-theme.json"
+kcadm get "realms/$realm" --fields loginTheme >"$realm_theme_path"
+current_login_theme="$(
+  python3 - "$realm_theme_path" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    print(json.load(stream).get("loginTheme") or "")
+PY
+)"
+if [[ "$mode" == "print-login-theme" ]]; then
+  printf '%s\n' "${current_login_theme:-keycloak}"
+  exit 0
+fi
+
+desired_login_theme="${ORGMEMORY_KEYCLOAK_LOGIN_THEME:-orgmemory-shadcn}"
+validate_path_segment 'login theme' "$desired_login_theme"
+if [[ "$mode" != "restore-login-theme" ]]; then
+  case "$desired_login_theme" in
+    keycloak|keycloak.v2)
+      ;;
+    orgmemory-shadcn)
+      theme_artifact="/opt/keycloak/providers/orgmemory-keycloak-theme.jar"
+      if ! keycloak_exec test -r "$theme_artifact"; then
+        printf 'Keycloak image is missing login theme artifact %s\n' \
+          "$theme_artifact" >&2
+        exit 1
+      fi
+      ;;
+    *)
+      theme_properties="/opt/keycloak/themes/$desired_login_theme/login/theme.properties"
+      if ! keycloak_exec test -r "$theme_properties"; then
+        printf 'Keycloak image is missing login theme %s\n' "$desired_login_theme" >&2
+        exit 1
+      fi
+      ;;
+  esac
+fi
+if [[ "$current_login_theme" != "$desired_login_theme" ]]; then
+  kcadm update "realms/$realm" -s "loginTheme=$desired_login_theme"
+fi
+kcadm get "realms/$realm" --fields loginTheme >"$realm_theme_path"
+python3 - "$realm_theme_path" "$desired_login_theme" <<'PY'
+import json
+import sys
+
+path, expected = sys.argv[1:]
+with open(path, encoding="utf-8") as stream:
+    actual = json.load(stream).get("loginTheme")
+if actual != expected:
+    raise SystemExit(
+        f"Keycloak login theme verification failed: expected {expected!r}, got {actual!r}"
+    )
+PY
+if [[ "$mode" == "login-theme-only" || "$mode" == "restore-login-theme" ]]; then
+  exit 0
+fi
 
 resource_uri="$(
   keycloak_exec printenv ORGMEMORY_MCP_RESOURCE_URI

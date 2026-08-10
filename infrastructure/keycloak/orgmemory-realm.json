@@ -2,6 +2,7 @@
   "realm": "orgmemory",
   "enabled": true,
   "displayName": "OrgMemory",
+  "loginTheme": "orgmemory-shadcn",
   "registrationAllowed": false,
   "sslRequired": "external",
   "users": [

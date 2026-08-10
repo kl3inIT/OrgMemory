@@ -1,6 +1,6 @@
 ---
 name: orgmemory-pr-loop
-description: Drive one OrgMemory PR through CI, CodeRabbit review, merge, and post-merge verification - one PR at a time.
+description: Use when the user says "loop" for an OrgMemory change. Drive one approved scope through branch, verification, UI approval, PR, CI, review, merge, exact-SHA deployment proof, and checkout cleanup.
 ---
 
 # Canonical project skill

@@ -1,6 +1,8 @@
 # Version-control and agent metadata
 .git
 .github
+.hermes
+**/.hermes
 .agents
 .claude
 .codex
@@ -26,7 +28,10 @@
 **/build
 **/bin
 **/dist
+**/dist_keycloak
 **/node_modules
+.pnpm-store
+**/.pnpm-store
 **/.vite
 **/.turbo
 **/.next
@@ -49,6 +54,12 @@ tmp
 .env.*
 **/.env
 **/.env.*
+*.env
+**/*.env
+*.bak
+*.bak-*
+**/*.bak
+**/*.bak-*
 .openfga.local.properties
 *.pem
 *.key

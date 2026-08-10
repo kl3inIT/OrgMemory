@@ -43,10 +43,13 @@ This project uses recent major versions where older examples can be wrong.
 
 When in doubt, verify by compiling:
 
-```powershell
-.\gradlew.bat --no-daemon compileJava
-pnpm --filter @orgmemory/web typecheck
+```bash
+./gradlew --no-daemon compileJava
+corepack pnpm --filter @orgmemory/web typecheck
 ```
+
+On native Windows use `gradlew.bat --no-daemon compileJava`; the Corepack
+command is unchanged.
 
 ## Known Stack Traps
 
