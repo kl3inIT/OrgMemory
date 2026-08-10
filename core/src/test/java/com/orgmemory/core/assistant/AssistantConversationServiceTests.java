@@ -53,6 +53,7 @@ class AssistantConversationServiceTests {
                 messages,
                 citations,
                 answerFeedback,
+                mock(AssistantEvidenceService.class),
                 Clock.fixed(NOW, ZoneOffset.UTC));
         when(conversations.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(messages.save(any())).thenAnswer(invocation -> invocation.getArgument(0));

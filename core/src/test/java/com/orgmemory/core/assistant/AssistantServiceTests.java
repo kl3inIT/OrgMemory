@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +16,7 @@ import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection;
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult;
 import com.orgmemory.core.knowledge.search.VerifiedKnowledgeGrounding;
@@ -109,6 +111,47 @@ class AssistantServiceTests {
         assertFalse(request.getValue()
                 .systemInstruction()
                 .contains(actor.organizationId().toString()));
+    }
+
+    @Test
+    void refusesGenerationWhenAnySelectedFileHasNoUsableEvidence() {
+        RetrievedKnowledgeEvidence returned = evidence();
+        UUID missingSource = UUID.randomUUID();
+        var selection = KnowledgeEvidenceSelection.restricted(List.of(
+                new KnowledgeEvidenceSelection.Item(
+                        UUID.randomUUID(),
+                        returned.sourceObjectId(),
+                        returned.sourceRevisionId(),
+                        returned.knowledgeAssetId()),
+                new KnowledgeEvidenceSelection.Item(
+                        UUID.randomUUID(),
+                        missingSource,
+                        UUID.randomUUID(),
+                        UUID.randomUUID())));
+        when(retrieval.search(
+                        actor,
+                        "Compare both files",
+                        5,
+                        "request-selected",
+                        selection))
+                .thenReturn(new SecureKnowledgeSearchResult(
+                        "request-selected",
+                        List.of(returned)));
+
+        AssistantUnavailableException failure = assertThrows(
+                AssistantUnavailableException.class,
+                () -> service.startTurn(
+                        actor,
+                        "Compare both files",
+                        5,
+                        "request-selected",
+                        CONVERSATION_ID,
+                        null,
+                        System.nanoTime(),
+                        selection));
+
+        assertEquals("assistant_evidence_unavailable", failure.failureCode());
+        verifyNoInteractions(chat);
     }
 
     @Test

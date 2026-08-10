@@ -18,6 +18,7 @@ import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbedding;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult;
+import com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.PermissionAuditService;
@@ -134,6 +135,42 @@ class CanonicalHybridKnowledgeSearchTests {
 
         assertThrows(KnowledgeRetrievalUnavailableException.class,
                 () -> service.search(actor, "leave policy", 10, "request-3"));
+    }
+
+    @Test
+    void selectedEvidenceNarrowsCandidatesBeforeScoringAndRejectsExactRevisionDrift() {
+        UUID otherAsset = UUID.randomUUID();
+        SecureRetrievalCandidate selected = candidate(UUID.randomUUID(), assetId);
+        when(evidenceScopes.resolve(actor, MODEL_ID))
+                .thenReturn(scope(Set.of(assetId, otherAsset)));
+        var selection = KnowledgeEvidenceSelection.restricted(List.of(
+                new KnowledgeEvidenceSelection.Item(
+                        UUID.randomUUID(),
+                        selected.sourceObjectId(),
+                        selected.sourceRevisionId(),
+                        selected.knowledgeAssetId())));
+        store.lexical = List.of(candidate(UUID.randomUUID(), otherAsset));
+
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                () -> service.search(
+                        actor,
+                        "leave policy",
+                        10,
+                        "request-selected",
+                        selection));
+
+        assertEquals(List.of(assetId), store.lastScope.authorizedAssetIds());
+
+        store.lexical = List.of(candidate(UUID.randomUUID(), assetId));
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                () -> service.search(
+                        actor,
+                        "leave policy",
+                        10,
+                        "request-revision-drift",
+                        selection));
     }
 
     @Test
@@ -387,6 +424,7 @@ class CanonicalHybridKnowledgeSearchTests {
         private List<SecureRetrievalCandidate> lexical = List.of();
         private final List<SecureRetrievalCandidate> semantic = List.of();
         private List<SecureRetrievalCandidate> rechecked = List.of();
+        private RetrievalScope lastScope;
 
         private StubStore() {
             super(null);
@@ -394,6 +432,7 @@ class CanonicalHybridKnowledgeSearchTests {
 
         @Override
         List<SecureRetrievalCandidate> lexical(RetrievalScope scope, String query, int candidateLimit) {
+            lastScope = scope;
             return lexical;
         }
 

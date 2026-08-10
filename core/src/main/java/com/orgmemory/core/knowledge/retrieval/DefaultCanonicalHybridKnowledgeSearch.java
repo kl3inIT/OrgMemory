@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge.retrieval;
 
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
+import com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection;
 import com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult;
 import com.orgmemory.core.knowledge.sourceledger.SourceCitationUri;
 
@@ -19,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -81,6 +83,36 @@ class DefaultCanonicalHybridKnowledgeSearch
             String query,
             Integer requestedLimit,
             String suppliedRequestId) {
+        return searchWithinTransaction(
+                actor,
+                query,
+                requestedLimit,
+                suppliedRequestId,
+                KnowledgeEvidenceSelection.unrestricted());
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public SecureKnowledgeSearchResult search(
+            CurrentActor actor,
+            String query,
+            Integer requestedLimit,
+            String suppliedRequestId,
+            KnowledgeEvidenceSelection selection) {
+        return searchWithinTransaction(
+                actor,
+                query,
+                requestedLimit,
+                suppliedRequestId,
+                Objects.requireNonNull(selection, "selection"));
+    }
+
+    private SecureKnowledgeSearchResult searchWithinTransaction(
+            CurrentActor actor,
+            String query,
+            Integer requestedLimit,
+            String suppliedRequestId,
+            KnowledgeEvidenceSelection selection) {
         String requestId = requestId(suppliedRequestId);
         String normalizedQuery = normalizeQuery(query);
         int limit = validateLimit(requestedLimit);
@@ -101,7 +133,10 @@ class DefaultCanonicalHybridKnowledgeSearch
                     unavailable.policyVersion(),
                     unavailable);
         }
-        Set<UUID> authorizedAssetIds = evidenceScope.allAssetIds();
+        Set<UUID> authorizedAssetIds = new LinkedHashSet<>(evidenceScope.allAssetIds());
+        if (selection.restricted()) {
+            authorizedAssetIds.retainAll(selection.assetIds());
+        }
         if (authorizedAssetIds.isEmpty()) {
             audit.record(searchAudit(
                     actor,
@@ -133,6 +168,7 @@ class DefaultCanonicalHybridKnowledgeSearch
                 normalizedQuery,
                 lexical,
                 authorizedAssetIds,
+                selection,
                 evidenceScope.authorizationModelId());
         validateCandidateSet(
                 actor,
@@ -140,6 +176,7 @@ class DefaultCanonicalHybridKnowledgeSearch
                 normalizedQuery,
                 semantic,
                 authorizedAssetIds,
+                selection,
                 evidenceScope.authorizationModelId());
 
         List<ScoredCandidate> ranked = fuse(lexical, semantic).stream()
@@ -217,6 +254,17 @@ class DefaultCanonicalHybridKnowledgeSearch
                         "CANONICAL_RECHECK_DENIED"));
                 continue;
             }
+            if (!selection.contains(
+                    canonical.knowledgeAssetId(),
+                    canonical.sourceObjectId(),
+                    canonical.sourceRevisionId())) {
+                throw searchAuthorization.unavailable(
+                        actor,
+                        requestId,
+                        normalizedQuery,
+                        "RETRIEVAL_EVIDENCE_SELECTION_BOUNDARY_VIOLATION",
+                        evidenceScope.authorizationModelId());
+            }
             auditCommands.add(evidenceAudit(
                     actor,
                     requestId,
@@ -254,10 +302,15 @@ class DefaultCanonicalHybridKnowledgeSearch
             String query,
             List<SecureRetrievalCandidate> candidates,
             Set<UUID> authorizedAssetIds,
+            KnowledgeEvidenceSelection selection,
             String policyVersion) {
         boolean invalid = candidates.stream()
                 .anyMatch(candidate -> !actor.organizationId().equals(candidate.organizationId())
-                        || !authorizedAssetIds.contains(candidate.knowledgeAssetId()));
+                        || !authorizedAssetIds.contains(candidate.knowledgeAssetId())
+                        || !selection.contains(
+                                candidate.knowledgeAssetId(),
+                                candidate.sourceObjectId(),
+                                candidate.sourceRevisionId()));
         if (invalid) {
             throw searchAuthorization.unavailable(
                     actor,

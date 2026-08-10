@@ -6,6 +6,7 @@ import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeProjectionNamespaces;
+import com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection;
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult;
 import com.orgmemory.core.knowledge.search.VerifiedKnowledgeGrounding;
@@ -201,7 +202,26 @@ class DefaultGraphRagKnowledgeRetrievalService
                         actor,
                         normalizedQuery,
                         requestId(suppliedRequestId),
-                        policy.contextOptions(limit))
+                        policy.contextOptions(limit),
+                        KnowledgeEvidenceSelection.unrestricted())
+                .result();
+    }
+
+    @Override
+    public SecureKnowledgeSearchResult search(
+            CurrentActor actor,
+            String query,
+            Integer requestedLimit,
+            String suppliedRequestId,
+            KnowledgeEvidenceSelection selection) {
+        String normalizedQuery = normalizeQuery(query);
+        int limit = validateLimit(requestedLimit);
+        return runRetrieval(
+                        actor,
+                        normalizedQuery,
+                        requestId(suppliedRequestId),
+                        policy.contextOptions(limit),
+                        Objects.requireNonNull(selection, "selection"))
                 .result();
     }
 
@@ -216,12 +236,14 @@ class DefaultGraphRagKnowledgeRetrievalService
                 actor,
                 normalizedQuery,
                 observationRequestId(requestId, "-keyword"),
-                observationOptions(LightRagQueryMode.MIX, DIAGNOSTIC_TOP_K));
+                observationOptions(LightRagQueryMode.MIX, DIAGNOSTIC_TOP_K),
+                KnowledgeEvidenceSelection.unrestricted());
         RetrievalRun bypass = runRetrieval(
                 actor,
                 normalizedQuery,
                 observationRequestId(requestId, "-bypass"),
-                observationOptions(LightRagQueryMode.NAIVE, RECALL_TOP_K));
+                observationOptions(LightRagQueryMode.NAIVE, RECALL_TOP_K),
+                KnowledgeEvidenceSelection.unrestricted());
         KeywordPlan keywordPlan = keywordSeeded.keywords();
         return new RetrievalObservation(
                 documents(keywordSeeded.result()),
@@ -236,7 +258,8 @@ class DefaultGraphRagKnowledgeRetrievalService
             CurrentActor actor,
             String normalizedQuery,
             String requestId,
-            LightRagQueryRequest.Options options) {
+            LightRagQueryRequest.Options options,
+            KnowledgeEvidenceSelection selection) {
         Objects.requireNonNull(actor, "actor");
         UUID operationId = UUID.randomUUID();
         long startedAt = System.nanoTime();
@@ -260,7 +283,8 @@ class DefaultGraphRagKnowledgeRetrievalService
                     requestId,
                     authorizationModelId,
                     operationId,
-                    0);
+                    0,
+                    selection);
             emit(
                     operationId,
                     actor.organizationId(),
@@ -365,14 +389,17 @@ class DefaultGraphRagKnowledgeRetrievalService
             String requestId,
             String authorizationModelId,
             UUID operationId,
-            int attempt) {
+            int attempt,
+            KnowledgeEvidenceSelection selection) {
         ResolvedKnowledgeEvidenceScope initial =
-                resolve(
+                restrict(
+                        resolve(
                         actor,
                         authorizationModelId,
                         requestId,
                         query,
-                        operationId);
+                        operationId),
+                        selection);
         if (initial.allAssetIds().isEmpty()) {
             audit.record(searchAuthorization.command(
                     actor,
@@ -443,12 +470,14 @@ class DefaultGraphRagKnowledgeRetrievalService
         }
 
         ResolvedKnowledgeEvidenceScope current =
-                resolve(
+                restrict(
+                        resolve(
                         actor,
                         authorizationModelId,
                         requestId,
                         query,
-                        operationId);
+                        operationId),
+                        selection);
         if (!sameAuthorizationScope(initial, current)) {
             return retryOrFail(
                     actor,
@@ -458,6 +487,7 @@ class DefaultGraphRagKnowledgeRetrievalService
                     authorizationModelId,
                     operationId,
                     attempt,
+                    selection,
                     "AUTHORIZATION_SCOPE_CHANGED");
         }
 
@@ -496,7 +526,19 @@ class DefaultGraphRagKnowledgeRetrievalService
                     authorizationModelId,
                     operationId,
                     attempt,
+                    selection,
                     "CANONICAL_EVIDENCE_CHANGED");
+        }
+        if (verified.stream().anyMatch(candidate -> !selection.contains(
+                candidate.knowledgeAssetId(),
+                candidate.sourceObjectId(),
+                candidate.sourceRevisionId()))) {
+            throw searchAuthorization.unavailable(
+                    actor,
+                    requestId,
+                    query,
+                    "RETRIEVAL_EVIDENCE_SELECTION_BOUNDARY_VIOLATION",
+                    current.authorizationModelId());
         }
         LightRagGroundingAssembler.PreparedGrounding rendered =
                 engine.renderGrounding(
@@ -1041,6 +1083,7 @@ class DefaultGraphRagKnowledgeRetrievalService
             String authorizationModelId,
             UUID operationId,
             int attempt,
+            KnowledgeEvidenceSelection selection,
             String reason) {
         if (attempt == 0) {
             return search(
@@ -1050,7 +1093,8 @@ class DefaultGraphRagKnowledgeRetrievalService
                     requestId,
                     authorizationModelId,
                     operationId,
-                    1);
+                    1,
+                    selection);
         }
         throw searchAuthorization.unavailable(
                 actor,
@@ -1058,6 +1102,14 @@ class DefaultGraphRagKnowledgeRetrievalService
                 query,
                 reason,
                 authorizationModelId);
+    }
+
+    private static ResolvedKnowledgeEvidenceScope restrict(
+            ResolvedKnowledgeEvidenceScope scope,
+            KnowledgeEvidenceSelection selection) {
+        return selection.restricted()
+                ? scope.restrictTo(selection.assetIds())
+                : scope;
     }
 
     private void emitRerank(

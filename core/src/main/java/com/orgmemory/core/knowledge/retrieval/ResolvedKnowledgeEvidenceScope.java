@@ -52,6 +52,31 @@ record ResolvedKnowledgeEvidenceScope(
         return assetIdsByKnowledgeSpace.keySet();
     }
 
+    public ResolvedKnowledgeEvidenceScope restrictTo(Set<UUID> permittedAssetIds) {
+        Set<UUID> permitted = Set.copyOf(Objects.requireNonNull(
+                permittedAssetIds,
+                "permittedAssetIds"));
+        Map<UUID, Set<UUID>> restrictedAssets = new LinkedHashMap<>();
+        Map<UUID, Long> restrictedGenerations = new LinkedHashMap<>();
+        assetIdsByKnowledgeSpace.forEach((spaceId, assetIds) -> {
+            LinkedHashSet<UUID> intersection = new LinkedHashSet<>(assetIds);
+            intersection.retainAll(permitted);
+            if (!intersection.isEmpty()) {
+                restrictedAssets.put(spaceId, Set.copyOf(intersection));
+                restrictedGenerations.put(spaceId, aclGenerationByKnowledgeSpace.get(spaceId));
+            }
+        });
+        return new ResolvedKnowledgeEvidenceScope(
+                organizationId,
+                actorUserId,
+                actorDepartmentId,
+                actorExecutive,
+                authorizationModelId,
+                evaluatedAt,
+                restrictedAssets,
+                restrictedGenerations);
+    }
+
     public SecureKnowledgeRetrievalStore.RetrievalScope toRetrievalScope() {
         return new SecureKnowledgeRetrievalStore.RetrievalScope(
                 organizationId,

@@ -25,6 +25,7 @@ import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
 import com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult;
+import com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditService;
@@ -91,6 +92,44 @@ class GraphRagKnowledgeRetrievalServiceTests {
     private static final String MODEL_ID = "model-v1";
     private static final Instant NOW =
             Instant.parse("2026-07-24T00:00:00Z");
+
+    @Test
+    void selectedEvidenceIsTheScopeUsedByGraphSeedAndExpansion() {
+        CurrentActor actor = actor();
+        KnowledgeEvidenceScopeResolver scopes = mock(KnowledgeEvidenceScopeResolver.class);
+        when(scopes.resolve(actor, MODEL_ID))
+                .thenReturn(scope(Set.of(ASSET_ID, SECOND_ASSET_ID), 1L));
+        LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
+        LightRagPreparedQuery prepared = preparedQueryPlan();
+        when(engine.prepare(any())).thenReturn(prepared);
+        when(engine.executePrepared(any(), any(), any())).thenReturn(noResults());
+        var selection = KnowledgeEvidenceSelection.restricted(List.of(
+                new KnowledgeEvidenceSelection.Item(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        REVISION_ID,
+                        ASSET_ID)));
+
+        service(
+                        scopes,
+                        mock(RelationshipAuthorizationSetPort.class),
+                        mock(SecureKnowledgeRetrievalStore.class),
+                        engine,
+                        GraphRagRetrievalPolicy.defaults(),
+                        mock(PermissionAuditService.class),
+                        mock(GraphRagEventSink.class))
+                .search(
+                        actor,
+                        "Summarize this file",
+                        10,
+                        "request-selected",
+                        selection);
+
+        verify(engine).executePrepared(
+                argThat(request -> request.scope().authorizedAssetIds().equals(Set.of(ASSET_ID))),
+                any(),
+                any());
+    }
 
     @Test
     void multipleSpacesPrepareOneLogicalQueryBeforeSnapshotRetrieval() {

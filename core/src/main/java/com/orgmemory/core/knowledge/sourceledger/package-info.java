@@ -12,6 +12,7 @@
 @org.springframework.modulith.ApplicationModule(
         allowedDependencies = {
             "knowledge.acl",
+            "knowledge::evidence",
             "knowledge::storage",
             "organization",
             "permission",

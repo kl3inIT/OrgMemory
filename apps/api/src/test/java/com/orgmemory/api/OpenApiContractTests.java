@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
+import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -48,6 +50,26 @@ class OpenApiContractTests {
     @Test
     void theCommittedScimContractDescribesOnlyTheLiveScimApi() throws Exception {
         verifyContract("scim", "scim-openapi.json", "https://memory.company.com");
+    }
+
+    @Test
+    void assistantEvidenceContractHasNoBindExistingSourceEndpoint() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode contract = objectMapper.readTree(
+                Files.readString(repositoryRoot().resolve("contracts/openapi.json")));
+        TreeSet<String> evidencePaths = new TreeSet<>();
+        contract.path("paths").fieldNames().forEachRemaining(path -> {
+            if (path.startsWith("/api/assistant") && path.contains("evidence")) {
+                evidencePaths.add(path);
+            }
+        });
+
+        assertEquals(
+                Set.of(
+                        "/api/assistant/evidence",
+                        "/api/assistant/conversations/{conversationId}/evidence",
+                        "/api/assistant/conversations/{conversationId}/evidence/{bindingId}"),
+                evidencePaths);
     }
 
     private void verifyContract(String group, String fileName, String serverUrl)

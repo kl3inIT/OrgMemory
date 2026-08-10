@@ -22,6 +22,8 @@ import com.orgmemory.core.assistant.AssistantAnswerSentiment;
 import com.orgmemory.core.assistant.AssistantCitation;
 import com.orgmemory.core.assistant.AssistantCitationReference;
 import com.orgmemory.core.assistant.AssistantConversationService;
+import com.orgmemory.core.assistant.AssistantEvidenceService;
+import com.orgmemory.core.assistant.AssistantEvidenceUploadService;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
 import com.orgmemory.core.assistant.AssistantTurnRef;
@@ -92,6 +94,8 @@ class AssistantControllerStreamingTests {
                 mock(AssistantModelAuthorityService.class),
                 mock(CitationEvidenceService.class),
                 mock(AssistantRetrievalScheduler.class),
+                mock(AssistantEvidenceUploadService.class),
+                mock(AssistantEvidenceService.class),
                 mock(ObjectMapper.class));
 
         AssistantAnswerFeedbackView actual = controller.setFeedback(
@@ -151,6 +155,8 @@ class AssistantControllerStreamingTests {
                 authority,
                 mock(CitationEvidenceService.class),
                 mock(AssistantRetrievalScheduler.class),
+                mock(AssistantEvidenceUploadService.class),
+                mock(AssistantEvidenceService.class),
                 mock(ObjectMapper.class));
 
         AssistantController.AssistantModelOptionsResponse response =
@@ -196,6 +202,8 @@ class AssistantControllerStreamingTests {
                 mock(AssistantModelAuthorityService.class),
                 evidenceService,
                 mock(AssistantRetrievalScheduler.class),
+                mock(AssistantEvidenceUploadService.class),
+                mock(AssistantEvidenceService.class),
                 mock(ObjectMapper.class));
 
         var response = controller.citations(messageId, authentication);
@@ -248,6 +256,8 @@ class AssistantControllerStreamingTests {
                 mock(AssistantModelAuthorityService.class),
                 mock(CitationEvidenceService.class),
                 scheduler,
+                mock(AssistantEvidenceUploadService.class),
+                mock(AssistantEvidenceService.class),
                 new ObjectMapper());
 
         List<String> frames = controller.chat(
@@ -320,6 +330,8 @@ class AssistantControllerStreamingTests {
                 mock(AssistantModelAuthorityService.class),
                 mock(CitationEvidenceService.class),
                 scheduler,
+                mock(AssistantEvidenceUploadService.class),
+                mock(AssistantEvidenceService.class),
                 new ObjectMapper());
 
         try {
@@ -427,6 +439,8 @@ class AssistantControllerStreamingTests {
                 mock(AssistantModelAuthorityService.class),
                 mock(CitationEvidenceService.class),
                 mock(AssistantRetrievalScheduler.class),
+                mock(AssistantEvidenceUploadService.class),
+                mock(AssistantEvidenceService.class),
                 mock(ObjectMapper.class));
 
         controller.delete(conversationId, authentication);
@@ -446,6 +460,8 @@ class AssistantControllerStreamingTests {
                 mock(AssistantModelAuthorityService.class),
                 mock(CitationEvidenceService.class),
                 mock(AssistantRetrievalScheduler.class),
+                mock(AssistantEvidenceUploadService.class),
+                mock(AssistantEvidenceService.class),
                 mock(ObjectMapper.class));
     }
 

@@ -12,9 +12,13 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.ai.AssistantModelAuthorityService;
 import com.orgmemory.core.assistant.AssistantConversationService;
+import com.orgmemory.core.assistant.AssistantEvidenceService;
+import com.orgmemory.core.assistant.AssistantEvidenceUploadService;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.knowledge.retrieval.CitationEvidenceService;
 import jakarta.validation.Validation;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
@@ -38,6 +42,27 @@ class AssistantChatRequestValidationTests {
     }
 
     @Test
+    void limitsOneTurnToThreeEvidenceBindings() {
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var violations = factory.getValidator().validate(new AssistantChatRequest(
+                    "Compare these files",
+                    null,
+                    null,
+                    null,
+                    List.of(
+                            UUID.randomUUID(),
+                            UUID.randomUUID(),
+                            UUID.randomUUID(),
+                            UUID.randomUUID())));
+
+            assertEquals(1, violations.size());
+            assertEquals(
+                    "evidenceBindingIds",
+                    violations.iterator().next().getPropertyPath().toString());
+        }
+    }
+
+    @Test
     void rejectsAnOversizedMessageBeforeOpeningTheStreamOrCreatingATurn() throws Exception {
         var assistant = mock(AssistantService.class);
         var conversations = mock(AssistantConversationService.class);
@@ -55,6 +80,8 @@ class AssistantChatRequestValidationTests {
                         modelAuthority,
                         citationEvidence,
                         retrievalScheduler,
+                        mock(AssistantEvidenceUploadService.class),
+                        mock(AssistantEvidenceService.class),
                         json))
                 .build();
 

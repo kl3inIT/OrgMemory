@@ -2,6 +2,7 @@ package com.orgmemory.core.assistant;
 
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.ai.AssistantModelSelectionRef;
+import com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection;
 import com.orgmemory.core.shared.error.BusinessErrorExposure;
 import com.orgmemory.core.shared.error.BusinessNotFoundException;
 import com.orgmemory.core.shared.error.BusinessValidationException;
@@ -24,6 +25,7 @@ public class AssistantConversationService implements AssistantTranscriptContext 
     private final AssistantConversationMessageRepository messages;
     private final AssistantMessageCitationRepository citations;
     private final AssistantAnswerFeedbackRepository answerFeedback;
+    private final AssistantEvidenceService evidence;
     private final Clock clock;
 
     AssistantConversationService(
@@ -31,11 +33,13 @@ public class AssistantConversationService implements AssistantTranscriptContext 
             AssistantConversationMessageRepository messages,
             AssistantMessageCitationRepository citations,
             AssistantAnswerFeedbackRepository answerFeedback,
+            AssistantEvidenceService evidence,
             Clock clock) {
         this.conversations = conversations;
         this.messages = messages;
         this.citations = citations;
         this.answerFeedback = answerFeedback;
+        this.evidence = evidence;
         this.clock = clock;
     }
 
@@ -51,6 +55,22 @@ public class AssistantConversationService implements AssistantTranscriptContext 
             UUID requestedId,
             String userMessage,
             AssistantModelSelectionRef modelSelection) {
+        return beginTurnWithEvidence(
+                        actor,
+                        requestedId,
+                        userMessage,
+                        modelSelection,
+                        List.of())
+                .turn();
+    }
+
+    @Transactional
+    public AssistantEvidenceTurnClaim beginTurnWithEvidence(
+            CurrentActor actor,
+            UUID requestedId,
+            String userMessage,
+            AssistantModelSelectionRef modelSelection,
+            List<UUID> evidenceBindingIds) {
         String validUserMessage = requireUserMessage(userMessage);
         Instant now = clock.instant();
         AssistantConversation conversation;
@@ -67,16 +87,34 @@ public class AssistantConversationService implements AssistantTranscriptContext 
         }
         conversation.selectModel(modelSelection);
         UUID turnId = UUID.randomUUID();
-        messages.save(new AssistantConversationMessage(
-                UUID.randomUUID(),
+        UUID userMessageId = UUID.randomUUID();
+        AssistantConversationMessage userTurn = new AssistantConversationMessage(
+                userMessageId,
                 conversation.getId(),
                 turnId,
                 actor.organizationId(),
                 actor.userId(),
                 AssistantConversationRole.USER,
                 validUserMessage,
-                now));
-        return new AssistantTurnRef(conversation.getId(), turnId);
+                now);
+        List<UUID> requestedEvidence = evidenceBindingIds == null
+                ? List.of()
+                : evidenceBindingIds;
+        var evidenceSelection = KnowledgeEvidenceSelection.unrestricted();
+        if (requestedEvidence.isEmpty()) {
+            messages.save(userTurn);
+        } else {
+            messages.saveAndFlush(userTurn);
+            evidenceSelection = evidence.claimForTurn(
+                    actor,
+                    conversation.getId(),
+                    turnId,
+                    userMessageId,
+                    requestedEvidence);
+        }
+        return new AssistantEvidenceTurnClaim(
+                new AssistantTurnRef(conversation.getId(), turnId),
+                evidenceSelection);
     }
 
     @Override

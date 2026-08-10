@@ -11,6 +11,7 @@ import com.orgmemory.core.assistant.observability.AssistantTurnObservationContex
 import com.orgmemory.core.assistant.observability.AssistantTurnObservationDocumentation;
 import com.orgmemory.core.assistant.observability.DefaultAssistantTurnObservationConvention;
 import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
+import com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection;
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.organization.CurrentActor;
 import io.micrometer.observation.Observation;
@@ -143,6 +144,26 @@ public class AssistantService {
             String conversationId,
             AssistantModelRouteAuthority routeAuthority,
             long startedAtNanos) {
+        return startTurn(
+                actor,
+                question,
+                requestedLimit,
+                requestId,
+                conversationId,
+                routeAuthority,
+                startedAtNanos,
+                KnowledgeEvidenceSelection.unrestricted());
+    }
+
+    public AssistantTurn startTurn(
+            CurrentActor actor,
+            String question,
+            Integer requestedLimit,
+            String requestId,
+            String conversationId,
+            AssistantModelRouteAuthority routeAuthority,
+            long startedAtNanos,
+            KnowledgeEvidenceSelection evidenceSelection) {
         AssistantTurnObservationContext context = new AssistantTurnObservationContext(
                 actor.organizationId(), engine, startedAtNanos);
         Observation observation = AssistantTurnObservationDocumentation.TURN
@@ -150,8 +171,28 @@ public class AssistantService {
                 .start();
 
         try {
-            var search = retrieval.search(actor, question, requestedLimit, requestId);
+            KnowledgeEvidenceSelection selection = evidenceSelection == null
+                    ? KnowledgeEvidenceSelection.unrestricted()
+                    : evidenceSelection;
+            var search = selection.restricted()
+                    ? retrieval.search(
+                            actor,
+                            question,
+                            requestedLimit,
+                            requestId,
+                            selection)
+                    : retrieval.search(
+                            actor,
+                            question,
+                            requestedLimit,
+                            requestId);
             context.retrievalCompletedAt(System.nanoTime());
+            if (!selection.missingSourceObjectIds(search.evidence()).isEmpty()) {
+                throw new AssistantUnavailableException(
+                        "Selected file evidence is unavailable",
+                        null,
+                        "assistant_evidence_unavailable");
+            }
             if (search.evidence().isEmpty()) {
                 context.foundNoEvidence(System.nanoTime());
                 observation.stop();

@@ -6,6 +6,8 @@ const THIRD_CHUNK_ID = "43000000-0000-0000-0000-000000000005"
 const CONVERSATION_ID = "44000000-0000-4000-8000-000000000001"
 const ANSWER_MESSAGE_ID = "44000000-0000-4000-8000-000000000002"
 const MODEL_ACTIVATION_ID = "45000000-0000-4000-8000-000000000001"
+const EVIDENCE_BINDING_ID = "46000000-0000-4000-8000-000000000001"
+const SPACE_ID = "46000000-0000-4000-8000-000000000002"
 
 interface HistoryMessage {
   id: string
@@ -29,6 +31,7 @@ interface AssistantHarnessOptions {
   history?: HistoryMessage[]
   switchedActorHistory?: HistoryMessage[]
   selectedModelActivationId?: string
+  uploadTargets?: Array<Record<string, unknown>>
 }
 
 async function assistantHarness(page: Page, options: AssistantHarnessOptions = {}) {
@@ -99,6 +102,55 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
         departmentId: "41000000-0000-0000-0000-000000000003",
         departmentName: "Research",
         clearance: "STANDARD",
+      })
+      return
+    }
+
+    if (
+      request.method() === "GET" &&
+      url.pathname === "/api/knowledge-spaces/upload-targets"
+    ) {
+      await json(
+        route,
+        options.uploadTargets ?? [
+          { id: SPACE_ID, name: "Research", departmentId: "41000000-0000-0000-0000-000000000003" },
+        ],
+      )
+      return
+    }
+
+    if (
+      request.method() === "POST" &&
+      url.pathname === "/api/assistant/evidence"
+    ) {
+      await json(route, {
+        id: EVIDENCE_BINDING_ID,
+        conversationId: CONVERSATION_ID,
+        sourceObjectId: "46000000-0000-4000-8000-000000000003",
+        sourceRevisionId: "46000000-0000-4000-8000-000000000004",
+        knowledgeAssetId: "46000000-0000-4000-8000-000000000005",
+        title: "Policy",
+        fileName: "policy.txt",
+        status: "PROCESSING",
+        createdAt: "2026-08-10T00:00:00Z",
+      }, 201)
+      return
+    }
+
+    if (
+      request.method() === "GET" &&
+      url.pathname === `/api/assistant/conversations/${CONVERSATION_ID}/evidence/${EVIDENCE_BINDING_ID}`
+    ) {
+      await json(route, {
+        id: EVIDENCE_BINDING_ID,
+        conversationId: CONVERSATION_ID,
+        sourceObjectId: "46000000-0000-4000-8000-000000000003",
+        sourceRevisionId: "46000000-0000-4000-8000-000000000004",
+        knowledgeAssetId: "46000000-0000-4000-8000-000000000005",
+        title: "Policy",
+        fileName: "policy.txt",
+        status: "READY",
+        createdAt: "2026-08-10T00:00:00Z",
       })
       return
     }
@@ -299,6 +351,79 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
     },
   }
 }
+
+test("uploads governed evidence and submits its ordered binding with the turn", async ({ page }) => {
+  const harness = await assistantHarness(page)
+  await page.goto("/")
+
+  await page.getByRole("button", { name: "Attach governed file" }).click()
+  await expect(page.getByText(/publishes the file as durable governed Knowledge/i)).toBeVisible()
+  await page.locator("#source-file").setInputFiles({
+    name: "policy.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("The policy requires approval."),
+  })
+  await page.getByRole("combobox", { name: "Knowledge Space" }).click()
+  await page.getByRole("option", { name: "Research" }).click()
+  await page.getByRole("button", { name: "Upload", exact: true }).click()
+
+  await expect(page.getByText("policy.txt")).toBeVisible()
+  await expect(page.getByText("ready", { exact: true })).toBeVisible()
+  await submit(page, "Summarize the selected file")
+
+  await expect.poll(() => harness.chatBodies.length).toBe(1)
+  expect(harness.chatBodies[0]?.evidenceBindingIds).toEqual([EVIDENCE_BINDING_ID])
+  await expect(page.getByText("policy.txt")).toHaveCount(0)
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
+test("keeps the exact governed binding across a failed turn retry", async ({ page }) => {
+  const harness = await assistantHarness(page, {
+    chatFrames: [
+      frame({ type: "start", messageId: "assistant-evidence-error" }),
+      frame({ type: "error", errorText: "The assistant stream failed." }),
+      "data: [DONE]",
+    ],
+  })
+  await page.goto("/")
+
+  await page.getByRole("button", { name: "Attach governed file" }).click()
+  await page.locator("#source-file").setInputFiles({
+    name: "policy.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("The policy requires approval."),
+  })
+  await page.getByRole("combobox", { name: "Knowledge Space" }).click()
+  await page.getByRole("option", { name: "Research" }).click()
+  await page.getByRole("button", { name: "Upload", exact: true }).click()
+  await expect(page.getByText("ready", { exact: true })).toBeVisible()
+
+  await submit(page, "Summarize the selected file")
+  await expect(page.getByRole("alert")).toContainText("OrgMemory could not complete this turn.")
+  await expect(page.getByText("policy.txt")).toBeVisible()
+  await page.getByRole("button", { name: "Retry" }).click()
+
+  await expect.poll(() => harness.chatBodies.length).toBe(2)
+  expect(harness.chatBodies.map((body) => body.evidenceBindingIds)).toEqual([
+    [EVIDENCE_BINDING_ID],
+    [EVIDENCE_BINDING_ID],
+  ])
+  await expect(page.getByText("policy.txt")).toBeVisible()
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
+test("keeps governed attachment closed when no upload Space is authorized", async ({ page }) => {
+  const harness = await assistantHarness(page, { uploadTargets: [] })
+  await page.goto("/")
+
+  await expect(page.getByRole("button", { name: "Attach governed file" })).toBeDisabled({
+    timeout: 15_000,
+  })
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
 
 test("anchors only server-declared citations and opens the matching source", async ({ page }) => {
   const secondPath = `/api/citations/${SECOND_CHUNK_ID}/content`
@@ -1078,8 +1203,16 @@ test("keeps high-frequency structured Assistant streams responsive", async ({ pa
 
   await page.addInitScript(() => {
     const stats = { rafMaxGap: 0, longTasks: [] as number[] }
-    ;(window as unknown as { __streamStats: typeof stats }).__streamStats = stats
     let last = performance.now()
+    const monitor = {
+      stats,
+      reset: () => {
+        stats.rafMaxGap = 0
+        stats.longTasks = []
+        last = performance.now()
+      },
+    }
+    ;(window as unknown as { __streamMonitor: typeof monitor }).__streamMonitor = monitor
     const tick = (now: number) => {
       stats.rafMaxGap = Math.max(stats.rafMaxGap, now - last)
       last = now
@@ -1095,18 +1228,25 @@ test("keeps high-frequency structured Assistant streams responsive", async ({ pa
 
   await assistantHarness(page, { chatFrames: frames })
   await page.goto("/")
+  await page.evaluate(() => {
+    ;(window as unknown as { __streamMonitor: { reset: () => void } }).__streamMonitor.reset()
+  })
   await submit(page, "Run streaming performance test")
   await page.getByRole("button", { name: "Submit" }).waitFor({ state: "visible", timeout: 120_000 })
 
   const stats = await page.evaluate(() => {
-    const value = (window as unknown as { __streamStats: { rafMaxGap: number; longTasks: number[] } }).__streamStats
+    const value = (
+      window as unknown as {
+        __streamMonitor: { stats: { rafMaxGap: number; longTasks: number[] } }
+      }
+    ).__streamMonitor.stats
     return {
       rafMaxGap: value.rafMaxGap,
       longTaskMax: Math.max(0, ...value.longTasks),
     }
   })
-  expect(stats.rafMaxGap).toBeLessThan(500)
-  expect(stats.longTaskMax).toBeLessThan(500)
+  expect(stats.rafMaxGap, JSON.stringify(stats)).toBeLessThan(500)
+  expect(stats.longTaskMax, JSON.stringify(stats)).toBeLessThan(500)
 })
 
 function minimalPdf() {
