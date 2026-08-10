@@ -177,12 +177,64 @@ test("Knowledge presents safe cross-format evidence in a centered document viewe
   ])
 })
 
+test("uploads a spreadsheet and an HTML export through the governed document dialog", async ({
+  page,
+}) => {
+  const requests: string[] = []
+  const uploadBodies: string[] = []
+  let readyDeleted = false
+
+  await documentHarness(
+    page,
+    requests,
+    () => readyDeleted,
+    () => {
+      readyDeleted = true
+    },
+    () => 1,
+    { enableUploads: true, uploadBodies },
+  )
+  await page.goto("/sources")
+
+  await uploadDocument(page, {
+    name: "headcount.xlsx",
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from("browser spreadsheet fixture"),
+  })
+  await uploadDocument(page, {
+    name: "policy-export.html",
+    mimeType: "text/html",
+    buffer: Buffer.from("<main><h1>Policy</h1><p>Approved.</p></main>"),
+  })
+
+  expect(requests.filter((request) => request.startsWith("POST /api/sources?"))).toHaveLength(2)
+  expect(uploadBodies).toHaveLength(2)
+  expect(uploadBodies[0]).toContain('filename="headcount.xlsx"')
+  expect(uploadBodies[1]).toContain('filename="policy-export.html"')
+})
+
+async function uploadDocument(
+  page: Page,
+  file: { name: string; mimeType: string; buffer: Buffer },
+) {
+  await page.getByRole("button", { name: "Upload document" }).click()
+  await page.getByLabel("File").setInputFiles(file)
+  await page.getByRole("combobox", { name: "Knowledge Space" }).click()
+  await page.getByRole("option", { name: "People" }).click()
+  await page.getByRole("button", { name: "Upload", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "Upload a document" })).toHaveCount(0)
+}
+
 async function documentHarness(
   page: Page,
   requests: string[],
   isDeleted: () => boolean,
   markDeleted: () => void,
   nextRetryAttempt: () => number = () => 1,
+  uploadHarness: { enableUploads: boolean; uploadBodies: string[] } = {
+    enableUploads: false,
+    uploadBodies: [],
+  },
 ) {
   await page.route("**/api/**", async (route) => {
     const request = route.request()
@@ -233,7 +285,22 @@ async function documentHarness(
       })
     }
     if (url.pathname === "/api/knowledge-spaces/upload-targets") {
-      return route.fulfill({ status: 200, contentType: "application/json", body: "[]" })
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(
+          uploadHarness.enableUploads
+            ? [
+                {
+                  id: PEOPLE_SPACE_ID,
+                  key: "people",
+                  name: "People",
+                  departmentId: "12121212-1212-4212-8212-121212121212",
+                },
+              ]
+            : [],
+        ),
+      })
     }
     if (url.pathname === "/api/knowledge-spaces/visible") {
       return route.fulfill({
@@ -243,6 +310,26 @@ async function documentHarness(
           { id: PEOPLE_SPACE_ID, key: "people", name: "People" },
           { id: FINANCE_SPACE_ID, key: "finance", name: "Finance" },
         ]),
+      })
+    }
+    if (url.pathname === "/api/sources" && request.method() === "POST") {
+      if (!uploadHarness.enableUploads) {
+        return route.fulfill({ status: 403, contentType: "application/json", body: "{}" })
+      }
+      uploadHarness.uploadBodies.push(request.postData() ?? "")
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(
+          source({
+            id: "13131313-1313-4313-8313-131313131313",
+            title: "Uploaded document",
+            status: "VALIDATING",
+            knowledgeAssetId: null,
+            contentAvailable: false,
+            deletionAllowed: false,
+          }),
+        ),
       })
     }
     if (url.pathname === "/api/sources" && request.method() === "GET") {
