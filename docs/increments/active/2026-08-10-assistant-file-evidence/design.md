@@ -41,8 +41,11 @@ from `apps:worker` into a new replaceable integration:
 
 `integrations:document-parsing-spring-ai`
 
-This module is justified by both reuse and an external framework boundary. It
-owns:
+This module is justified by the replaceable framework boundary and the imminent
+CSV/HTML reader family in Knowledge ingestion coverage item 3. Worker remains
+the only direct production caller after Assistant ships, because Assistant uses
+the Source pipeline rather than calling the parser. Future reuse is enabled but
+is not the present-day justification. The module owns:
 
 - PDF page reading;
 - Tika XHTML extraction for structured office and HTML documents;
@@ -63,8 +66,11 @@ It does not own:
 
 The implementation is a public adapter constructed by worker configuration.
 Framework exceptions are translated into a small channel-neutral parse failure
-taxonomy at the `DocumentParser` boundary. The worker maps those failures to its
-durable ingestion terminal reasons.
+taxonomy at the `DocumentParser` boundary. It distinguishes deterministic
+unsupported, corrupt, empty, and encoding failures from retryable infrastructure
+failure. The worker maps those failures to its durable ingestion terminal
+reasons; deterministic parse failure is non-retryable instead of falling through
+to the current generic `PARSING_FAILED` retry path.
 
 ### Capability is not admission
 
@@ -112,6 +118,7 @@ Assistant conversation
        -> immutable Source object + requested revision
             -> Source blob / ingestion job
             -> READY Knowledge Asset / chunks
+            -> active-engine projection published / answerable
 ```
 
 The binding is conversation-scoped and records creator identity and creation
@@ -121,13 +128,20 @@ when all of these are true at turn claim time:
 1. the binding belongs to the current organization and conversation;
 2. the authenticated actor may use that conversation and currently read the
    target Source under the canonical Knowledge policy;
-3. the bound revision is current, `READY`, and its evidence integrity checks
-   pass; and
+3. the bound revision is current, its evidence integrity checks pass, and it is
+   answerable under the active Assistant retrieval engine; and
 4. the resulting chunks survive the existing authorization filter and citation
    hydration path.
 
-Return 404 across ownership/tenant boundaries and a typed not-ready state for a
-valid binding still processing. Never turn possession of an attachment UUID into
+`SourceRevision.READY` alone is insufficient for the default GraphRAG engine.
+The graph-index job is enqueued when the revision becomes ready, and the winning
+projection batch may still be queued, processing, retrying, or failed. The
+binding status therefore resolves through an engine-aligned readiness port. For
+GraphRAG, presentation `READY` requires the selected Asset's projection batch to
+be published and visible to the exact engine serving the turn. For a configured
+canonical engine it requires the canonical chunks that engine reads. Return 404
+across ownership/tenant boundaries and a typed not-ready state for a valid
+binding still processing. Never turn possession of an attachment UUID into
 authority.
 
 ### Turn semantics
@@ -139,9 +153,22 @@ authority.
   terminal processing failure is shown before submit.
 - Turn claim atomically persists the ordered binding IDs beside the user message
   and rechecks them. A retry reuses the same ordered, immutable selection.
-- Retrieval is constrained to the selected Source revisions and still applies
-  the ordinary actor scope, ACL ceiling, ranking bounds, and citation hydration.
-  Raw extracted text is not concatenated directly into the prompt.
+- A turn with bindings is selection-only in the first delivery. It does not
+  silently mix the rest of organizational Knowledge into “summarize this file.”
+  A new internal `KnowledgeEvidenceSelection` argument carries the selected
+  Asset/Source identities into the configured `knowledge::search` engine. It is
+  not a public strategy selector.
+- The selected identity set is a second ceiling after actor authorization:
+  intersect it before seed scoring, preserve it through graph expansion, and
+  reapply it during closure verification and citation hydration. Chunks or
+  citations from non-selected Assets cannot enter context. Entity/relationship
+  facts survive only when their accepted provenance belongs to the selected
+  set. The normal global context budget applies across the selected authorized
+  subset.
+- An attachment turn must receive usable evidence from every selected binding or
+  return a typed evidence-unavailable result before generation; a selected file
+  is never treated as optional because another file produced hits. Raw extracted
+  text is not concatenated directly into the prompt.
 - The answer emits ordinary OrgMemory citations. Transcript replay uses existing
   citation behavior and fails closed if evidence later becomes unavailable.
 - Uploaded content remains untrusted evidence. Existing prompt/data boundaries
@@ -150,10 +177,14 @@ authority.
 ### Lifecycle
 
 The file is durable Knowledge evidence from creation; there is no automatic
-promotion step and no hidden personal-file store. Removing it from the composer
-only removes the pending binding selection. Source retirement/deletion follows
-the normal governed lifecycle and must account for persisted conversation
-references in the same way citations already do.
+promotion step and no hidden personal-file store. The composer explicitly says
+that upload publishes the processed file to the chosen Space audience. An actor
+with no Space where they hold `can_create_asset` cannot attach a file and is
+directed to the Documents workflow or an administrator; the product does not
+fall back to a private attachment store. Removing it from the composer only
+removes the pending binding selection. Source retirement/deletion follows the
+normal governed lifecycle and must account for persisted conversation references
+in the same way citations already do.
 
 The MVP accepts only formats admitted by Knowledge ingestion. Images, direct
 provider file handles, OCR, archive recursion, MSG/EML attachment recursion, and
@@ -176,9 +207,11 @@ uncitable answer path. The first delivery rejects this complexity.
 The exact OpenAPI names are implementation details, but the contracts are:
 
 - create governed evidence binding with multipart bytes, conversation ID,
-  Knowledge Space ID, and classification;
-- list/get binding status with `UPLOADING`, `PROCESSING`, `READY`, `FAILED`, and
-  `UNAVAILABLE` presentation states derived from canonical Source state;
+  Knowledge Space ID, and classification; there is deliberately no
+  bind-an-existing-Source-by-ID endpoint;
+- list/get binding status with `UPLOADING`, `PROCESSING`, `INDEXING`, `READY`,
+  `FAILED`, and `UNAVAILABLE` presentation states derived from Source state plus
+  active-engine projection readiness;
 - submit an ordered list of at most three binding IDs with the Assistant turn;
   and
 - open the resulting evidence through the existing governed document/citation
@@ -203,6 +236,10 @@ selection events but contains no Knowledge or permission policy.
    request threads.
 7. No uploaded bytes or extracted text enter logs, traces, audit payloads, or
    Northstar notes.
+8. Moving the parser across modules without changing behavior preserves
+   `spring-ai-document-reader@2.1.0` and produces byte-identical requested and
+   resolved profile hashes; an identity change requires an intentional version
+   bump.
 
 ## Upstream influence
 
@@ -223,4 +260,3 @@ whether governed-only uploads make the Assistant UX unacceptably slow and
 whether extracting a parser integration before a second direct caller is
 premature. The final verdict belongs in `challenge-verdict.md` before
 implementation starts.
-

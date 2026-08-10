@@ -13,7 +13,10 @@ edit files, commit, push, or use Northstar.
 
 ## Commit under review
 
-`755aab1a9a86888fc547a7bf684421f4bb1a645b`
+Reviewer checkout: `a43614dad6e415755c66752d308a7ab8265373c4`.
+
+The code baseline beneath the design is
+`755aab1a9a86888fc547a7bf684421f4bb1a645b`.
 
 The branch is intentionally stacked on the completed typed-block and
 `structured-block-v1` work of the Knowledge ingestion coverage increment.
@@ -58,4 +61,3 @@ Return a compact report with:
 4. specific failure scenario;
 5. required changes, if any; and
 6. the rejected alternative after your verdict.
-
