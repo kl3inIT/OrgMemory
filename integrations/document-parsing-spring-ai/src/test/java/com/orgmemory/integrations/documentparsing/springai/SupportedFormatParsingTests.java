@@ -100,6 +100,18 @@ class SupportedFormatParsingTests {
     }
 
     @Test
+    void preservesAHeadingAuthoredByMicrosoftWordAsATypedBlock() throws Exception {
+        DocumentParseResult parsed = parse("policy.docx", genuineWordHeading());
+
+        assertTrue(parsed.document().blocks().stream()
+                .anyMatch(block -> block.kind() == DocumentBlockKind.HEADING
+                        && parsed.document()
+                                .content()
+                                .substring(block.startChar(), block.endChar())
+                                .contains("ORGMEMORY_POLICY_HEADING")));
+    }
+
+    @Test
     void refusesDeclaredArchivesButStillAcceptsZipBasedOfficeAndOpenDocumentFiles()
             throws Exception {
         byte[] archive = zip(Map.of("payload.txt", "hidden"));
@@ -212,8 +224,15 @@ class SupportedFormatParsingTests {
     }
 
     private static byte[] legacyWord() throws Exception {
-        try (var encoded = SupportedFormatParsingTests.class
-                        .getResourceAsStream("/legacy-word.doc.gz.b64");
+        return compressedFixture("/legacy-word.doc.gz.b64");
+    }
+
+    private static byte[] genuineWordHeading() throws Exception {
+        return compressedFixture("/word-heading.docx.gz.b64");
+    }
+
+    private static byte[] compressedFixture(String resourceName) throws Exception {
+        try (var encoded = SupportedFormatParsingTests.class.getResourceAsStream(resourceName);
                 var gzip = new GZIPInputStream(new java.io.ByteArrayInputStream(
                         Base64.getMimeDecoder().decode(encoded.readAllBytes())))) {
             return gzip.readAllBytes();
