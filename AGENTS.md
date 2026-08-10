@@ -97,7 +97,12 @@ Vite, Tailwind, TypeScript, Next.js, or Fumadocs APIs, use Context7 or current
 official documentation and the relevant project verification skill.
 
 Project-owned skills are canonical under `.agents/skills`; `.claude` and
-`.codex` contain discovery wrappers only.
+`.codex` contain discovery wrappers only. For one active coding session, create
+a feature branch in the current checkout from fresh `origin/main`; use a
+separate worktree only for concurrent sessions. User-visible authentication UI
+requires live login evidence and explicit owner approval before merge. After a
+verified merge/deployment, return the single-session checkout to updated
+`main`.
 
 Read [agent safety](docs/guidelines/agent-safety.md) before retrieval, AI, MCP,
 permission, upload, graph, or export work. Never commit secrets or customer

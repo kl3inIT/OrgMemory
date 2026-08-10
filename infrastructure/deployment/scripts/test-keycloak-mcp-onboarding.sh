@@ -98,6 +98,10 @@ MSYS_NO_PATHCONV=1 docker exec "$container" \
   -s description=drifted \
   --config "$container_kcadm_config" >/dev/null
 MSYS_NO_PATHCONV=1 docker exec "$container" \
+  /opt/keycloak/bin/kcadm.sh update realms/orgmemory \
+  -s loginTheme=keycloak \
+  --config "$container_kcadm_config" >/dev/null
+MSYS_NO_PATHCONV=1 docker exec "$container" \
   /opt/keycloak/bin/kcadm.sh get clients \
   -r orgmemory \
   --config "$container_kcadm_config" >"$tmp_dir/clients.json"
@@ -142,6 +146,71 @@ MSYS_NO_PATHCONV=1 docker exec -i "$container" \
 ORGMEMORY_KEYCLOAK_CONTAINER="$container" \
 ORGMEMORY_KEYCLOAK_REALM=orgmemory \
   "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh"
+MSYS_NO_PATHCONV=1 docker exec "$container" \
+  /opt/keycloak/bin/kcadm.sh get realms/orgmemory \
+  --fields loginTheme \
+  --config "$container_kcadm_config" >"$tmp_dir/realm-theme.json"
+python3 - "$tmp_dir/realm-theme.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    realm = json.load(stream)
+assert realm.get("loginTheme") == "orgmemory-shadcn", realm
+PY
+observed_theme="$(
+  ORGMEMORY_KEYCLOAK_CONTAINER="$container" \
+  ORGMEMORY_KEYCLOAK_REALM=orgmemory \
+    "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh" \
+    --print-login-theme
+)"
+[[ "$observed_theme" == "orgmemory-shadcn" ]]
+ORGMEMORY_KEYCLOAK_CONTAINER="$container" \
+ORGMEMORY_KEYCLOAK_REALM=orgmemory \
+ORGMEMORY_KEYCLOAK_LOGIN_THEME=keycloak \
+  "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh" \
+  --login-theme-only
+ORGMEMORY_KEYCLOAK_CONTAINER="$container" \
+ORGMEMORY_KEYCLOAK_REALM=orgmemory \
+ORGMEMORY_KEYCLOAK_LOGIN_THEME=legacy-preview-theme \
+  "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh" \
+  --restore-login-theme
+observed_theme="$(
+  ORGMEMORY_KEYCLOAK_CONTAINER="$container" \
+  ORGMEMORY_KEYCLOAK_REALM=orgmemory \
+    "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh" \
+    --print-login-theme
+)"
+[[ "$observed_theme" == "legacy-preview-theme" ]]
+ORGMEMORY_KEYCLOAK_CONTAINER="$container" \
+ORGMEMORY_KEYCLOAK_REALM=orgmemory \
+  "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh" \
+  --login-theme-only
+for invalid_theme in \
+  '.' \
+  '..' \
+  '.hidden' \
+  'hidden.' \
+  'foo..bar' \
+  '../orgmemory-shadcn' \
+  'name?query' \
+  $'bad\nname'; do
+  if ORGMEMORY_KEYCLOAK_CONTAINER="$container" \
+    ORGMEMORY_KEYCLOAK_REALM=orgmemory \
+    ORGMEMORY_KEYCLOAK_LOGIN_THEME="$invalid_theme" \
+    "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh" \
+    --login-theme-only; then
+    printf 'Malformed Keycloak theme name was accepted: %q\n' "$invalid_theme" >&2
+    exit 1
+  fi
+done
+if ORGMEMORY_KEYCLOAK_CONTAINER="$container" \
+  ORGMEMORY_KEYCLOAK_REALM='orgmemory?fields=clients' \
+  "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh" \
+  --print-login-theme; then
+  printf 'Malformed Keycloak realm name was accepted.\n' >&2
+  exit 1
+fi
 MSYS_NO_PATHCONV=1 docker exec "$container" \
   /opt/keycloak/bin/kcadm.sh get "client-scopes/$basic_scope_id" \
   -r orgmemory \
@@ -324,7 +393,9 @@ authorization_status="$(
     --data-urlencode code_challenge_method=S256
 )"
 [[ "$authorization_status" == "200" ]]
-grep --quiet 'name="username"' "$tmp_dir/authorization.html"
+grep --quiet 'id="root"' "$tmp_dir/authorization.html"
+grep --quiet 'window.kcContext' "$tmp_dir/authorization.html"
+grep --quiet '/orgmemory-shadcn/dist/assets/' "$tmp_dir/authorization.html"
 
 cat >"$tmp_dir/bad-redirect.json" <<'JSON'
 {

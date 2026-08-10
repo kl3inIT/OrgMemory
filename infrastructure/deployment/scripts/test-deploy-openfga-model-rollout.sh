@@ -39,7 +39,48 @@ cat > "$stub_bin/docker" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$*" >> "$ORGMEMORY_TEST_DOCKER_LOG"
-if [[ "$*" == *"openfga-model-write"* ]]; then
+if [[ "${1:-}" == "compose" && " $* " == *" ps --all --quiet "* ]]; then
+  service="${!#}"
+  case "$service" in
+    api) hex=a ;;
+    worker) hex=b ;;
+    mcp) hex=c ;;
+    web) hex=d ;;
+    keycloak) hex=e ;;
+    postgres-bootstrap) hex=f ;;
+    *) exit 65 ;;
+  esac
+  printf 'container-%s\n' "$hex"
+elif [[ "${1:-}" == "container" && "${2:-}" == "inspect" ]]; then
+  hex="${3#container-}"
+  if [[ "${5:-}" == *State.Status* ]]; then
+    if [[ "$hex" == f ]]; then
+      printf 'exited false false\n'
+    else
+      printf 'running true false\n'
+    fi
+  elif [[ "${5:-}" == *State.ExitCode* ]]; then
+    printf '0\n'
+  else
+    printf 'sha256:%064s\n' "$hex" | tr ' ' "$hex"
+  fi
+elif [[ "${1:-}" == "image" && "${2:-}" == "inspect" ]]; then
+  image_id="$3"
+  hex="${image_id#sha256:}"
+  case "${hex:0:1}" in
+    a) repository=ghcr.io/kl3init/orgmemory-api; key=ORGMEMORY_API_IMAGE ;;
+    b) repository=ghcr.io/kl3init/orgmemory-worker; key=ORGMEMORY_WORKER_IMAGE ;;
+    c) repository=ghcr.io/kl3init/orgmemory-mcp; key=ORGMEMORY_MCP_IMAGE ;;
+    d) repository=ghcr.io/kl3init/orgmemory-web; key=ORGMEMORY_WEB_IMAGE ;;
+    e) repository=ghcr.io/kl3init/orgmemory-keycloak; key=ORGMEMORY_KEYCLOAK_IMAGE ;;
+    f) repository=ghcr.io/kl3init/orgmemory-postgres-rag; key=ORGMEMORY_POSTGRES_IMAGE ;;
+    *) exit 65 ;;
+  esac
+  reference="$(grep -E "^${key}=" "$ORGMEMORY_ENV_FILE" | tail -1 | cut -d= -f2-)"
+  digest="${reference##*@}"
+  [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+  printf '["%s@%s"]\n' "$repository" "$digest"
+elif [[ "$*" == *"openfga-model-write"* ]]; then
   printf '{"authorization_model_id":"%s"}\n' "$ORGMEMORY_TEST_NEW_MODEL_ID"
 elif [[ "$*" == *"openfga-bootstrap"* ]]; then
   printf \
@@ -53,6 +94,9 @@ chmod +x "$stub_bin/docker"
 cat > "$keycloak_script" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ "${1:-}" == "--print-login-theme" ]]; then
+  printf 'keycloak\n'
+fi
 SH
 chmod +x "$keycloak_script"
 
@@ -89,12 +133,12 @@ write_environment() {
   local model_sha256="${2:-}"
 
   cat > "$path" <<EOF
-ORGMEMORY_API_IMAGE=ghcr.io/kl3init/orgmemory-api:sha-$old_sha
-ORGMEMORY_WORKER_IMAGE=ghcr.io/kl3init/orgmemory-worker:sha-$old_sha
-ORGMEMORY_MCP_IMAGE=ghcr.io/kl3init/orgmemory-mcp:sha-$old_sha
-ORGMEMORY_WEB_IMAGE=ghcr.io/kl3init/orgmemory-web:sha-$old_sha
-ORGMEMORY_KEYCLOAK_IMAGE=ghcr.io/kl3init/orgmemory-keycloak:sha-$old_sha
-ORGMEMORY_POSTGRES_IMAGE=ghcr.io/kl3init/orgmemory-postgres-rag:sha-$old_sha
+ORGMEMORY_API_IMAGE=ghcr.io/kl3init/orgmemory-api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ORGMEMORY_WORKER_IMAGE=ghcr.io/kl3init/orgmemory-worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+ORGMEMORY_MCP_IMAGE=ghcr.io/kl3init/orgmemory-mcp@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+ORGMEMORY_WEB_IMAGE=ghcr.io/kl3init/orgmemory-web@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+ORGMEMORY_KEYCLOAK_IMAGE=ghcr.io/kl3init/orgmemory-keycloak@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+ORGMEMORY_POSTGRES_IMAGE=ghcr.io/kl3init/orgmemory-postgres-rag@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 ORGMEMORY_OPENFGA_STORE_ID=$store_id
 ORGMEMORY_OPENFGA_AUTHORIZATION_MODEL_ID=$old_model_id
 ORGMEMORY_OPENFGA_MODEL_SHA256=$model_sha256
@@ -122,6 +166,12 @@ run_deploy() {
   ORGMEMORY_TEST_DOCKER_LOG="$docker_log" \
   ORGMEMORY_TEST_NEW_MODEL_ID="$new_model_id" \
   ORGMEMORY_TEST_SMOKE_COUNT="$smoke_count" \
+  ORGMEMORY_RELEASE_API_IMAGE=ghcr.io/kl3init/orgmemory-api@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+  ORGMEMORY_RELEASE_WORKER_IMAGE=ghcr.io/kl3init/orgmemory-worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+  ORGMEMORY_RELEASE_MCP_IMAGE=ghcr.io/kl3init/orgmemory-mcp@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+  ORGMEMORY_RELEASE_WEB_IMAGE=ghcr.io/kl3init/orgmemory-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+  ORGMEMORY_RELEASE_KEYCLOAK_IMAGE=ghcr.io/kl3init/orgmemory-keycloak@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+  ORGMEMORY_RELEASE_POSTGRES_IMAGE=ghcr.io/kl3init/orgmemory-postgres-rag@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
     "$deploy_script" "$sha"
 }
 
@@ -284,11 +334,12 @@ assert_model_configuration \
   "$old_model_id" \
   "$old_model_sha256"
 grep -Fxq \
-  "ORGMEMORY_API_IMAGE=ghcr.io/kl3init/orgmemory-api:sha-$old_sha" \
+  "ORGMEMORY_API_IMAGE=ghcr.io/kl3init/orgmemory-api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" \
   "$rollback_environment"
-grep -Fxq "1" "$smoke_count"
+grep -Fxq "2" "$smoke_count"
+grep -Fxq "$old_sha" "$rollback_root/current-commit"
 grep -q 'openfga-model-write' "$docker_log"
-grep -q 'up -d --remove-orphans' "$docker_log"
+grep -q 'up --pull never -d --wait --wait-timeout 240 --remove-orphans' "$docker_log"
 grep -Fq "release maintenance deploy-$candidate_sha" "$coordination_log"
 
 printf 'OpenFGA model rollout, no-op, and rollback contracts passed.\n'

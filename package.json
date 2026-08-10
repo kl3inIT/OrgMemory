@@ -12,6 +12,7 @@
     "check:cli": "pnpm --filter @orgmemory/cli typecheck && pnpm --filter @orgmemory/cli test && pnpm --filter @orgmemory/cli build",
     "check:web": "pnpm --filter @orgmemory/web check:api && pnpm --filter @orgmemory/web typecheck && pnpm --filter @orgmemory/web test:unit && pnpm --filter @orgmemory/web build",
     "check:docs": "pnpm --filter @orgmemory/docs check",
+    "check:skills": "python3 scripts/check_agent_skills.py",
     "docs:dev": "pnpm --filter @orgmemory/docs dev",
     "release": "tsx scripts/tegami.mts",
     "release:check": "tsc -p scripts/tsconfig.release.json && tsx --test scripts/tegami-product.test.mts && node --test scripts/release-policy.test.mjs scripts/release-workflow-policy.test.mjs scripts/npm-publish-workflow-policy.test.mjs && tsx scripts/check-release.mjs"

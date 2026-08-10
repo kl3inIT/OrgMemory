@@ -27,6 +27,7 @@ jobs:
       web: ${{ steps.filter.outputs.web }}
       cli: ${{ steps.filter.outputs.cli }}
       docs: ${{ steps.filter.outputs.docs }}
+      skills: ${{ steps.filter.outputs.skills }}
       public_docs: ${{ steps.filter.outputs.public_docs }}
       openfga: ${{ steps.filter.outputs.openfga }}
       evaluation: ${{ steps.filter.outputs.evaluation }}
@@ -88,6 +89,12 @@ jobs:
               - "ARCHITECTURE.md"
               - "docs/**"
               - "scripts/check_docs.py"
+            skills:
+              - ".agents/skills/**"
+              - ".claude/skills/**"
+              - ".codex/skills/**"
+              - "AGENTS.md"
+              - "scripts/check_agent_skills.py"
             public_docs:
               - ".github/workflows/build-docs.yml"
               - ".github/workflows/deploy-docs.yml"
@@ -121,6 +128,9 @@ jobs:
               - "components/graph-rag-testkit/**"
             deployment:
               - ".dockerignore"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
               - ".github/workflows/build-images.yml"
               - ".github/workflows/build-docs.yml"
               - ".github/workflows/deploy-docs.yml"
@@ -344,6 +354,26 @@ jobs:
 
       - name: Validate documentation structure and links
         run: python scripts/check_docs.py
+
+  skills:
+    name: Repository agent skills
+    needs: changes
+    if: needs.changes.outputs.skills == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6.2.0
+        with:
+          python-version: "3.13"
+
+      - name: Validate canonical skills and discovery wrappers
+        run: python scripts/check_agent_skills.py
 
   docs_impact:
     name: Public docs impact
@@ -612,12 +642,35 @@ jobs:
     needs: changes
     if: needs.changes.outputs.deployment == 'true' || needs.changes.outputs.all == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6.0.9
+        with:
+          version: 11.9.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Keycloak theme verification dependencies
+        run: pnpm install --frozen-lockfile --filter @orgmemory/keycloak-theme
+
+      - name: Verify Keycloakify source
+        run: |
+          pnpm --filter @orgmemory/keycloak-theme typecheck
+          pnpm --filter @orgmemory/keycloak-theme build
+
+      - name: Install Keycloak theme browser
+        run: pnpm --filter @orgmemory/keycloak-theme exec playwright install --with-deps chromium
 
       - name: Validate GitHub Actions workflows
         shell: bash
@@ -728,8 +781,25 @@ jobs:
       - name: Test web forwarded-port handling
         run: infrastructure/deployment/scripts/test-web-forwarded-port.sh
 
+      - name: Prove Keycloak theme deployment rollback ordering
+        run: infrastructure/deployment/scripts/test-keycloak-deploy-rollback.sh
+
+      - name: Prove detached deployment watchdog behavior
+        run: infrastructure/deployment/scripts/test-run-detached-deploy.sh
+
+      - name: Validate rendered production login smoke entrypoint
+        run: |
+          node --check infrastructure/keycloak/theme-ui/scripts/verify-production-login.mjs
+          docker build \
+            --file infrastructure/keycloak/theme-ui/Dockerfile.production-smoke \
+            --tag orgmemory-production-login-verifier:test \
+            .
+
       - name: Test Keycloak MCP client onboarding
         run: infrastructure/deployment/scripts/test-keycloak-mcp-onboarding.sh
+
+      - name: Test Keycloak login theme
+        run: infrastructure/deployment/scripts/test-keycloak-theme.sh
 
   gate:
     name: CI Gate
@@ -741,6 +811,7 @@ jobs:
       - web
       - cli
       - docs
+      - skills
       - docs_impact
       - public_docs
       - openfga
@@ -762,6 +833,7 @@ jobs:
           WEB_RESULT: ${{ needs.web.result }}
           CLI_RESULT: ${{ needs.cli.result }}
           DOCS_RESULT: ${{ needs.docs.result }}
+          SKILLS_RESULT: ${{ needs.skills.result }}
           DOCS_IMPACT_RESULT: ${{ needs.docs_impact.result }}
           PUBLIC_DOCS_RESULT: ${{ needs.public_docs.result }}
           OPENFGA_RESULT: ${{ needs.openfga.result }}
@@ -780,6 +852,7 @@ jobs:
             "$WEB_RESULT" \
             "$CLI_RESULT" \
             "$DOCS_RESULT" \
+            "$SKILLS_RESULT" \
             "$DOCS_IMPACT_RESULT" \
             "$PUBLIC_DOCS_RESULT" \
             "$OPENFGA_RESULT" \

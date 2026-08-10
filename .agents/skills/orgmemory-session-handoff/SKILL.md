@@ -45,17 +45,20 @@ for decisions that were already made.
 2. Commit rule unchanged: docs updates ride with their increment per repo
    conventions; the checkpoint may stay uncommitted in the worktree, but it
    must be on disk before compaction.
-3. If the user asked for a fresh worktree after compaction, record the target
-   branch/worktree in the checkpoint so the resumed session starts there.
+3. Record the checkout mode and target branch. In a single active coding
+   session, resume the feature branch in the current checkout; use a fresh
+   worktree only when concurrent sessions need isolation.
 
 ### Takeover preflight (inheriting the repo)
 
 Run before touching the assigned problem, in this order:
 
-1. `git status --porcelain` — a dirty tree stops the takeover: surface it and
-   ask; never work on top of someone else's uncommitted changes.
-2. `git fetch origin` and compare ahead/behind against `origin/main`; note
-   the current branch.
+1. `git status --porcelain` — inventory every dirty path. Stop for unknown or
+   overlapping changes; explicitly identified unrelated files may remain only
+   if they are preserved and excluded from all staging/reset/cleanup commands.
+2. `git fetch origin` and compare ahead/behind against `origin/main`; note the
+   current branch and whether this is single-session current-checkout mode or a
+   concurrent-session worktree.
 3. Read `AGENTS.md`, `CLAUDE.md`, and the `ARCHITECTURE.md` sections relevant
    to the assignment.
 4. List `docs/runbooks/` and `docs/increments/active/` — active increments
@@ -89,8 +92,9 @@ the counterpart's output file exist on disk.
   evidence — `git log`, open PRs, the active increment docs — and state what
   was reconstructed vs. what remains unknown. Do not guess at undocumented
   decisions; re-ask the user only for those.
-- **Dirty tree at takeover:** stop and surface exactly what is dirty; the
-  user decides whether it is theirs, another agent's, or discardable.
+- **Dirty tree at takeover:** surface exactly what is dirty. Stop for unknown
+  or overlapping paths; preserve user-identified unrelated paths without
+  staging, moving, resetting, or deleting them.
 - **Handoff counterpart unavailable or produces nothing:** the handoff file
   makes retries cheap — respawn and re-point; if it stays unavailable,
   record that and continue solo or escalate to the user.
