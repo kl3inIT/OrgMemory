@@ -201,7 +201,7 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
           {
             gatewayLabel: "Organization AI",
             provider: "custom",
-            modelId: "company-default",
+            modelId: "gpt-5.6-sol",
             displayName: "Organization default",
             defaultChoice: true,
           },
@@ -367,13 +367,14 @@ test("uploads governed evidence and submits its ordered binding with the turn", 
   await page.getByRole("option", { name: "Research" }).click()
   await page.getByRole("button", { name: "Upload", exact: true }).click()
 
-  await expect(page.getByText("policy.txt")).toBeVisible()
-  await expect(page.getByText("ready", { exact: true })).toBeVisible()
+  const selectedFiles = page.getByLabel("Selected governed files")
+  await expect(selectedFiles.getByText("policy.txt")).toBeVisible()
+  await expect(selectedFiles.getByText("ready", { exact: true })).toBeVisible()
   await submit(page, "Summarize the selected file")
 
   await expect.poll(() => harness.chatBodies.length).toBe(1)
   expect(harness.chatBodies[0]?.evidenceBindingIds).toEqual([EVIDENCE_BINDING_ID])
-  await expect(page.getByText("policy.txt")).toHaveCount(0)
+  await expect(selectedFiles).toHaveCount(0)
   expect(harness.unexpectedRequests).toEqual([])
   expect(harness.browserErrors).toEqual([])
 })
@@ -397,11 +398,12 @@ test("keeps the exact governed binding across a failed turn retry", async ({ pag
   await page.getByRole("combobox", { name: "Knowledge Space" }).click()
   await page.getByRole("option", { name: "Research" }).click()
   await page.getByRole("button", { name: "Upload", exact: true }).click()
-  await expect(page.getByText("ready", { exact: true })).toBeVisible()
+  const selectedFiles = page.getByLabel("Selected governed files")
+  await expect(selectedFiles.getByText("ready", { exact: true })).toBeVisible()
 
   await submit(page, "Summarize the selected file")
   await expect(page.getByRole("alert")).toContainText("OrgMemory could not complete this turn.")
-  await expect(page.getByText("policy.txt")).toBeVisible()
+  await expect(selectedFiles.getByText("policy.txt")).toBeVisible()
   await page.getByRole("button", { name: "Retry" }).click()
 
   await expect.poll(() => harness.chatBodies.length).toBe(2)
@@ -409,7 +411,7 @@ test("keeps the exact governed binding across a failed turn retry", async ({ pag
     [EVIDENCE_BINDING_ID],
     [EVIDENCE_BINDING_ID],
   ])
-  await expect(page.getByText("policy.txt")).toBeVisible()
+  await expect(selectedFiles.getByText("policy.txt")).toBeVisible()
   expect(harness.unexpectedRequests).toEqual([])
   expect(harness.browserErrors).toEqual([])
 })
@@ -828,16 +830,11 @@ test("aligns the composer with the server query limit", async ({ page }) => {
   await page.goto("/")
 
   const composer = page.getByPlaceholder("Ask OrgMemory…")
-  await expect(composer).toHaveAttribute("maxlength", "1000")
-  await expect(composer).toHaveAttribute(
-    "aria-describedby",
-    "assistant-message-length",
-  )
-  const maximumMessage = "a".repeat(1_000)
+  await expect(composer).toHaveAttribute("maxlength", "8000")
+  await expect(composer).not.toHaveAttribute("aria-describedby")
+  await expect(page.locator("#assistant-message-length")).toHaveCount(0)
+  const maximumMessage = "a".repeat(8_000)
   await composer.fill(maximumMessage)
-  const counter = page.getByText("1,000 / 1,000 characters")
-  await expect(counter).toBeVisible()
-  await expect(counter).toHaveAttribute("id", "assistant-message-length")
   await composer.press("a")
   await expect(composer).toHaveValue(maximumMessage)
   expect(harness.chatBodies).toEqual([])
@@ -874,7 +871,7 @@ test("chooses a governed model in the composer and sends only its opaque activat
 
   await expect(page.getByText("What can we help you move forward?")).toBeVisible()
   await expect(page.getByText("Permission-aware")).toHaveCount(0)
-  await page.getByRole("button", { name: /Choose model, current model Organization default/ }).click()
+  await page.getByRole("button", { name: /Choose model, current model gpt-5\.6-sol/ }).click()
   await expect(page.getByPlaceholder("Search models…")).toBeVisible()
   await page.getByRole("option", { name: /Claude Sonnet/ }).click()
   await expect(page.getByRole("button", { name: /current model Claude Sonnet/ })).toBeVisible()
@@ -897,7 +894,7 @@ test("persists a governed model change for an existing owned conversation", asyn
   await page.goto(`/?chat=${CONVERSATION_ID}`)
   await expect(page.getByText("Existing conversation")).toBeVisible()
 
-  await page.getByRole("button", { name: /Choose model, current model Organization default/ }).click()
+  await page.getByRole("button", { name: /Choose model, current model gpt-5\.6-sol/ }).click()
   await page.getByRole("option", { name: /Claude Sonnet/ }).click()
 
   await expect.poll(() => harness.modelSelectionBodies.length).toBe(1)

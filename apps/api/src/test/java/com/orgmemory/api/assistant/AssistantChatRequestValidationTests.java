@@ -29,9 +29,9 @@ class AssistantChatRequestValidationTests {
         try (var factory = Validation.buildDefaultValidatorFactory()) {
             var validator = factory.getValidator();
             var accepted = validator.validate(
-                    new AssistantChatRequest("a".repeat(1_000), null, null, null));
+                    new AssistantChatRequest("a".repeat(8_000), null, null, null));
             var rejected = validator.validate(
-                    new AssistantChatRequest("a".repeat(1_001), null, null, null));
+                    new AssistantChatRequest("a".repeat(8_001), null, null, null));
 
             assertEquals(0, accepted.size());
             assertEquals(1, rejected.size());
@@ -88,7 +88,7 @@ class AssistantChatRequestValidationTests {
         mvc.perform(post("/api/assistant/chat")
                         .contentType(APPLICATION_JSON)
                         .accept(TEXT_EVENT_STREAM)
-                        .content("{\"message\":\"" + "a".repeat(1_001) + "\"}"))
+                        .content("{\"message\":\"" + "a".repeat(8_001) + "\"}"))
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(

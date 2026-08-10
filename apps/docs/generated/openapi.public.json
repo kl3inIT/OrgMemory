@@ -7929,7 +7929,7 @@
         "properties": {
           "message": {
             "type": "string",
-            "maxLength": 1000,
+            "maxLength": 8000,
             "minLength": 0
           },
           "limit": {

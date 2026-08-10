@@ -377,6 +377,9 @@ function AssistantModelPicker({
   const selected =
     options.find((option) => option.id === selectedId) ??
     options.find((option) => option.defaultChoice)
+  const selectedName = selected?.defaultChoice
+    ? selected.modelId ?? selected.displayName
+    : selected?.displayName ?? selected?.modelId
   const groups = Object.entries(
     options.reduce<Record<string, AssistantModelOptionResponse[]>>((current, option) => {
       const gateway = option.gatewayLabel ?? "Organization models"
@@ -392,7 +395,7 @@ function AssistantModelPicker({
           type="button"
           size="sm"
           disabled={disabled || loading || options.length === 0}
-          aria-label={`Choose model${selected?.displayName ? `, current model ${selected.displayName}` : ""}`}
+          aria-label={`Choose model${selectedName ? `, current model ${selectedName}` : ""}`}
           className="max-w-48 rounded-full px-2.5 text-content-secondary hover:text-content-primary"
         >
           {selected?.provider && selected.provider !== "custom" ? (
@@ -401,7 +404,7 @@ function AssistantModelPicker({
             <Bot className="size-4" aria-hidden="true" />
           )}
           <span className="truncate">
-            {loading ? "Loading models…" : selected?.displayName ?? "Organization default"}
+            {loading ? "Loading models…" : selectedName ?? "No model available"}
           </span>
           <ChevronsUpDown className="size-3.5 opacity-60" aria-hidden="true" />
         </PromptInputButton>
@@ -431,7 +434,9 @@ function AssistantModelPicker({
                     )}
                     <span className="min-w-0 flex-1">
                       <ModelSelectorName className="block font-medium">
-                        {model.displayName ?? model.modelId}
+                        {model.defaultChoice
+                          ? model.modelId ?? model.displayName
+                          : model.displayName ?? model.modelId}
                       </ModelSelectorName>
                       <span className="block truncate text-xs text-muted-foreground">
                         {model.defaultChoice ? "Organization default" : model.modelId}
@@ -976,7 +981,6 @@ export function AssistantPage({
           placeholder="Ask OrgMemory…"
           autoFocus
           maxLength={ASSISTANT_MESSAGE_MAX_CHARACTERS}
-          aria-describedby="assistant-message-length"
           className="min-h-12"
         />
       </PromptInputBody>
@@ -1018,13 +1022,6 @@ export function AssistantPage({
             loading={modelOptions.isPending}
             onSelect={chooseModel}
           />
-          <span
-            id="assistant-message-length"
-            className="text-metadata tabular-nums text-content-muted"
-          >
-            {text.length.toLocaleString("en-US")} /{" "}
-            {ASSISTANT_MESSAGE_MAX_CHARACTERS.toLocaleString("en-US")} characters
-          </span>
         </PromptInputTools>
         <PromptInputSubmit
           status={status}
