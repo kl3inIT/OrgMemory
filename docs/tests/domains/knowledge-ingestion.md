@@ -4,10 +4,14 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/source`,
 `apps/web/src/features/sources`, `apps/web/test/e2e`,
-`apps/worker/src/test/java/com/orgmemory/worker/connector`, and
+`apps/worker/src/test/java/com/orgmemory/worker/ingestion`,
+`apps/worker/src/test/java/com/orgmemory/worker/connector`,
+`components/graph-rag-core/src/test/java/com/orgmemory/graphrag/parsing`,
+`components/graph-rag-core/src/test/java/com/orgmemory/graphrag/chunking`, and
+`integrations/document-parsing-spring-ai/src/test`,
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-08-06-knowledge-filters (b9e2fbe1)`.
+Reconciled: `2026-08-10-ingestion-coverage (c0c12728)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -25,6 +29,45 @@ Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIng
 | Concurrent retries converge | `concurrentRetriesConvergeOnOneRawNormalizationAndAsset` |
 | Citation evidence read maps only a tenant-scoped ready matching revision plus validated blob into immutable metadata | `SourceCitationEvidenceQueryTests` |
 
+## Versioned Processing Policy Coverage
+
+Evidence classes: `RequestedProcessingPolicyTests`,
+`DocumentProcessingEngineTests`, `SourceIngestionJobProcessingProfileTests`,
+`SourceProcessingProfileMigrationTests`, `SourceIngestionPipelineIntegrationTests`, `TypedBlockParsingTests`,
+`PdfPageProvenanceTests`, `ParagraphSemanticChunkerTests`,
+`SupportedFormatParsingTests`, and `XhtmlBlockHandlerTests`.
+
+| Behavior | Automated evidence |
+| --- | --- |
+| The default is the complete named `structured-block-v1` snapshot and output-affecting option changes alter its SHA-256 | `defaultsToTheVersionedStructuredBlockPolicy`, `changesIdentityWhenAnOutputAffectingOptionChanges` |
+| A requested profile with reordered canonical keys is rejected instead of being normalized silently | `refusesAProfileWhoseCanonicalKeysWereReordered` |
+| Named operator policies resolve to registered chunkers; retries refuse a pinned component version no longer present | `preservesNamedOperatorPoliciesWithoutReadingARawChunkerId`, `refusesARetryWhenAPinnedComponentVersionIsUnavailable` |
+| Mixed Word paragraphs/tables reach the structured policy and table rows keep their header; PDF page provenance and plain text behavior remain intact | `runsAMixedWordDocumentThroughTheStructuredBlockPolicy`, `TypedBlockParsingTests`, `PdfPageProvenanceTests`, `ParagraphSemanticChunkerTests` |
+| Semantic-vector fallback pins recursive-character and retry neither calls semantic embedding again nor changes the resolved profile hash | `retryUsesThePinnedRecursiveFallbackWithoutCallingSemanticEmbeddingAgain` |
+| Retry rejects changed canonical evidence/chunk manifest against the pinned resolved snapshot | `retryRejectsContentThatNoLongerMatchesThePinnedChunkManifest` |
+| First requested and resolved snapshots win; later runtime defaults or conflicting resolved output cannot replace them | `SourceIngestionJobProcessingProfileTests` |
+| PostgreSQL migration stores requested/resolved snapshots, requires a complete profile on READY, and publication retry keeps both profile hashes unchanged | `sourceUploadFlowsThroughValidationParsingChunkingEmbeddingAndReady`, `keepsPublicationPendingWhenAuthorizationProjectionIsUnavailable` |
+| V29-to-latest preserves a historical READY revision without manufacturing a profile while the new unvalidated constraint rejects a new READY row without one | `SourceProcessingProfileMigrationTests.preservesLegacyReadyIdentityWhileEnforcingProfilesForNewReadyRows` |
+| V31 refuses migration while a legacy ingestion job is PENDING instead of guessing the new deployment's policy | `SourceProcessingProfileMigrationTests.refusesToGuessAPolicyForLegacyNonterminalJobs` |
+| The reusable parser advertises all sixteen admitted suffixes and parses CSV, Office, OpenDocument, HTML/HTM, RTF, text, Markdown, and PDF through real format fixtures | `SupportedFormatParsingTests`, `TypedBlockParsingTests`, `PdfPageProvenanceTests` |
+| A genuine Microsoft Word Heading 1 survives as a typed `HEADING`; spreadsheets become tables; HTML navigation, script, and style are removed | `preservesAHeadingAuthoredByMicrosoftWordAsATypedBlock`, `parsesNewOfficeAndOpenDocumentFormatsEndToEnd`, `removesHtmlNavigationScriptAndStyleBeforeCreatingEvidence` |
+| CSV handles UTF-8 BOM, delimiter sniffing, quoted newlines, and escaped quotes while preserving one table | `SupportedFormatParsingTests.readsBomSemicolonCsvWithQuotedNewlinesAsOneTypedTable` plus the CSV cases in `TypedBlockParsingTests` |
+| Generic archives and renamed container/media mismatches fail closed, while bounded OOXML and OpenDocument containers remain admissible | `refusesDeclaredArchivesButStillAcceptsZipBasedOfficeAndOpenDocumentFiles` plus the mismatch cases in `TypedBlockParsingTests` |
+| Parser/media policy failures quarantine once without consuming the retry budget | `SourceIngestionPipelineIntegrationTests.quarantinesDeterministicParserFailureWithoutSchedulingARetry` |
+| The requested snapshot pins the complete per-format chunk ceilings so a retry cannot observe changed defaults | `RequestedProcessingPolicyTests.pinsDifferentChunkCeilingsForSpreadsheetHtmlAndPdfRetries` |
+
+## Format Admission And Upload Limit Coverage
+
+Evidence classes: `KnowledgeContentTypeTests`, `SourceUploadServiceTests`, and
+`source-upload-dialog.test.ts`.
+
+| Behavior | Automated evidence |
+| --- | --- |
+| Knowledge admission, reusable parser capability, and browser selection share the closed sixteen-suffix set; worker routing consumes parser capability rather than another copied list | `KnowledgeContentTypeTests.admitsEveryOrganizationalDocumentFormatAndNoArchive`, `SupportedFormatParsingTests.publishesTheCompleteReusableParserCapability`, `source-upload-dialog.test.ts` |
+| Upload limits are 10 MB for CSV/HTML/HTM/RTF/TXT/Markdown, 15 MB for spreadsheets, and 25 MB for PDF/Word/PowerPoint/OpenDocument text and presentation | `KnowledgeContentTypeTests.assignsLimitsByFormatCostInsteadOfOneGlobalDocumentLimit`, `SourceUploadServiceTests.rejectsASpreadsheetAboveItsFormatLimitWithAnActionableMessage`, `source-upload-dialog.test.ts` |
+| An extension outside the closed policy and a file exceeding its format limit are rejected before evidence is persisted | `KnowledgeContentTypeTests`, `SourceUploadServiceTests`, `source-upload-dialog.test.ts` |
+| Browser users can select a spreadsheet and an HTML export and submit each as a governed multipart upload | `document-actions.spec.ts#uploads a spreadsheet and an HTML export through the governed document dialog` |
+
 ## Documents View And Retirement Coverage
 
 Evidence classes: `SourceQueryServiceTests`, `SourceListingIntegrationTests`,
@@ -32,7 +75,8 @@ Evidence classes: `SourceQueryServiceTests`, `SourceListingIntegrationTests`,
 `SourceDocumentEvidenceQueryTests`,
 `SecureSourceActionAuthorizationAdapterTests`,
 `KnowledgeAssetLifecycleServiceTests`, `SourceLifecycleServiceTests`,
-`SourceContentWebMvcTests`, `governed-document-viewer.test.tsx`,
+`SourceContentWebMvcTests`, `CitationContentControllerTests`,
+`governed-document-viewer.test.tsx`,
 `source-preview.test.ts`, `source-status.test.ts`, and
 `document-actions.spec.ts`.
 
@@ -49,6 +93,7 @@ Evidence classes: `SourceQueryServiceTests`, `SourceListingIntegrationTests`,
 | Markdown is delivered as plain text with `no-store`, `nosniff`, and inline disposition | `streamsMarkdownAsPlainTextWithClosedDeliveryHeaders` |
 | Delete resolves only a READY native upload, rechecks `can_delete`, retires both aggregates, and accepts a consistent retry | `deleteReadyUploadResolvesTheSourceThenRetiresBothAggregates`, `repeatedSourceDeleteReturnsTheExistingRetirementWithoutMutatingAgain`, `resolvesAndArchivesOnlyAReadyNativeUpload`, `rejectsConnectorAndNonReadySources` |
 | Preview allowlist keeps active types exact, refines only delivered plain text plus declared Markdown into the restricted renderer, labels common formats concisely, and leaves every unsafe response download-only | `source-preview.test.ts` |
+| Citation delivery treats admitted HTML as plain text and attachment while a genuinely unknown suffix remains binary and attachment-only | `CitationContentControllerTests.downloadsAdmittedHtmlWithAPlainTextResponseType`, `CitationContentControllerTests.forcesUnknownTypesToDownloadAsBinary` |
 | Browser opens protected text, confirms/deletes an eligible row, and disables Delete for processing work | `document-actions.spec.ts#views protected evidence and deletes only an eligible ready upload` |
 | Browser proves the Knowledge navigation hierarchy, compositional classification/Knowledge Space copy, desktop master-detail, mobile Sheet, visible FAILED/QUARANTINED details, corrected-upload action, safe rendered/raw Markdown, inline PDF and raster image, plain text, download-only Office, preview retry, and narrow-screen overflow behavior | `document-actions.spec.ts#Knowledge presents safe cross-format evidence in a responsive right-side reader` |
 

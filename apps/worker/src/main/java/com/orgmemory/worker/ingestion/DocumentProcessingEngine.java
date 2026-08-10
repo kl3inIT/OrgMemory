@@ -1,5 +1,7 @@
 package com.orgmemory.worker.ingestion;
 
+import com.orgmemory.core.knowledge.sourceledger.DocumentProcessingProfileSnapshot;
+import com.orgmemory.core.knowledge.sourceledger.ProcessingProfileMismatchException;
 import com.orgmemory.graphrag.chunking.ChunkedText;
 import com.orgmemory.graphrag.chunking.ChunkerOptions;
 import com.orgmemory.graphrag.chunking.ChunkerRegistry;
@@ -25,11 +27,11 @@ import com.orgmemory.graphrag.processing.ProcessingComponentRef;
 import com.orgmemory.graphrag.processing.ResolvedDocumentProcessingProfile;
 import com.orgmemory.integrations.graphrag.springai.JtokkitTextTokenizer;
 import com.orgmemory.integrations.graphrag.springai.SpringAiTextEmbeddingPort;
+import com.orgmemory.integrations.documentparsing.springai.SpringAiDocumentParser;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.TreeMap;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.stereotype.Component;
@@ -38,12 +40,9 @@ import org.springframework.stereotype.Component;
 @Component
 final class DocumentProcessingEngine {
 
-    private static final Set<String> SPRING_AI_READER_SUFFIXES = Set.of(
-            "txt", "md", "pdf", "docx", "pptx");
     private final SourceProcessingProperties properties;
     private final ParserRegistrySnapshot parsers;
     private final ChunkerRegistrySnapshot chunkers;
-    private final JtokkitTextTokenizer tokenizer;
 
     DocumentProcessingEngine(
             SourceProcessingProperties properties,
@@ -53,21 +52,21 @@ final class DocumentProcessingEngine {
         this.parsers = new ParserRegistry()
                 .register(new ParserSpec(
                         documentParser.component(),
-                        SPRING_AI_READER_SUFFIXES,
+                        documentParser.supportedSuffixes(),
                         true,
                         true,
                         "",
                         documentParser))
                 .register(new ParserSpec(
                         PassthroughParser.COMPONENT,
-                        Set.of("txt", "md"),
+                        java.util.Set.of("txt", "md"),
                         false,
                         true,
                         "",
                         new PassthroughParser()))
                 .register(new ParserSpec(
                         ReuseParser.COMPONENT,
-                        Set.of("canonical"),
+                        java.util.Set.of("canonical"),
                         false,
                         true,
                         "",
@@ -81,68 +80,124 @@ final class DocumentProcessingEngine {
                 .register(new ParagraphSemanticChunker())
                 .loadPlugins(classLoader)
                 .snapshot();
-        this.tokenizer = new JtokkitTextTokenizer(properties.tokenizerEncoding());
+    }
+
+    DocumentProcessingProfileSnapshot requestedProcessingProfile() {
+        return RequestedProcessingPolicy.capture(properties, parsers, chunkers).snapshot();
+    }
+
+    RequestedProcessingPolicy requestedPolicy(DocumentProcessingProfileSnapshot snapshot) {
+        RequestedProcessingPolicy policy = RequestedProcessingPolicy.restore(snapshot);
+        policy.validateAvailable(parsers, chunkers);
+        return policy;
     }
 
     ProcessedSourceDocument process(
             DocumentParseRequest request,
             EmbeddingModel embeddingModel) {
-        ParserSpec parser = parsers.route(request.suffix(), properties.parserId());
+        return process(
+                request,
+                embeddingModel,
+                requestedProcessingProfile(),
+                Optional.empty());
+    }
+
+    ProcessedSourceDocument process(
+            DocumentParseRequest request,
+            EmbeddingModel embeddingModel,
+            DocumentProcessingProfileSnapshot requestedSnapshot,
+            Optional<DocumentProcessingProfileSnapshot> resolvedSnapshot) {
+        RequestedProcessingPolicy policy = requestedPolicy(requestedSnapshot);
+        JtokkitTextTokenizer tokenizer = new JtokkitTextTokenizer(policy.tokenizerEncoding());
+        ParserSpec parser = parsers.route(request.suffix(), policy.parserId());
+        if (!parser.component().version().equals(policy.parserVersion())) {
+            throw new IllegalStateException("pinned parser version is unavailable");
+        }
         long parseStartedAt = System.nanoTime();
         var parsed = parser.parser().parse(request);
+        int maximumChunks = policy.maximumChunks(request.suffix());
         Duration parseDuration =
                 Duration.ofNanos(Math.max(0, System.nanoTime() - parseStartedAt));
         long minimumChunks = Math.ceilDiv(
                 (long) tokenizer.count(parsed.document().content()),
-                properties.chunkSize());
-        if (minimumChunks > properties.maximumChunks()) {
+                policy.chunkSize());
+        if (minimumChunks > maximumChunks) {
             throw new RejectedSourceException(
                     "CHUNK_LIMIT_EXCEEDED",
-                    "The document exceeds the configured chunk limit");
+                    "The ." + request.suffix() + " document exceeds its "
+                            + maximumChunks + " chunk limit");
         }
         var semanticEmbedding = new SpringAiTextEmbeddingPort(
                 embeddingModel,
-                properties.embeddingProvider(),
-                properties.embeddingModel(),
-                properties.semanticEmbeddingBatchSize());
-        String requestedChunker = properties.chunkerId();
-        String actualChunker = requestedChunker;
-        ChunkerOptions options = options(requestedChunker);
-        Map<String, String> requestedOptions = resolvedOptions(options);
-        List<ChunkedText> output;
-        long chunkStartedAt = System.nanoTime();
-        try {
-            output = chunkers.execute(
-                    requestedChunker,
-                    new ChunkingRequest(
-                            parsed.document(), tokenizer, Optional.of(semanticEmbedding)),
-                    options);
-        } catch (SemanticEmbeddingUnavailableException
-                | SemanticEmbeddingInvocationException semanticFailure) {
-            if (!SemanticVectorChunker.COMPONENT.id().equals(requestedChunker)) {
-                throw semanticFailure;
+                policy.embeddingProvider(),
+                policy.embeddingModel(),
+                policy.semanticEmbeddingBatchSize());
+        String requestedChunker = policy.requestedChunkerId();
+        Optional<ProcessingComponentRef> pinnedActual = pinnedActualChunker(resolvedSnapshot);
+        pinnedActual.ifPresent(component -> {
+            ProcessingComponentRef available = chunkers.require(component.id()).component();
+            if (!available.equals(component)) {
+                throw new IllegalStateException(
+                        "pinned actual chunker is unavailable: " + component);
             }
-            actualChunker = RecursiveCharacterChunker.COMPONENT.id();
-            options = recursiveOptions();
+        });
+        String actualChunker = pinnedActual
+                .map(ProcessingComponentRef::id)
+                .orElse(requestedChunker);
+        if (!actualChunker.equals(requestedChunker)
+                && !(SemanticVectorChunker.COMPONENT.id().equals(requestedChunker)
+                        && RecursiveCharacterChunker.COMPONENT.id().equals(actualChunker))) {
+            throw new IllegalArgumentException("resolved profile contains an unsupported fallback");
+        }
+        ChunkerOptions options = options(policy, actualChunker);
+        List<ChunkedText> output;
+        String fallbackCode = "";
+        long chunkStartedAt = System.nanoTime();
+        if (!actualChunker.equals(requestedChunker)) {
             output = chunkers.execute(
                     actualChunker,
-                    new ChunkingRequest(parsed.document(), tokenizer, Optional.empty()),
+                    new ChunkingRequest(
+                            parsed.document(), tokenizer, Optional.empty()),
                     options);
+            fallbackCode = "SEMANTIC_EMBEDDING_UNAVAILABLE";
+        } else {
+            try {
+                output = chunkers.execute(
+                        requestedChunker,
+                        new ChunkingRequest(
+                                parsed.document(), tokenizer, Optional.of(semanticEmbedding)),
+                        options);
+            } catch (SemanticEmbeddingUnavailableException
+                    | SemanticEmbeddingInvocationException semanticFailure) {
+                if (!SemanticVectorChunker.COMPONENT.id().equals(requestedChunker)) {
+                    throw semanticFailure;
+                }
+                actualChunker = RecursiveCharacterChunker.COMPONENT.id();
+                options = recursiveOptions(policy);
+                fallbackCode = "SEMANTIC_EMBEDDING_UNAVAILABLE";
+                output = chunkers.execute(
+                        actualChunker,
+                        new ChunkingRequest(parsed.document(), tokenizer, Optional.empty()),
+                        options);
+            }
         }
         // Measured before the limit check so a rejected document is still measured work; the
         // fallback path above is inside the same window on purpose, because a semantic chunker
         // failing over to the recursive one is time this document actually spent chunking.
         Duration chunkDuration =
                 Duration.ofNanos(Math.max(0, System.nanoTime() - chunkStartedAt));
-        if (output.size() > properties.maximumChunks()) {
+        if (output.size() > maximumChunks) {
             throw new RejectedSourceException(
                     "CHUNK_LIMIT_EXCEEDED",
-                    "The document exceeds the configured chunk limit");
+                    "The ." + request.suffix() + " document exceeds its "
+                            + maximumChunks + " chunk limit");
         }
         var actual = chunkers.require(actualChunker).component();
         Map<String, String> resolvedOptions = resolvedOptions(
-                requestedOptions,
-                resolvedOptions(options));
+                policy,
+                resolvedOptions(options),
+                fallbackCode,
+                chunkManifestSha256(output));
         var profile = ResolvedDocumentProcessingProfile.resolve(
                 parser.component(),
                 parser.component(),
@@ -154,6 +209,14 @@ final class DocumentProcessingEngine {
                         : Optional.empty(),
                 resolvedOptions,
                 parsed.document().contentSha256());
+        DocumentProcessingProfileSnapshot produced = new DocumentProcessingProfileSnapshot(
+                profile.canonicalForm(), profile.profileSha256());
+        resolvedSnapshot.ifPresent(pinned -> {
+            if (!pinned.equals(produced)) {
+                throw new ProcessingProfileMismatchException(
+                        "processing output no longer matches the pinned resolved profile");
+            }
+        });
         return new ProcessedSourceDocument(
                 parsed,
                 output,
@@ -162,41 +225,44 @@ final class DocumentProcessingEngine {
                 chunkDuration);
     }
 
-    private ChunkerOptions options(String chunkerId) {
+    private ChunkerOptions options(
+            RequestedProcessingPolicy policy,
+            String chunkerId) {
         if (FixedTokenChunker.COMPONENT.id().equals(chunkerId)) {
             return new FixedTokenOptions(
-                    properties.chunkSize(), properties.chunkOverlap(), null, false);
+                    policy.chunkSize(), policy.chunkOverlap(), null, false);
         }
         if (RecursiveCharacterChunker.COMPONENT.id().equals(chunkerId)) {
-            return recursiveOptions();
+            return recursiveOptions(policy);
         }
         if (SemanticVectorChunker.COMPONENT.id().equals(chunkerId)) {
             return new SemanticVectorOptions(
-                    properties.chunkSize(),
-                    1,
-                    SemanticVectorOptions.BreakpointThreshold.PERCENTILE,
-                    95,
-                    SemanticVectorOptions.DEFAULT_SENTENCE_SPLIT_REGEX);
+                    policy.chunkSize(),
+                    Integer.parseInt(policy.values().get("semantic.bufferSize")),
+                    SemanticVectorOptions.BreakpointThreshold.valueOf(
+                            policy.values().get("semantic.threshold")),
+                    Double.parseDouble(policy.values().get("semantic.thresholdAmount")),
+                    policy.values().get("semantic.sentenceSplitRegex"));
         }
         if (ParagraphSemanticChunker.COMPONENT.id().equals(chunkerId)) {
             return new ParagraphSemanticOptions(
-                    properties.chunkSize(),
-                    properties.chunkOverlap(),
-                    100,
-                    false,
-                    List.of("references", "bibliography", "参考文献", "tài liệu tham khảo"));
+                    policy.chunkSize(),
+                    policy.chunkOverlap(),
+                    policy.shortAnchorChars(),
+                    policy.dropReferences(),
+                    policy.referencePrefixes());
         }
         ProcessingComponentRef component = chunkers.require(chunkerId).component();
         throw new IllegalArgumentException(
                 "third-party chunker " + component + " requires an explicit options resolver");
     }
 
-    private RecursiveCharacterOptions recursiveOptions() {
+    private RecursiveCharacterOptions recursiveOptions(RequestedProcessingPolicy policy) {
         return new RecursiveCharacterOptions(
-                properties.chunkSize(),
-                properties.chunkOverlap(),
-                RecursiveCharacterOptions.DEFAULT_SEPARATORS,
-                true);
+                policy.chunkSize(),
+                policy.chunkOverlap(),
+                policy.recursiveSeparators(),
+                policy.recursiveKeepSeparator());
     }
 
     private static Map<String, String> resolvedOptions(ChunkerOptions options) {
@@ -231,11 +297,69 @@ final class DocumentProcessingEngine {
     }
 
     private static Map<String, String> resolvedOptions(
-            Map<String, String> requested,
-            Map<String, String> actual) {
+            RequestedProcessingPolicy policy,
+            Map<String, String> actual,
+            String fallbackCode,
+            String chunkManifestSha256) {
         var resolved = new TreeMap<String, String>();
-        requested.forEach((key, value) -> resolved.put("requested." + key, value));
+        resolved.putAll(policy.resolvedProfileOptions());
         actual.forEach((key, value) -> resolved.put("actual." + key, value));
+        resolved.put("profile.schemaVersion", "2");
+        resolved.put("fallback.code", fallbackCode);
+        resolved.put("chunkManifest.schemaVersion", "1");
+        resolved.put("chunkManifest.sha256", chunkManifestSha256);
         return Map.copyOf(resolved);
+    }
+
+    private static Optional<ProcessingComponentRef> pinnedActualChunker(
+            Optional<DocumentProcessingProfileSnapshot> snapshot) {
+        return snapshot.map(DocumentProcessingProfileSnapshot::canonicalForm)
+                .map(canonical -> canonical.lines()
+                        .filter(line -> line.startsWith("chunker.actual="))
+                        .map(line -> line.substring("chunker.actual=".length()))
+                        .map(DocumentProcessingEngine::componentRef)
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "resolved profile is missing actual chunker identity")));
+    }
+
+    private static ProcessingComponentRef componentRef(String value) {
+        int separator = value.lastIndexOf('@');
+        if (separator <= 0 || separator == value.length() - 1) {
+            throw new IllegalArgumentException("resolved profile has malformed component identity");
+        }
+        return new ProcessingComponentRef(
+                value.substring(0, separator), value.substring(separator + 1));
+    }
+
+    private static String chunkManifestSha256(List<ChunkedText> chunks) {
+        StringBuilder canonical = new StringBuilder("schemaVersion=1\n");
+        for (int index = 0; index < chunks.size(); index++) {
+            ChunkedText chunk = chunks.get(index);
+            canonical.append("chunk=").append(index).append('\n');
+            appendField(canonical, "content", chunk.content());
+            appendField(canonical, "heading", chunk.heading() == null ? "" : chunk.heading());
+            canonical.append("tokens=").append(chunk.tokenCount()).append('\n');
+            canonical.append("startChar=").append(chunk.provenance().startChar()).append('\n');
+            canonical.append("endChar=").append(chunk.provenance().endChar()).append('\n');
+            canonical.append("startPage=").append(chunk.provenance().startPage()).append('\n');
+            canonical.append("endPage=").append(chunk.provenance().endPage()).append('\n');
+            canonical.append("blocks=").append(chunk.provenance().blockIndexes()).append('\n');
+            canonical.append("canonicalTextSha256=")
+                    .append(chunk.provenance().canonicalTextSha256())
+                    .append('\n');
+        }
+        return ResolvedDocumentProcessingProfile.sha256(canonical.toString());
+    }
+
+    private static void appendField(StringBuilder target, String key, String value) {
+        target.append(key)
+                .append(".length=")
+                .append(value.length())
+                .append('\n')
+                .append(key)
+                .append('=')
+                .append(value)
+                .append('\n');
     }
 }

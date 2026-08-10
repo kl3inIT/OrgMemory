@@ -30,16 +30,29 @@ public class SourceIngestionCoordinator {
     }
 
     @Transactional
-    public Optional<ClaimedSourceRevision> claimNext(String workerId, Duration leaseDuration) {
+    public Optional<ClaimedSourceRevision> claimNext(
+            String workerId,
+            Duration leaseDuration,
+            DocumentProcessingProfileSnapshot requestedProcessingProfile) {
         Instant now = Instant.now();
         return jobs.lockNextAvailable(now).map(job -> {
+            DocumentProcessingProfileSnapshot pinnedRequested =
+                    job.bindRequestedProcessingProfile(requestedProcessingProfile);
             job.claim(workerId, now, leaseDuration);
             SourceRevision revision = revisions.findById(job.getSourceRevisionId()).orElseThrow();
             SourceObject source = sources.findById(revision.getSourceObjectId()).orElseThrow();
             EvidenceBlob blob = blobs.findById(revision.getEvidenceBlobId()).orElseThrow();
             revision.transitionTo(SourceRevisionStatus.VALIDATING);
-            return claimed(job, source, revision, blob);
+            return claimed(job, source, revision, blob, pinnedRequested);
         });
+    }
+
+    @Transactional
+    public void bindResolvedProcessingProfile(
+            UUID jobId,
+            String workerId,
+            DocumentProcessingProfileSnapshot processingProfile) {
+        claimedJob(jobId, workerId).bindResolvedProcessingProfile(processingProfile);
     }
 
     @Transactional
@@ -145,7 +158,8 @@ public class SourceIngestionCoordinator {
             SourceIngestionJob job,
             SourceObject source,
             SourceRevision revision,
-            EvidenceBlob blob) {
+            EvidenceBlob blob,
+            DocumentProcessingProfileSnapshot requestedProcessingProfile) {
         return new ClaimedSourceRevision(
                 job.getId(),
                 revision.getOrganizationId(),
@@ -164,6 +178,8 @@ public class SourceIngestionCoordinator {
                 blob.getObjectKey(),
                 revision.getClassification(),
                 revision.getDeclaredAccess(),
+                requestedProcessingProfile,
+                job.resolvedProcessingProfile(),
                 job.getAttemptCount(),
                 revision.getCreatedAt());
     }

@@ -95,6 +95,9 @@ class ExternalPrincipalRetrievalIntegrationTests {
 
     private static final String MODEL_ID = "test-model";
     private static final String SHA = "0".repeat(64);
+    private static final String PROCESSING_PROFILE = "fixture.processing=v1\n";
+    private static final String PROCESSING_PROFILE_SHA256 =
+            "6746a26ed847d45b0a4735cb0b76698d6669bd008a14a472c5dea14daeb2ea37";
     private static final Instant CAPTURED = Instant.parse("2026-07-22T00:00:00Z");
     private static final Instant EVALUATED_AT = CAPTURED.plus(1, ChronoUnit.HOURS);
     private static final Instant AFTER_ACL_EXPIRY = CAPTURED.plus(3, ChronoUnit.HOURS);
@@ -570,10 +573,12 @@ class ExternalPrincipalRetrievalIntegrationTests {
                     revision_number, file_name, media_type, content_length, content_sha256, classification,
                     declared_access, created_by_user_id, status, pipeline_version, parser_version,
                     chunker_version, embedding_profile_id, embedding_dimensions, raw_source_object_id,
-                    normalized_record_id, knowledge_asset_id, processed_at, created_at, updated_at, version)
+                    normalized_record_id, knowledge_asset_id, processing_profile,
+                    processing_profile_sha256, processed_at, created_at, updated_at, version)
                 VALUES (?, ?, ?, ?, ?, 1, 'doc.txt', 'text/plain', 42, ?, 'INTERNAL', 'ALL_EMPLOYEES',
-                    ?, 'READY', 'pipe-v1', 'parse-v1', 'chunk-v1', ?, 3, ?, ?, ?, now(), now(), now(), 0)
-                """, REVISION, ORG, OBJECT, SPACE, BLOB, SHA, AN_USER, PROFILE, RAW, NORMALIZED, ASSET);
+                    ?, 'READY', 'pipe-v1', 'parse-v1', 'chunk-v1', ?, 3, ?, ?, ?, ?, ?, now(), now(), now(), 0)
+                """, REVISION, ORG, OBJECT, SPACE, BLOB, SHA, AN_USER, PROFILE, RAW, NORMALIZED, ASSET,
+                PROCESSING_PROFILE, PROCESSING_PROFILE_SHA256);
 
         insertAssetVersion(
                 ASSET_VERSION,
@@ -703,10 +708,12 @@ class ExternalPrincipalRetrievalIntegrationTests {
                     revision_number, file_name, media_type, content_length, content_sha256, classification,
                     declared_access, created_by_user_id, status, pipeline_version, parser_version,
                     chunker_version, embedding_profile_id, embedding_dimensions, raw_source_object_id,
-                    normalized_record_id, knowledge_asset_id, processed_at, created_at, updated_at, version)
+                    normalized_record_id, knowledge_asset_id, processing_profile,
+                    processing_profile_sha256, processed_at, created_at, updated_at, version)
                 VALUES (?, ?, ?, ?, ?, 1, 'doc2.txt', 'text/plain', 42, ?, 'INTERNAL', 'ALL_EMPLOYEES',
-                    ?, 'READY', 'pipe-v1', 'parse-v1', 'chunk-v1', ?, 3, ?, ?, ?, now(), now(), now(), 0)
-                """, REVISION2, ORG, OBJECT2, SPACE, BLOB, SHA2(), AN_USER, PROFILE, RAW2, NORMALIZED2, ASSET2);
+                    ?, 'READY', 'pipe-v1', 'parse-v1', 'chunk-v1', ?, 3, ?, ?, ?, ?, ?, now(), now(), now(), 0)
+                """, REVISION2, ORG, OBJECT2, SPACE, BLOB, SHA2(), AN_USER, PROFILE, RAW2, NORMALIZED2, ASSET2,
+                PROCESSING_PROFILE, PROCESSING_PROFILE_SHA256);
         insertAssetVersion(
                 ASSET_VERSION2,
                 ASSET2,

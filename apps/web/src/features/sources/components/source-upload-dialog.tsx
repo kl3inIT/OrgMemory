@@ -15,9 +15,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  ACCEPTED_FILE_TYPES,
+  sourceUploadFileError,
+} from "@/features/sources/source-upload-policy"
 import type { KnowledgeSpaceResponse, UploadSourceData } from "@/lib/hey-api"
-
-const MAX_FILE_SIZE = 25 * 1024 * 1024
 
 export type UploadSourceInput = {
   file: File
@@ -82,8 +84,9 @@ export function SourceUploadDialog({
       setError("Choose a Knowledge Space.")
       return
     }
-    if (file.size > MAX_FILE_SIZE) {
-      setError("The file must be 25 MB or smaller.")
+    const fileError = sourceUploadFileError(file)
+    if (fileError) {
+      setError(fileError)
       return
     }
     setError(undefined)
@@ -109,7 +112,10 @@ export function SourceUploadDialog({
         <form className="space-y-5" onSubmit={submit}>
           <DialogHeader>
             <DialogTitle>Upload a document</DialogTitle>
-            <DialogDescription>PDF, DOCX, PPTX, TXT, or Markdown up to 25 MB.</DialogDescription>
+            <DialogDescription>
+              Office, OpenDocument, PDF, HTML, CSV, Markdown, or text files up to their displayed
+              format limit.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">
@@ -117,7 +123,7 @@ export function SourceUploadDialog({
             <Input
               id="source-file"
               type="file"
-              accept=".pdf,.docx,.pptx,.txt,.md"
+              accept={ACCEPTED_FILE_TYPES}
               required
               disabled={pending}
               onChange={(event) => {

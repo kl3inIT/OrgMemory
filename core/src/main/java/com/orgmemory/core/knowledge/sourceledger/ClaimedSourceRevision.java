@@ -3,6 +3,7 @@ package com.orgmemory.core.knowledge.sourceledger;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 public record ClaimedSourceRevision(
@@ -23,6 +24,8 @@ public record ClaimedSourceRevision(
         String objectKey,
         KnowledgeClassification classification,
         DeclaredAccessScope declaredAccess,
+        DocumentProcessingProfileSnapshot requestedProcessingProfile,
+        Optional<DocumentProcessingProfileSnapshot> resolvedProcessingProfile,
         int attempt,
         Instant createdAt) {
 }

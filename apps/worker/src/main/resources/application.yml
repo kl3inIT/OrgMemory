@@ -91,7 +91,7 @@ orgmemory:
         gateway-id: ${ORGMEMORY_EMBEDDING_GATEWAY:openai}
         model-id: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
   ingestion:
-    maximum-upload-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
+    maximum-request-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
     maximum-attempts: ${ORGMEMORY_INGESTION_MAX_ATTEMPTS:5}
     processing:
       poll-interval: ${ORGMEMORY_INGESTION_POLL_INTERVAL:2s}
@@ -100,7 +100,7 @@ orgmemory:
       lease-duration: ${ORGMEMORY_INGESTION_LEASE_DURATION:5m}
       pipeline-version: ${ORGMEMORY_INGESTION_PIPELINE_VERSION:source-pipeline-v1}
       parser-id: ${ORGMEMORY_INGESTION_PARSER:spring-ai-document-reader}
-      chunker-id: ${ORGMEMORY_INGESTION_CHUNKER:fixed-token}
+      policy-id: ${ORGMEMORY_INGESTION_POLICY:structured-block-v1}
       tokenizer-encoding: ${ORGMEMORY_INGESTION_TOKENIZER:o200k_base}
       normalizer-version: ${ORGMEMORY_INGESTION_NORMALIZER_VERSION:source-normalizer-v1}
       embedding-provider: ${ORGMEMORY_EMBEDDING_PROVIDER:openai}
@@ -109,7 +109,6 @@ orgmemory:
       chunk-size: ${ORGMEMORY_INGESTION_CHUNK_SIZE:800}
       chunk-overlap: ${ORGMEMORY_INGESTION_CHUNK_OVERLAP:100}
       semantic-embedding-batch-size: ${ORGMEMORY_SEMANTIC_EMBEDDING_BATCH_SIZE:64}
-      maximum-chunks: ${ORGMEMORY_INGESTION_MAX_CHUNKS:500}
   graph-rag:
     processing:
       maximum-entities-per-chunk: ${ORGMEMORY_GRAPH_MAX_ENTITIES_PER_CHUNK:40}

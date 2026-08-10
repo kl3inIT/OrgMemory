@@ -12,6 +12,7 @@ import com.orgmemory.core.knowledge.sourceledger.NormalizeRawSourceCommand;
 import com.orgmemory.core.knowledge.sourceledger.NormalizedRecordRef;
 import com.orgmemory.core.knowledge.sourceledger.RawSourceRef;
 import com.orgmemory.core.knowledge.sourceledger.RegisterRawSourceCommand;
+import com.orgmemory.core.knowledge.sourceledger.ProcessingProfileMismatchException;
 import com.orgmemory.core.knowledge.sourceledger.SourceIngestionCoordinator;
 import com.orgmemory.core.knowledge.sourceledger.SourceEmbeddingProfileRef;
 import com.orgmemory.core.knowledge.sourceledger.SourceKnowledgeAssetRef;
@@ -35,6 +36,7 @@ import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
 import com.orgmemory.graphrag.parsing.DocumentParseRequest;
 import com.orgmemory.graphrag.parsing.DocumentParseResult;
+import com.orgmemory.graphrag.parsing.DocumentParseException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -126,7 +128,10 @@ class SourceIngestionProcessor {
     }
 
     WorkProcessingResult processNext() {
-        return coordinator.claimNext(properties.workerId(), properties.leaseDuration())
+        return coordinator.claimNext(
+                        properties.workerId(),
+                        properties.leaseDuration(),
+                        processingEngine.requestedProcessingProfile())
                 .map(claim -> {
                     process(claim);
                     return WorkProcessingResult.PROCESSED;
@@ -172,8 +177,10 @@ class SourceIngestionProcessor {
         String failureStage = "VALIDATION";
         Path temporaryFile = null;
         try {
+            RequestedProcessingPolicy policy =
+                    processingEngine.requestedPolicy(claim.requestedProcessingProfile());
             var embeddingRoute = aiRoutes.resolve(AiWorkload.DOCUMENT_EMBEDDING);
-            if (!embeddingRoute.modelId().equals(properties.embeddingModel())) {
+            if (!embeddingRoute.modelId().equals(policy.embeddingModel())) {
                 throw new IllegalStateException(
                         "Document embedding route does not match the immutable embedding profile model");
             }
@@ -202,7 +209,9 @@ class SourceIngestionProcessor {
                             claim.mediaType(),
                             Files.readAllBytes(temporaryFile),
                             Optional.empty()),
-                    embeddingModel);
+                    embeddingModel,
+                    claim.requestedProcessingProfile(),
+                    claim.resolvedProcessingProfile());
             DocumentParseResult parsed = processed.parseResult();
             emitStage(
                     claim,
@@ -216,11 +225,19 @@ class SourceIngestionProcessor {
                     processed.chunkDuration(),
                     parsed.document().blocks().size(),
                     processed.chunks().size());
+            DocumentProcessingProfileSnapshot resolvedProcessingProfile =
+                    new DocumentProcessingProfileSnapshot(
+                            processed.profile().canonicalForm(),
+                            processed.profile().profileSha256());
+            coordinator.bindResolvedProcessingProfile(
+                    claim.jobId(),
+                    properties.workerId(),
+                    resolvedProcessingProfile);
             RawSourceRef raw = registerRawSource(claim, parsed);
             NormalizedRecordRef normalized = ingestion.normalize(new NormalizeRawSourceCommand(
                     claim.organizationId(),
                     raw.rawSourceObjectId(),
-                    properties.normalizerVersion(),
+                    policy.normalizerVersion(),
                     claim.fileName(),
                     parsed.document().content(),
                     "und"));
@@ -247,9 +264,9 @@ class SourceIngestionProcessor {
             EmbeddingProfileRef embeddingProfile = embeddingProfiles.resolve(
                     claim.organizationId(),
                     new EmbeddingProfileSpec(
-                            properties.embeddingProvider(),
-                            properties.embeddingModel(),
-                            properties.embeddingDimensions(),
+                            policy.embeddingProvider(),
+                            policy.embeddingModel(),
+                            policy.embeddingDimensions(),
                             EmbeddingDistanceMetric.COSINE));
             List<Document> embeddingDocuments = candidates.stream()
                     .map(candidate -> new Document(candidate.content()))
@@ -273,17 +290,15 @@ class SourceIngestionProcessor {
                             embeddingProfile.id(),
                             embeddingProfile.organizationId(),
                             embeddingProfile.dimensions()),
-                    properties.pipelineVersion(),
+                    policy.pipelineVersion(),
                     drafts));
             coordinator.complete(
                     claim.jobId(),
                     properties.workerId(),
-                    properties.pipelineVersion(),
+                    policy.pipelineVersion(),
                     processed.profile().actualParser().toString(),
                     processed.profile().actualChunker().toString(),
-                    new DocumentProcessingProfileSnapshot(
-                            processed.profile().canonicalForm(),
-                            processed.profile().profileSha256()),
+                    resolvedProcessingProfile,
                     new SourceEmbeddingProfileRef(
                             embeddingProfile.id(), embeddingProfile.dimensions()),
                     raw,
@@ -299,6 +314,27 @@ class SourceIngestionProcessor {
                     claim.sourceRevisionId(),
                     drafts.size(),
                     claim.attempt());
+        } catch (ProcessingProfileMismatchException mismatch) {
+            log.error(
+                    "Source revision {} no longer matches its pinned processing profile",
+                    claim.sourceRevisionId(),
+                    mismatch);
+            coordinator.fail(
+                    claim.jobId(),
+                    properties.workerId(),
+                    "PROCESSING_PROFILE_MISMATCH",
+                    "The immutable processing profile did not reproduce",
+                    false,
+                    false);
+        } catch (DocumentParseException rejected) {
+            log.info("Source revision {} was quarantined: {}", claim.sourceRevisionId(), rejected.code());
+            coordinator.fail(
+                    claim.jobId(),
+                    properties.workerId(),
+                    rejected.code(),
+                    rejected.getMessage(),
+                    false,
+                    true);
         } catch (RejectedSourceException rejected) {
             log.info("Source revision {} was quarantined: {}", claim.sourceRevisionId(), rejected.code());
             coordinator.fail(

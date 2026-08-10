@@ -27,7 +27,10 @@ The Gradle build contains `core`; the deployable `apps:api`, `apps:mcp`, and
 and replaceable integrations for OpenFGA authorization, connectors,
 OpenAI-compatible AI, MinIO object storage, Spring AI GraphRAG, PostgreSQL,
 OpenSearch, Neo4j, GraphRAG observability, the telemetry payload boundary, and
-sidecar JSON.
+sidecar JSON. `integrations:document-parsing-spring-ai` is the reusable
+Spring AI/Tika document adapter behind the framework-neutral parser and typed
+block contracts in `components:graph-rag-core`; product admission remains in
+the consuming domain.
 
 All runnable product surfaces live under `apps/`. The React client in
 `apps/web`, Fumadocs portal in `apps/docs`, and command-line client in
@@ -81,7 +84,9 @@ build file, so taking the convention is taking the boundary. See
   administration surface over the identity ledger and the source connections,
   gated on OpenFGA `can_manage_members`. A source credential is write-only across
   that surface: it is submitted, stored encrypted, and never returned in any form.
-- `apps/worker`: leased background validation, parse/normalize, chunk/embed,
+- `apps/worker`: leased background validation, parse/normalize through the
+  reusable document adapter, block-aware chunk/embed under an atomically pinned
+  named processing policy and per-format limits,
   fail-closed authorization projection, publication, external
   permission-workbook validation, and a connector driver that ingests a versioned
   crawl-batch contract into the governed ledger, checkpointing progress per

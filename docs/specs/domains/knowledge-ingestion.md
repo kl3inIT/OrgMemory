@@ -4,17 +4,27 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/source`,
 `apps/web/src/features/sources`,
+`apps/worker/src/main/java/com/orgmemory/worker/ingestion`,
 `apps/worker/src/main/java/com/orgmemory/worker/connector`,
+`components/graph-rag-core/src/main/java/com/orgmemory/graphrag/parsing`,
+`components/graph-rag-core/src/main/java/com/orgmemory/graphrag/chunking`,
+`integrations/document-parsing-spring-ai/src/main`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-08-06-knowledge-filters (b9e2fbe1)`.
+Reconciled: `2026-08-10-ingestion-coverage (c0c12728)`.
 
 ## Current Behavior
 
 An authenticated user enters the visible Knowledge workspace and uses its
 Documents or Knowledge graph surface without changing the established
-`/sources` route. They can upload PDF, DOCX, PPTX, TXT, or Markdown through the
-Documents API and web view. The user must select a Knowledge Space returned by
+`/sources` route. They can upload PDF, Word (`docx`/`doc`), PowerPoint
+(`pptx`/`ppt`), Excel (`xlsx`/`xls`), CSV, HTML/HTM, RTF, OpenDocument
+(`odt`/`ods`/`odp`), TXT, or Markdown through the Documents API and web view.
+The same closed policy applies per extension in the API and browser: CSV,
+HTML/HTM, RTF, TXT, and Markdown are bounded to 10 MB; spreadsheets to 15 MB;
+and the remaining admitted formats to 25 MB. The servlet request limit is only
+the 25 MB transport ceiling, not the product policy. The user must select a
+Knowledge Space returned by
 OpenFGA `ListObjects(can_create_asset)`, and the mutation rechecks
 `can_create_asset` before writing evidence. MinIO stores immutable evidence bytes
 behind the provider-neutral object-storage contract. PostgreSQL persists canonical
@@ -57,8 +67,10 @@ neutral out-of-scope guidance, including the owning department as the
 access-request target when available. Delivery verifies evidence hash and
 length, audits allow/deny, uses `no-store` and `nosniff`, and applies a closed
 filename allowlist: PDF,
-plain text/Markdown-as-text, PNG, JPEG, GIF, and WebP may render inline; Office,
-HTML, SVG, XML, JSON, and unknown types are download-only. On desktop the
+plain text/Markdown/CSV-as-text, PNG, JPEG, GIF, and WebP may render inline.
+HTML and RTF use a safe plain-text response type but remain download-only;
+Office, OpenDocument, SVG, XML, JSON, and unknown types are also download-only.
+On desktop the
 right-side reader is a persistent master-detail surface: the document list
 remains visible and interactive while the selected evidence is open. Smaller
 viewports use an accessible modal Sheet. Both presentations use the safe
@@ -100,8 +112,43 @@ so one queue's backlog cannot monopolize the shared scheduling thread.
 Postgres projection staging writes execute as bounded JDBC batches
 (configurable batch size) with unchanged SQL, transactions, and whole-stage
 failure behavior; graph replacement batches per dependency phase. The worker
-validates content integrity, parses and normalizes text through the
-Spring AI ETL readers, chunks it, and requests embeddings. Publication first
+validates content integrity and parses supported documents through the reusable
+`integrations:document-parsing-spring-ai` adapter into canonical heading,
+paragraph, and table blocks. The framework-neutral parser port publishes its
+supported suffixes; Knowledge admission remains a separate product policy, and
+the worker routes only formats present in both. CSV has a dedicated BOM-aware,
+delimiter-sniffing, quote-aware table reader. HTML/HTM is sanitized before Tika
+so navigation, script, and style content cannot become evidence. Declared
+archives are refused, while OOXML and OpenDocument containers are bounded and
+validated before parsing. A deterministic suffix/media mismatch is quarantined
+without retry. A genuine Microsoft Word Heading 1 is preserved as a canonical
+heading block. Its default
+named policy is `structured-block-v1`: the paragraph-semantic composite
+preserves headings, dispatches tables row-wise with repeated headers, and uses
+recursive-character splitting internally for unstructured or oversized
+content. Fixed-token, recursive-character, and semantic-vector behavior remain
+explicit named operator policies rather than raw chunker ids. Semantic-vector
+alone may resolve to its declared recursive-character fallback when semantic
+embedding is unavailable.
+
+The worker atomically pins the complete requested parser, policy, component,
+tokenizer, embedding, normalization, and limit snapshot on the ingestion job at
+first claim. The limit snapshot includes the entire per-format maximum-chunk
+map: 300 for CSV, spreadsheets, and presentations, 400 for HTML/HTM, and 500
+for the remaining admitted formats. Retries use that snapshot instead of current
+configuration. After
+parse/chunk succeeds, the job pins the resolved requested-versus-actual profile
+and chunk-manifest hash before any raw-source, normalized-record, Asset, vector,
+authorization, or READY publication side effect; a retry must reproduce it or
+fails permanently. New or updated READY revisions require the canonical
+processing profile and its SHA-256 at the database boundary. The constraint is
+introduced without validating historical rows, so an existing READY revision
+that predates the profile remains unchanged and cannot be silently reparsed or
+rechunked when defaults change; a rebuild requires a new explicit revision
+identity. The V31 cutover locks the ingestion-job table and refuses to migrate
+while a legacy job is `PENDING` or `PROCESSING`; deployment must stop and drain
+the old worker before migration because the new deployment cannot safely guess
+the old job's complete policy. Publication first
 commits a `PENDING` Knowledge Asset, inactive pgvector chunks, and a publication
 outbox row in one database transaction. It writes the target
 `knowledge_space#space` and uploader `owner` relationships to OpenFGA in one
