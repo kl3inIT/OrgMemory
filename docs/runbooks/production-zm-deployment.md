@@ -155,6 +155,11 @@ The workflow checks out the exact commit on the server and runs:
 ./infrastructure/deployment/scripts/deploy.sh <full-commit-sha>
 ```
 
+The workflow executes that script from an ephemeral clean linked worktree and
+points it at `/apps/orgmemory/.env.production`. It does not checkout, reset, or
+clean the operator worktree at `/apps/orgmemory`, so unrelated staged or local
+work there cannot replace files from the released commit.
+
 Use the manual `workflow_dispatch` input only for an intentional redeploy or
 rollback. Manual commits must still be ancestors of `main` with a successful
 `Build production images` run.
