@@ -171,7 +171,7 @@ test("two users prove governed release and second-user Pack completion", async (
   const supportHarness = await assetHarness(supportPage, "support")
 
   await supportPage.goto("/assets")
-  await expect(supportPage.getByRole("heading", { name: "Assets" })).toBeVisible()
+  await expect(supportPage.getByRole("heading", { name: "Asset catalog" })).toBeVisible()
   await expect(supportPage.getByText("1 result", { exact: true })).toBeVisible()
   await expect(supportPage.getByText("Filtered by your live permissions")).toHaveCount(0)
   await expect(
@@ -239,6 +239,11 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await expect(page.getByRole("table")).toHaveCount(0)
   await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
   await expect(page.getByText("Showing 1–18 of 18", { exact: true })).toBeVisible()
+  await expect(page.getByText("Operations Lead").first()).toBeVisible()
+  await expect(page.getByText(`Owner ${OWNER_ID.slice(0, 8)}`)).toHaveCount(0)
+  await expect(page.getByText("support/l1-onboarding", { exact: true })).toHaveCount(0)
+  await expect(page.getByRole("link", { name: "Executive Strategy Review" })).toBeVisible()
+  await expect(page.getByRole("link", { name: "View skill" })).toHaveCount(0)
   const skillToggles = page.getByRole("switch", { name: "Use this Skill in Assistant" })
   await expect(skillToggles).toHaveCount(4)
   await expect(skillToggles.first()).not.toBeChecked()
@@ -250,6 +255,7 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
       enabled: true,
     },
   ])
+  expect(harness.requests).toContain("GET /api/organization/context")
 
   const searchBox = await page.locator('[data-slot="input-group"]').first().boundingBox()
   const scopeTabs = await page.getByRole("tablist", { name: "Asset scope" }).boundingBox()
