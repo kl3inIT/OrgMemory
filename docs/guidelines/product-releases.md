@@ -63,12 +63,12 @@ continues to consume image manifests, not semantic tags.
 
 ## Local Commands
 
-```powershell
-pnpm release pr preview --number <PR_NUMBER>
-pnpm release:check
+```console
+corepack pnpm release pr preview --number <PR_NUMBER>
+corepack pnpm release:check
 ```
 
-Do not run `pnpm release ci` locally against the real remote. It is the writable
+Do not run `corepack pnpm release ci` locally against the real remote. It is the writable
 main-branch automation entrypoint. Do not run Tegami `init-agent`; OrgMemory's
 durable instructions are maintained here and linked from `CLAUDE.md`.
 

@@ -27,15 +27,16 @@ with file-level citations.
 
 ## Required Context
 
-Reference layout (verify presence before citing; clone if missing):
+Reference layout (resolve the repository root dynamically and verify every
+path before citing it; clone a pin under `<repo-root>/tmp` when missing):
 
-- `D:\OrgMemory\tmp\onyx` — Onyx (ex-Danswer): connectors, assistant pipeline,
+- `<repo-root>/tmp/onyx` — Onyx (ex-Danswer): connectors, assistant pipeline,
   admin UI, SCIM, tracing.
-- `D:\OrgMemory\tmp\upstream-lightrag-v1.5.4` — pinned LightRAG parity oracle.
+- `<repo-root>/tmp/upstream-lightrag-v1.5.4` — pinned LightRAG parity oracle.
   Parity is against this pin, never against latest upstream.
-- Other `tmp\upstream-*` pins as created per topic (e.g. sentry-mcp).
-- `D:\northstar` — Northstar codebase, useful for Spring AI patterns already
-  verified in production.
+- Other `<repo-root>/tmp/upstream-*` pins as created per topic (e.g. sentry-mcp).
+- A verified Northstar checkout (commonly a sibling directory or `/apps/northstar`)
+  — useful for Spring AI patterns already verified in production.
 - `~/.gradle/caches/modules-2/files-2.1/...` — library jars and `-sources.jar`
   for Spring Boot / Spring AI internals.
 

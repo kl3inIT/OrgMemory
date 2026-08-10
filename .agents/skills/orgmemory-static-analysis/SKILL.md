@@ -20,8 +20,9 @@ signal, never as a reason to skip Gradle.
 
 Rules:
 
-- Pass `projectPath` as exactly `D:\OrgMemory` on every call, including when
-  several projects are open.
+- Resolve the repository root dynamically (`git rev-parse --show-toplevel`) and
+  pass that absolute path as `projectPath` on every call, including when several
+  projects are open. Never hard-code a drive or checkout path.
 - Include warnings, not only errors.
 - Never trust an empty result unless the call clearly inspected the intended
   file in the OrgMemory project. Wrong-project targeting or "URI is not
@@ -33,35 +34,40 @@ Rules:
 
 Run from the repo root:
 
-```powershell
-.\gradlew.bat --no-daemon compileJava
-.\gradlew.bat :core:test
+```bash
+./gradlew --no-daemon compileJava
+./gradlew --no-daemon :core:test
 ```
 
-For completion-grade backend verification:
+On native Windows use `gradlew.bat --no-daemon compileJava` and
+`gradlew.bat --no-daemon :core:test` instead.
 
-```powershell
-.\gradlew.bat --no-daemon clean test
+For the full backend gate:
+
+```bash
+./gradlew --no-daemon clean test
 ```
+
+On native Windows use `gradlew.bat --no-daemon clean test`.
 
 Use `:core:test` whenever you touch `core/src/main/java/com/orgmemory/core`
 because the Modulith verification test protects module boundaries.
 
 ## 3. Web Static Analysis And Build
 
-```powershell
-pnpm --filter @orgmemory/web lint
-pnpm --filter @orgmemory/web typecheck
-pnpm --filter @orgmemory/web build
+```console
+corepack pnpm --filter @orgmemory/web lint
+corepack pnpm --filter @orgmemory/web typecheck
+corepack pnpm --filter @orgmemory/web build
 ```
 
 Oxlint and TypeScript are the static-analysis authority for web code.
-`pnpm --filter @orgmemory/web typecheck` is required for `.ts` and `.tsx`; Vite alone does not
+`corepack pnpm --filter @orgmemory/web typecheck` is required for `.ts` and `.tsx`; Vite alone does not
 type-check the app. Use a real browser flow when behavior or layout changes.
 
 For `apps/docs` changes:
 
-```powershell
+```console
 corepack pnpm --filter @orgmemory/docs check
 corepack pnpm --filter @orgmemory/docs build
 ```
@@ -91,25 +97,42 @@ listed in `docs/conventions.md` (Verification) before handoff.
 Use these when JetBrains inspection is unavailable and the change touches source,
 config, or migration files:
 
-```powershell
-Get-ChildItem core,apps -Recurse -Filter *.java |
-  Where-Object { $_.FullName -like '*\src\*' } |
-  ForEach-Object {
-    if (-not (Select-String -LiteralPath $_.FullName -Pattern '^package ' -Quiet)) {
-      $_.FullName
-    }
-  }
+Use `python3` on POSIX (or `py -3` on Windows) from the repository root:
 
-Get-ChildItem core,apps -Recurse -Include *.java,*.yml,*.yaml,*.sql |
-  Where-Object { $_.FullName -like '*\src\*' -and $_.Length -eq 0 } |
-  Select-Object -ExpandProperty FullName
+```python
+from pathlib import Path
+import re
 
-Get-ChildItem core\src\main\resources\db\migration -Filter *.sql |
-  Where-Object { $_.Name -notmatch '^V\d+__.+\.sql$' } |
-  Select-Object -ExpandProperty FullName
+roots = [Path("core"), Path("apps")]
+defects = []
+for root in roots:
+    if not root.exists():
+        continue
+    for path in root.rglob("*"):
+        if not path.is_file() or "src" not in path.parts:
+            continue
+        if path.suffix == ".java" and not any(
+            line.startswith("package ")
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ):
+            defects.append(f"missing package: {path}")
+        if path.suffix in {".java", ".yml", ".yaml", ".sql"} and path.stat().st_size == 0:
+            defects.append(f"zero-byte file: {path}")
 
-Select-String -Path core\src\main\java\**\*.java -Pattern '@Entity|@Table|@Column'
+migration_root = Path("core/src/main/resources/db/migration")
+if migration_root.exists():
+    for path in migration_root.glob("*.sql"):
+        if not re.fullmatch(r"V\d+__.+\.sql", path.name):
+            defects.append(f"misnamed migration: {path}")
+
+for defect in defects:
+    print(defect)
+raise SystemExit(1 if defects else 0)
 ```
+
+Run it from a short temporary file so the command is identical across shells.
+For changed Java mappings, separately search changed files for
+`@Entity`, `@Table`, and `@Column`, then reconcile every hit with Flyway.
 
 Any missing package line, zero-byte source/config/migration, or misnamed Flyway
 migration is a defect. Entity/table/column hits are not automatically failures,

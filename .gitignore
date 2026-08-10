@@ -20,6 +20,7 @@ HELP.md
 
 # --- Node / web ---
 node_modules/
+.pnpm-store/
 apps/cli/dist/
 apps/web/dist/
 apps/web/.vite/
@@ -31,9 +32,13 @@ apps/docs/next-env.d.ts
 .env
 .env.*
 !.env.example
+*.env
+*.bak
+*.bak-*
 .openfga.local.properties
 
 # --- Tooling scratch / MCP output ---
+.hermes/
 .playwright-mcp/
 .playwright-cli/
 tmp/

@@ -1,0 +1,22 @@
+FROM mcr.microsoft.com/playwright@sha256:6446946a1d9fd62d9ae501312a2d76a43ee688542b21622056a372959b65d63d
+
+WORKDIR /workspace
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches patches
+COPY infrastructure/keycloak/theme-ui/package.json infrastructure/keycloak/theme-ui/package.json
+RUN corepack enable \
+    && corepack prepare pnpm@11.9.0 --activate \
+    && corepack pnpm install \
+      --frozen-lockfile \
+      --filter @orgmemory/keycloak-theme \
+      --ignore-scripts
+
+RUN install -d -m 0755 infrastructure/keycloak/theme-ui/scripts
+COPY \
+  infrastructure/keycloak/theme-ui/scripts/verify-production-login.mjs \
+  infrastructure/keycloak/theme-ui/scripts/
+RUN chmod 0444 infrastructure/keycloak/theme-ui/scripts/verify-production-login.mjs
+
+USER pwuser
+ENTRYPOINT ["node", "infrastructure/keycloak/theme-ui/scripts/verify-production-login.mjs"]

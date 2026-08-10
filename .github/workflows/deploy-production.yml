@@ -29,7 +29,10 @@ jobs:
     name: Deploy exact image set
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'workflow_run' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -41,6 +44,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: main
 
       - name: Resolve deployment commit
         id: release
@@ -102,7 +106,18 @@ jobs:
           fi
           printf 'should_deploy=true\n' >> "$GITHUB_OUTPUT"
 
+      - name: Pin trusted deployment controller
+        if: steps.validate.outputs.should_deploy == 'true'
+        id: controller
+        run: |
+          set -euo pipefail
+          controller_sha="$(git rev-parse HEAD)"
+          [[ "$controller_sha" =~ ^[0-9a-f]{40}$ ]]
+          git merge-base --is-ancestor "$controller_sha" origin/main
+          printf 'sha=%s\n' "$controller_sha" >> "$GITHUB_OUTPUT"
+
       - name: Require a green production image set
+        id: image-set
         if: steps.validate.outputs.should_deploy == 'true'
         shell: bash
         env:
@@ -135,10 +150,85 @@ jobs:
             )"
             if [[ "$release_jobs" -gt 0 ]]; then
               release_found=true
+              printf 'run_id=%s\n' "$run_id" >> "$GITHUB_OUTPUT"
               break
             fi
           done <<< "$candidate_runs"
           [[ "$release_found" == "true" ]]
+
+      - name: Download and validate immutable image manifest
+        if: steps.validate.outputs.should_deploy == 'true'
+        id: manifest
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.image-set.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          manifest_dir="$RUNNER_TEMP/production-image-set"
+          gh run download "$RUN_ID" \
+            --name "production-image-set-$COMMIT_SHA" \
+            --dir "$manifest_dir"
+          python3 - "$manifest_dir/release-images.json" "$COMMIT_SHA" "$GITHUB_OUTPUT" <<'PY'
+          import json
+          import re
+          import sys
+
+          path, expected_commit, output_path = sys.argv[1:]
+          with open(path, encoding="utf-8") as stream:
+              manifest = json.load(stream)
+          if manifest.get("commitSha") != expected_commit:
+              raise SystemExit("image manifest commit does not match deployment commit")
+          expected = {
+              "api": "api_image",
+              "worker": "worker_image",
+              "mcp": "mcp_image",
+              "web": "web_image",
+              "keycloak": "keycloak_image",
+              "postgres-rag": "postgres_image",
+          }
+          images = {entry["component"]: entry for entry in manifest.get("images", [])}
+          if set(images) != set(expected):
+              raise SystemExit(f"unexpected image manifest components: {sorted(images)}")
+          lines = []
+          for component, output_name in expected.items():
+              entry = images[component]
+              digest = entry.get("digest", "")
+              reference = entry.get("reference", "")
+              if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+                  raise SystemExit(f"invalid digest for {component}")
+              repository = reference.split(":sha-", 1)[0]
+              wanted_repository = f"ghcr.io/kl3init/orgmemory-{component}"
+              if repository != wanted_repository:
+                  raise SystemExit(f"invalid repository for {component}")
+              lines.append(f"{output_name}={repository}@{digest}")
+          with open(output_path, "a", encoding="utf-8") as stream:
+              stream.write("\n".join(lines) + "\n")
+          PY
+
+      - name: Resolve target login theme
+        if: steps.validate.outputs.should_deploy == 'true'
+        id: target
+        env:
+          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          target_theme="$(
+            git show "$COMMIT_SHA:infrastructure/keycloak/orgmemory-realm.prod.json" \
+              | python3 -c 'import json,sys; print(json.load(sys.stdin).get("loginTheme") or "keycloak")'
+          )"
+          [[ "$target_theme" == "keycloak" || "$target_theme" == "orgmemory-shadcn" ]]
+          printf 'login_theme=%s\n' "$target_theme" >> "$GITHUB_OUTPUT"
+
+      - name: Build credential-isolated rendered login verifier
+        if: steps.validate.outputs.should_deploy == 'true'
+        run: |
+          set -euo pipefail
+          docker build \
+            --file infrastructure/keycloak/theme-ui/Dockerfile.production-smoke \
+            --tag orgmemory-production-login-verifier:candidate \
+            .
 
       - name: Configure SSH
         if: steps.validate.outputs.should_deploy == 'true'
@@ -159,61 +249,323 @@ jobs:
         shell: bash
         env:
           COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
+          CONTROLLER_SHA: ${{ steps.controller.outputs.sha }}
+          API_IMAGE: ${{ steps.manifest.outputs.api_image }}
+          GATE_DIRECTORY: /tmp/orgmemory-deploy-gate.${{ github.run_id }}.${{ github.run_attempt }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEYCLOAK_IMAGE: ${{ steps.manifest.outputs.keycloak_image }}
+          MCP_IMAGE: ${{ steps.manifest.outputs.mcp_image }}
+          POSTGRES_IMAGE: ${{ steps.manifest.outputs.postgres_image }}
           SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
           SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
           SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          TARGET_LOGIN_THEME: ${{ steps.target.outputs.login_theme }}
+          WEB_IMAGE: ${{ steps.manifest.outputs.web_image }}
+          WORKER_IMAGE: ${{ steps.manifest.outputs.worker_image }}
         run: |
           set -euo pipefail
+          state_directory="/tmp/orgmemory-deploy-state.${{ github.run_id }}.${{ github.run_attempt }}"
+          deploy_root="/tmp/orgmemory-deploy.${{ github.run_id }}.${{ github.run_attempt }}"
+          deploy_checkout="$deploy_root/repo"
+          remote_log="$state_directory/deploy.log"
+          remote_status="$state_directory/status"
+          launch_environment="$RUNNER_TEMP/production-deploy.env"
+          deploy_log="$RUNNER_TEMP/production-deploy.log"
+          ssh_args=(
+            -o BatchMode=yes
+            -o ConnectTimeout=10
+            -o ConnectionAttempts=1
+            -p "${SSH_PORT:-22}"
+            "$SSH_USER@$SSH_HOST"
+          )
+          scp_args=(
+            -o BatchMode=yes
+            -o ConnectTimeout=10
+            -o ConnectionAttempts=1
+            -P "${SSH_PORT:-22}"
+          )
+          deployment_active=false
+          remote_prepared=false
+          # shellcheck disable=SC2317,SC2329  # Invoked by the EXIT trap below.
+          cleanup_deployment() {
+            local exit_code="$?"
+            trap - EXIT
+            trap '' HUP INT TERM
+            set +e
+            if [[ "$deployment_active" == "true" ]]; then
+              # The detached remote watchdog remains authoritative if this runner
+              # disappears. This best-effort marker only accelerates rejection.
+              # shellcheck disable=SC2029
+              ssh "${ssh_args[@]}" \
+                "touch '$state_directory.cleanup-requested'
+                 if [[ -d '$GATE_DIRECTORY' ]]; then
+                   ln -s rejected '$GATE_DIRECTORY/decision' 2>/dev/null || true
+                 else
+                   touch '$GATE_DIRECTORY.rejected'
+                 fi" || true
+            elif [[ "$remote_prepared" == "true" ]]; then
+              # An external cleanup request is outside the deletion namespace;
+              # redundant detached reconcilers arbitrate it with the controller lease.
+              # shellcheck disable=SC2029
+              ssh "${ssh_args[@]}" \
+                "touch '$state_directory.cleanup-requested'
+                 if [[ -d '$GATE_DIRECTORY' ]]; then
+                   ln -s rejected '$GATE_DIRECTORY/decision' 2>/dev/null || true
+                 else
+                   touch '$GATE_DIRECTORY.rejected'
+                 fi" || true
+            fi
+            rm -f -- "$launch_environment" ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+            exit "$exit_code"
+          }
+          trap cleanup_deployment EXIT
+          trap 'exit 129' HUP
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+
+          {
+            printf '%s=%q\n' COMMIT_SHA "$COMMIT_SHA"
+            printf '%s=%q\n' DEPLOY_INTERVENTION_LATCH /apps/orgmemory-runtime/deployment-intervention-required
+            printf '%s=%q\n' DEPLOY_KILL_AFTER_SECONDS 900
+            printf '%s=%q\n' DEPLOY_TIMEOUT_SECONDS 1800
+            printf '%s=%q\n' DOCKER_CONFIG "$state_directory/docker-config"
+            printf '%s=%q\n' ORGMEMORY_REPO_ROOT "$deploy_checkout"
+            printf '%s=%q\n' TRUSTED_DEPLOY_SCRIPT "$state_directory/deploy.sh"
+            printf '%s=%q\n' ORGMEMORY_KEYCLOAK_CONFIGURATION_SCRIPT "$state_directory/configure-keycloak-mcp.sh"
+            printf '%s=%q\n' ORGMEMORY_KEYCLOAK_THEME_CONFIGURATION_SCRIPT "$state_directory/configure-keycloak-mcp.sh"
+            printf '%s=%q\n' ORGMEMORY_TEAM_DEV_COORDINATION_SCRIPT "$state_directory/team-dev-coordination.sh"
+            printf '%s=%q\n' ORGMEMORY_SMOKE_SCRIPT "$state_directory/smoke-production.sh"
+            printf '%s=%q\n' ORGMEMORY_EXTERNAL_GATE_DIRECTORY "$GATE_DIRECTORY"
+            printf '%s=%q\n' ORGMEMORY_KEYCLOAK_LOGIN_THEME "$TARGET_LOGIN_THEME"
+            printf '%s=%q\n' ORGMEMORY_RELEASE_API_IMAGE "$API_IMAGE"
+            printf '%s=%q\n' ORGMEMORY_RELEASE_WORKER_IMAGE "$WORKER_IMAGE"
+            printf '%s=%q\n' ORGMEMORY_RELEASE_MCP_IMAGE "$MCP_IMAGE"
+            printf '%s=%q\n' ORGMEMORY_RELEASE_WEB_IMAGE "$WEB_IMAGE"
+            printf '%s=%q\n' ORGMEMORY_RELEASE_KEYCLOAK_IMAGE "$KEYCLOAK_IMAGE"
+            printf '%s=%q\n' ORGMEMORY_RELEASE_POSTGRES_IMAGE "$POSTGRES_IMAGE"
+          } >"$launch_environment"
+          chmod 0600 "$launch_environment"
+
+          # shellcheck disable=SC2029
+          ssh "${ssh_args[@]}" \
+            "set -euo pipefail
+             if [[ -e /apps/orgmemory-runtime/deployment-intervention-required ]]; then
+               printf '%s\n' 'Production deployment is latched for operator intervention.' >&2
+               exit 78
+             fi
+             umask 077
+             mkdir --mode=0700 '$state_directory'
+             printf '%s\n' '$deploy_checkout' >'$state_directory/deploy-checkout'
+             chmod 0600 '$state_directory/deploy-checkout'"
+          remote_prepared=true
+          scp "${scp_args[@]}" \
+            "$launch_environment" \
+            "$SSH_USER@$SSH_HOST:$state_directory/launch.env"
+
+          # Prepare and launch in one remote shell: before setsid succeeds, EXIT
+          # cleanup removes the short-lived registry credential directory. Once
+          # launched, the remote timeout owns rollback independently of this runner.
+          # shellcheck disable=SC2029
           printf '%s\n' "$GHCR_TOKEN" |
-            ssh \
-              -o BatchMode=yes \
-              -o ConnectTimeout=10 \
-              -o ConnectionAttempts=1 \
-              -p "${SSH_PORT:-22}" \
-              "$SSH_USER@$SSH_HOST" \
+            ssh "${ssh_args[@]}" \
               "set -Eeuo pipefail
-             docker_config=\$(mktemp -d /tmp/orgmemory-docker.XXXXXX)
-             deploy_root=\$(mktemp -d /tmp/orgmemory-deploy.XXXXXX)
-             deploy_checkout=\$deploy_root/repo
-             cleanup() {
-               if git -C /apps/orgmemory worktree list --porcelain |
-                    grep -Fxq \"worktree \$deploy_checkout\"; then
-                 git -C /apps/orgmemory worktree remove --force \
-                   \"\$deploy_checkout\"
+             umask 077
+             launch_confirmed=false
+             reconcilers_started=false
+             cleanup_on_error() {
+               if [[ \"\$launch_confirmed\" != true ]]; then
+                 cleanup_failed=false
+                 touch '$state_directory.cleanup-requested' || cleanup_failed=true
+                 if [[ \"\$reconcilers_started\" != true ]]; then
+                   cleanup_tombstone='$state_directory.cleanup.prelaunch.\$BASHPID.\$RANDOM'
+                   if mv -T -- '$state_directory' \"\$cleanup_tombstone\" 2>/dev/null; then
+                     rm -rf -- \"\$cleanup_tombstone\" || cleanup_failed=true
+                   elif [[ -e '$state_directory' ]]; then
+                     cleanup_failed=true
+                   fi
+                   rm -rf -- '$deploy_root' || cleanup_failed=true
+                   rm -rf -- '$GATE_DIRECTORY' || cleanup_failed=true
+                   rm -f -- '$state_directory.cleanup-requested' || cleanup_failed=true
+                 fi
+                 if [[ \"\$cleanup_failed\" == true ]]; then
+                   intervention_temp='/apps/orgmemory-runtime/deployment-intervention-required.prelaunch.\$BASHPID'
+                   printf '%s\n' 'pre-reconciler-cleanup-failed' >\"\$intervention_temp\"
+                   chmod 0600 \"\$intervention_temp\"
+                   mv -T -- \"\$intervention_temp\" \
+                     /apps/orgmemory-runtime/deployment-intervention-required
+                 fi
                fi
-               case \"\$docker_config\" in
-                 /tmp/orgmemory-docker.*)
-                   rm -rf -- \"\$docker_config\"
-                   ;;
-                 *)
-                   printf 'Refusing unsafe Docker config cleanup: %s\n' \
-                     \"\$docker_config\" >&2
-                   return 1
-                   ;;
-               esac
-               case \"\$deploy_root\" in
-                 /tmp/orgmemory-deploy.*)
-                   rm -rf -- \"\$deploy_root\"
-                   ;;
-                 *)
-                   printf 'Refusing unsafe deployment checkout cleanup: %s\n' \
-                     \"\$deploy_root\" >&2
-                   return 1
-                   ;;
-               esac
              }
-             trap cleanup EXIT
-             export DOCKER_CONFIG=\"\$docker_config\"
+             trap cleanup_on_error EXIT
+             cd /apps/orgmemory
+             git fetch --no-tags origin main
+             git cat-file -e '$CONTROLLER_SHA^{commit}'
+             git cat-file -e '$COMMIT_SHA^{commit}'
+             git show '$CONTROLLER_SHA:infrastructure/deployment/scripts/deploy.sh' > '$state_directory/deploy.sh'
+             git show '$CONTROLLER_SHA:infrastructure/deployment/scripts/configure-keycloak-mcp.sh' > '$state_directory/configure-keycloak-mcp.sh'
+             git show '$CONTROLLER_SHA:infrastructure/deployment/scripts/smoke-production.sh' > '$state_directory/smoke-production.sh'
+             git show '$CONTROLLER_SHA:infrastructure/deployment/scripts/team-dev-coordination.sh' > '$state_directory/team-dev-coordination.sh'
+             git show '$CONTROLLER_SHA:infrastructure/deployment/scripts/run-detached-deploy.sh' > '$state_directory/run-detached-deploy.sh'
+             git show '$CONTROLLER_SHA:infrastructure/deployment/scripts/reconcile-detached-launch.sh' > '$state_directory/reconcile-detached-launch.sh'
+             git show '$CONTROLLER_SHA:infrastructure/deployment/scripts/signal-qualified-process.py' > '$state_directory/signal-qualified-process.py'
+             git show '$CONTROLLER_SHA:infrastructure/deployment/scripts/verify-detached-controller.sh' > '$state_directory/verify-detached-controller.sh'
+             chmod 0700 '$state_directory'/*.sh '$state_directory/signal-qualified-process.py'
+             chmod 0600 '$state_directory/launch.env'
+             # Redundant independent reconcilers start before registry login. They
+             # supervise one another's tombstones and the inherited controller lease.
+             rm -f -- '$state_directory/reconciler-ready.1' \
+               '$state_directory/reconciler-ready.2'
+             for reconciler_id in 1 2; do
+               ORGMEMORY_RECONCILER_READY_MARKER='$state_directory/reconciler-ready.'\"\$reconciler_id\" \
+                 setsid -f \
+                   '$state_directory/reconcile-detached-launch.sh' \
+                   '$state_directory' '$GATE_DIRECTORY' 600 \
+                   /apps/orgmemory-runtime/deployment-intervention-required 3000 \
+                   </dev/null >/dev/null 2>&1
+             done
+             reconcilers_ready=false
+             for _ in {1..100}; do
+               markers_ready=true
+               for marker in '$state_directory/reconciler-ready.1' \
+                 '$state_directory/reconciler-ready.2'; do
+                 pid=
+                 starttime=
+                 extra=
+                 observed=
+                 if [[ \"\$(stat -c '%a' \"\$marker\" 2>/dev/null || true)\" != 600 ]] ||
+                   ! IFS=' ' read -r pid starttime extra <\"\$marker\" ||
+                   [[ -n \"\$extra\" || ! \"\$pid\" =~ ^[1-9][0-9]*\$ ||
+                     ! \"\$starttime\" =~ ^[1-9][0-9]*\$ ]] ||
+                   [[ ! -r \"/proc/\$pid/stat\" ]]; then
+                   markers_ready=false
+                   break
+                 fi
+                 observed=\"\$(cut -d ' ' -f 22 \"/proc/\$pid/stat\" 2>/dev/null || true)\"
+                 if [[ \"\$observed\" != \"\$starttime\" ]]; then
+                   markers_ready=false
+                   break
+                 fi
+               done
+               if [[ \"\$markers_ready\" == true ]]; then
+                 reconcilers_ready=true
+                 break
+               fi
+               sleep 0.1
+             done
+             [[ \"\$reconcilers_ready\" == true ]]
+             reconcilers_started=true
+             exec 198>'$state_directory/ownership.lease'
+             flock -n 198
+             timeout --signal=TERM --kill-after=10s 120s git worktree prune
+             timeout --signal=TERM --kill-after=10s 300s \
+               git worktree add --detach '$deploy_checkout' '$COMMIT_SHA'
+             [[ \"\$(timeout --signal=TERM --kill-after=10s 60s \
+               git -C '$deploy_checkout' rev-parse HEAD)\" == '$COMMIT_SHA' ]]
+             timeout --signal=TERM --kill-after=10s 60s \
+               git -C '$deploy_checkout' diff-index --quiet '$COMMIT_SHA' --
+             timeout --signal=TERM --kill-after=10s 60s \
+               git -C '$deploy_checkout' diff-files --quiet
+             [[ -z \"\$(timeout --signal=TERM --kill-after=10s 60s \
+               git -C '$deploy_checkout' ls-files --others --exclude-standard)\" ]]
+             mkdir --mode=0700 '$state_directory/docker-config'
+             export DOCKER_CONFIG='$state_directory/docker-config'
              IFS= read -r ghcr_token
              printf '%s' \"\$ghcr_token\" |
-               docker login ghcr.io \
+               timeout --signal=TERM --kill-after=10s 120s \
+                 docker login ghcr.io \
                  --username '${{ github.actor }}' \
                  --password-stdin
              unset ghcr_token
-             git -C /apps/orgmemory fetch --no-tags origin '$COMMIT_SHA'
-             git -C /apps/orgmemory worktree add --detach \
-               \"\$deploy_checkout\" '$COMMIT_SHA'
-             ORGMEMORY_ENV_FILE=/apps/orgmemory/.env.production \
-               \"\$deploy_checkout/infrastructure/deployment/scripts/deploy.sh\" \
-               '$COMMIT_SHA'"
+             if ! setsid -f \
+               '$state_directory/run-detached-deploy.sh' '$state_directory' \
+               </dev/null >>'$state_directory/deploy.log' 2>&1; then
+               rm -f -- '$state_directory/launch-acknowledged'
+               exit 1
+             fi
+             for _ in {1..100}; do
+               [[ -f '$state_directory/controller-started' ]] && break
+               [[ -f '$state_directory/status' ]] && break
+               sleep 0.1
+             done
+             '$state_directory/verify-detached-controller.sh' '$state_directory'
+             touch '$state_directory/launch-acknowledged'
+             launch_confirmed=true
+             trap - EXIT"
+          deployment_active=true
+
+          gate_ready=false
+          while [[ "$gate_ready" != "true" ]]; do
+            # shellcheck disable=SC2029
+            if ssh "${ssh_args[@]}" test -f "$GATE_DIRECTORY/ready"; then
+              gate_ready=true
+              break
+            fi
+            # shellcheck disable=SC2029
+            if ssh "${ssh_args[@]}" test -f "$remote_status"; then
+              # shellcheck disable=SC2029
+              scp "${scp_args[@]}" \
+                "$SSH_USER@$SSH_HOST:$remote_log" "$deploy_log"
+              # shellcheck disable=SC2029
+              deploy_status="$(ssh "${ssh_args[@]}" cat "$remote_status")"
+              [[ "$deploy_status" =~ ^[0-9]{1,3}$ && "$deploy_status" -le 255 ]]
+              deployment_active=false
+              cat "$deploy_log"
+              exit "$deploy_status"
+            fi
+            sleep 1
+          done
+
+          browser_status=0
+          docker run --rm \
+            --cap-drop=ALL \
+            --read-only \
+            --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,nosuid,nodev,size=256m \
+            orgmemory-production-login-verifier:candidate \
+            "$TARGET_LOGIN_THEME" || browser_status=$?
+          if [[ "$browser_status" -eq 0 ]]; then
+            gate_decision=approved
+          else
+            gate_decision=rejected
+          fi
+          # shellcheck disable=SC2029
+          ssh "${ssh_args[@]}" \
+            "ln -s '$gate_decision' '$GATE_DIRECTORY/decision'"
+
+          # The remote status is written only after commit or completed rollback.
+          until ssh "${ssh_args[@]}" test -f "$remote_status"; do
+            sleep 1
+          done
+          # shellcheck disable=SC2029
+          scp "${scp_args[@]}" \
+            "$SSH_USER@$SSH_HOST:$remote_log" "$deploy_log"
+          # shellcheck disable=SC2029
+          deploy_status="$(ssh "${ssh_args[@]}" cat "$remote_status")"
+          [[ "$deploy_status" =~ ^[0-9]{1,3}$ && "$deploy_status" -le 255 ]]
+          deployment_active=false
+          cat "$deploy_log"
+          # Ask a reconciler to acquire the transaction lease and perform terminal
+          # worktree/state cleanup. The reconciler also self-cleans after its bounded
+          # terminal grace period if this runner is killed before creating the request.
+          # shellcheck disable=SC2029
+          ssh "${ssh_args[@]}" touch "$state_directory.cleanup-requested"
+          cleanup_complete=false
+          for _ in {1..120}; do
+            # shellcheck disable=SC2029
+            if ssh "${ssh_args[@]}" \
+              "[[ ! -e '$state_directory' && ! -e '$deploy_root' && ! -e '$GATE_DIRECTORY' && ! -e '$state_directory.cleanup-requested' ]] || exit 1
+               if git -C /apps/orgmemory worktree list --porcelain |
+                    grep -Fxq 'worktree $deploy_checkout'; then
+                 exit 1
+               fi"; then
+              cleanup_complete=true
+              break
+            fi
+            sleep 1
+          done
+          [[ "$cleanup_complete" == true ]]
+          remote_prepared=false
+          if [[ "$browser_status" -ne 0 ]]; then
+            exit "$browser_status"
+          fi
+          exit "$deploy_status"

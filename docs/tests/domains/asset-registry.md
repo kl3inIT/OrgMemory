@@ -14,7 +14,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets/**/*.test.ts`,
 `apps/web/test/e2e/asset-registry-golden-poc.spec.ts`.
 
-Reconciled: `2026-08-10-asset-library-sharing-lifecycle (03993bca)`.
+Reconciled: `2026-08-10-asset-catalog-visual-refinement (82f01cab)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -88,7 +88,7 @@ Reconciled: `2026-08-10-asset-library-sharing-lifecycle (03993bca)`.
 | Asset catalog total, filtering, stable name sorting, and pages are evaluated over the authorized latest-release set | `AssetRegistryIntegrationTests#catalogPagesAndSortsTheLatestAuthorizedReleasesOnTheServer` | covered |
 | The owned-Asset workspace includes Drafts, requires an active direct `OWNER` assignment, intersects ownership with live `can_view`, and remains server-paged | `AssetRegistryServiceTests#ownedWorkspaceResolvesVisibilityAndCanonicalOwnerAssignments`, `AssetRegistryIntegrationTests#ownedWorkspaceIncludesDraftsAndUsesOnlyActiveOwnerAssignments` | covered |
 | Asset type projection exposes every governed profile, reports the active filter, clears to the shared catalog, and preserves the grid-default URL plus explicit list state | `asset-type-filter.test.tsx`, `asset-catalog-state.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
-| The Assets page keeps search and `Available to me | Created by me` as its primary navigation, shows owner/sharing state and per-user Skill activation, and encodes only the non-default owned scope in the URL | `asset-catalog-state.test.ts`, `governance-policy.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
+| The Assets page keeps search and `Available to me | Created by me` as its primary navigation, renders single-target grid cards without coordinates or owner identifiers, resolves permitted human owner names, shows sharing state and subordinate per-user Skill activation, and encodes only the non-default owned scope in the URL | `asset-catalog-state.test.ts`, `governance-policy.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
 | Shared collection pagination hides a one-page collection and emits server page changes with an accessible current page | `collection-pagination.test.tsx` | covered |
 | The Asset catalog exposes one category-aware Add asset menu, keeps unsupported profiles non-interactive, and routes Skill into a creation-only surface rather than a second catalog | `asset-registry-golden-poc.spec.ts#asset catalog defaults to a grid and keeps list state in the URL` | covered |
 | Browser Skill Scratch and Upload require fresh server inspection, invalidate stale scratch previews, preflight package/namespace input, load live authorized Space targets, retain same-origin multipart CSRF protection, create a private Draft through the canonical endpoint, report public server rejection details without leaving the form, and navigate success to Governance | `api-error.test.ts`, `skill-upload-validation.test.ts`, `skill-package-browser.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="OrgMemory">
+  <rect width="32" height="32" rx="9" fill="#17181b"/>
+  <path d="M9 10.25h8.25a5.75 5.75 0 0 1 0 11.5H9v-3.5h8.25a2.25 2.25 0 0 0 0-4.5H9v-3.5Z" fill="#fff"/>
+  <circle cx="22.25" cy="9.75" r="2.25" fill="#5b8def"/>
+</svg>

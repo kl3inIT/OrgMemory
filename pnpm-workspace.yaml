@@ -2,10 +2,34 @@ packages:
   - apps/cli
   - apps/web
   - apps/docs
+  - infrastructure/keycloak/theme-ui
 
 allowBuilds:
   esbuild: true
   sharp: true
+
+# Keep incompatible React type majors local to each workspace package. Without
+# this exclusion, pnpm's semi-strict virtual-store hoist can expose the login
+# theme's React 18 declarations to the React 19 web application.
+hoistPattern:
+  - '*'
+  - '!@types/react'
+  - '!@types/react-dom'
+
+# These libraries import React declarations without declaring the matching type
+# peer. Make pnpm resolve that peer from each consuming workspace instead of a
+# different React major from the shared virtual store.
+packageExtensions:
+  '@tanstack/react-query@5.101.4':
+    peerDependencies:
+      '@types/react': '*'
+  'next-themes@0.4.6':
+    peerDependencies:
+      '@types/react': '*'
+      '@types/react-dom': '*'
+  'react-error-boundary@6.1.2':
+    peerDependencies:
+      '@types/react': '*'
 
 minimumReleaseAgeExclude:
   - '@radix-ui/primitive@1.1.6'

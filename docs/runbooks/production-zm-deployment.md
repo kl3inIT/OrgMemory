@@ -141,19 +141,26 @@ The normal path is fully chained:
 
 1. a pull request merges to `main`;
 2. `CI` verifies that exact merge commit;
-3. `Build production images` publishes or carries forward the complete
-   immutable image set;
-4. `Deploy production` deploys that SHA automatically.
+3. `Build production images` publishes or carries forward the complete image
+   set and records each registry digest in a release manifest;
+4. `Deploy production` downloads that manifest and deploys the digest-pinned
+   image set for the SHA automatically.
 
 The deploy workflow ignores a completed image build when its SHA is no longer
 the current `main`, preventing a slower old build from rolling production back
 after a newer merge. Deployments remain single-flight.
 
-The workflow checks out the exact commit on the server and runs:
-
-```bash
-./infrastructure/deployment/scripts/deploy.sh <full-commit-sha>
-```
+The workflow pins the deployment-controller SHA from its trusted `main` checkout,
+creates a clean linked worktree at the exact target commit as release data, rejects
+any tracked or untracked worktree drift, and runs deployment, Keycloak, smoke, and
+coordination executables from that immutable controller SHA with the validated
+digest manifest. It never detaches or mutates the operator checkout. Terminal and
+reconciled cleanup remove both the linked-worktree registration and its private
+`/tmp/orgmemory-deploy.*` root before deleting state. This keeps intentional
+rollback compatible with newer realm-migration safety logic without allowing
+`main` to change the controller mid-run. Production operators must use the
+workflow; calling `deploy.sh` without all six manifest-derived digest variables
+fails closed.
 
 The workflow executes that script from an ephemeral clean linked worktree and
 points it at `/apps/orgmemory/.env.production`. It does not checkout, reset, or
@@ -162,7 +169,9 @@ work there cannot replace files from the released commit.
 
 Use the manual `workflow_dispatch` input only for an intentional redeploy or
 rollback. Manual commits must still be ancestors of `main` with a successful
-`Build production images` run.
+`Build production images` run whose digest manifest artifact is available. The
+workflow retains those artifacts for 30 days; an older target must first have
+its image build safely rerun to recreate a manifest.
 
 The production route defaults approved by the 2026-08-02 bounded evaluation
 are:
@@ -181,7 +190,9 @@ View and Delete only.
 The deployment:
 
 1. acquires a host lock;
-2. replaces only immutable image references in `.env.production`;
+2. inspects each existing Compose service container, proves its local image has
+   exactly one matching registry digest, and snapshots those six actual running
+   digests; an existing digest-pinned environment must match the containers;
 3. validates Compose without printing resolved secrets;
 4. pulls the complete image set before mutation;
 5. idempotently checks database roles/databases;
@@ -190,9 +201,87 @@ The deployment:
 8. when the repository authorization-model digest changed or the legacy digest
    is absent, writes a new immutable model into the existing store and
    atomically pins its ID before application recreation;
-9. starts the private runtime;
-10. checks web, API, MCP, Keycloak, and optionally the public endpoints;
-11. restores the previous image references and model pin when a gate fails.
+9. pulls the candidate Keycloak image and proves it can render the previous
+   login theme before any theme change, then reconciles a rollback target's stock
+   theme before replacing the image;
+10. starts the private runtime, verifies all six service containers use the
+    manifest digests, and reconciles the target realm configuration;
+11. checks web, API, MCP, Keycloak, the expected authorization theme bootstrap
+    and its JavaScript/CSS assets, and optionally the other public endpoints;
+12. restores and verifies the previous realm theme before restoring the previous
+    digest-pinned image references and model pin when a gate fails, then verifies
+    all six restored container digests. If realm
+    restoration fails, rollback stops before starting a potentially incompatible
+    previous Keycloak image and leaves the candidate environment for recovery;
+13. while the deployment transaction and rollback trap remain active, executes the
+    public login renderer in a read-only, capability-dropped Playwright container
+    that receives no SSH or registry credentials. It rejects stock-theme fallback,
+    incomplete or unsafe forms, failed or unapplied assets, unloaded fonts,
+    console errors, external requests (blocked before dispatch), and horizontal
+    overflow. An atomic first-writer decision symlink prevents approval/rejection
+    races. The controller runs detached on the production host with remote-only
+    logs and an 1800-second watchdog, plus a 900-second hard kill grace so a
+    signal-ignoring child cannot retain registry credentials or suppress terminal
+    status forever. An atomic first-writer ownership symlink lets either cleanup
+    or a PID/start-time-qualified controller claim state, so no check/delete race
+    can erase a live transaction. Cleanup atomically renames claimed state to a
+    private tombstone before recursive deletion; the ownership object therefore
+    never disappears while its original directory remains claimable. The
+    finalizer derives ownership from that durable claim rather than an in-memory
+    flag; HUP/INT/TERM are trapped before the claim. A reserved high-numbered
+    `flock` lease is acquired by the launcher only after both detached reconcilers
+    publish unique child-owned PID/start-time readiness markers. The launcher
+    validates each live identity within a bounded interval before linked-worktree
+    creation or registry login; a detached-fork exec failure therefore remains a
+    pre-reconciler cleanup failure. Remote preparation runs in strict mode and
+    exclusively creates a private, deployment-user-owned state directory. If
+    deployment terminates before the active-controller handshake completes, the
+    launcher accepts its atomic regular-file terminal status only after validating
+    state/marker ownership and modes, rejecting symlinks and any status bytes beyond
+    the canonical decimal line, checking the status range and qualified owner identity,
+    and proving registry credential removal with no residual credential symlink. A
+    status appearing while the ACTIVE lease is still held is fully validated rather
+    than bypassed; if ACTIVE identity or lease validation observes a concurrent
+    controller exit, the verifier also revalidates the terminal state published
+    before lease release. The
+    reconcilers close any inherited FD 198
+    defensively; the controller and deploy
+    subprocess tree inherit the launcher lease, which is never rebound by the
+    deployment lock FD. A reconciler can therefore prove the whole controller tree
+    is gone rather than trusting PID liveness or `controller-started` alone. Any
+    bounded pre-ACTIVE signal is sent through a Linux pidfd after validating the
+    process start time, preventing PID-reuse kills. Registry login has its own
+    TERM/KILL timeout, so an ownerless credential process cannot hold the lease
+    indefinitely. Two redundant reconcilers remain active through terminal cleanup,
+    recover each other's interrupted tombstones, and process an external
+    `cleanup-requested` marker outside the deletion namespace. After the workflow
+    reads terminal status it requests lease-qualified cleanup and waits for linked
+    worktree, state, and gate removal. If the runner is hard-killed before that
+    request, the reconcilers perform the same cleanup after a bounded terminal
+    grace period. ACTIVE
+    requests first reject the gate, then consume terminal state only after the
+    inherited lease is released and registry credentials are absent. Cleanup
+    command failures never publish terminal success and remain recoverable by the
+    peer reconciler. The controller finalizer likewise withholds terminal status
+    and records intervention if credential deletion or atomic status publication
+    fails. If the lease disappears after ACTIVE without terminal status,
+    they remove credentials, persist operator intervention, and publish status
+    `137` for the waiting workflow. Before ACTIVE, they only reclaim a dead owner
+    (or terminate a controller that exceeds the bounded launch window). Launch
+    acknowledgement
+    is published only after the finalized controller owns state; an independent
+    remote reconciler claims cleanup for an orphaned launch even if the runner
+    disappears. Only explicit approval records the new current commit;
+    rejection, durable pre-gate cancellation, HUP/INT/TERM (including repeated
+    signals), gate timeout, or the controller's soft timeout enters rollback. If
+    rollback itself exceeds the hard-kill grace, the controller publishes terminal
+    failure, removes registry credentials, writes the persistent
+    `/apps/orgmemory-runtime/deployment-intervention-required` latch, and blocks
+    every later deployment until an operator verifies or completes rollback and
+    deliberately clears the latch; it never reports the release committed.
+    Successful rollback waits for Compose health, reruns production smoke with the
+    previous login theme, rechecks all six immutable artifacts (including successful
+    completion of the PostgreSQL one-shot), and only then restores `current-commit`.
 
 `ORGMEMORY_BACKUP_UID` and `ORGMEMORY_BACKUP_GID` must match the owner of
 `ORGMEMORY_BACKUP_DIRECTORY`. The one-shot backup container drops all Linux
