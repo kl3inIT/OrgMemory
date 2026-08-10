@@ -91,7 +91,7 @@
 - [x] Reconcile the Knowledge domain spec and its test matrix, refresh
   `Source:`/`Reconciled:`, and record the ingestion-coverage decision with its
   rejected alternative.
-- [ ] Run `:core:test`, `:components:graph-rag-core:test`, `:apps:worker:test`,
+- [x] Run `:core:test`, `:components:graph-rag-core:test`, `:apps:worker:test`,
   `:apps:api:test`, web lint, typecheck, unit tests, production build, and
   browser verification of uploading one spreadsheet and one HTML export.
 
