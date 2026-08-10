@@ -215,6 +215,11 @@ if (!productionDeploy.includes("Verify immutable image set")) {
 if (!productionDeploy.includes("worktree add --detach")) {
   failures.push("deploy-production.yml must deploy from a clean linked worktree");
 }
+if (!productionDeploy.includes("printf '%s=%q\\n' ORGMEMORY_ENV_FILE /apps/orgmemory/.env.production")) {
+  failures.push(
+    "deploy-production.yml must bind the private linked worktree to the host production environment file",
+  );
+}
 if (productionDeploy.includes("git checkout --detach '$COMMIT_SHA'")) {
   failures.push("deploy-production.yml must not mutate the operator checkout");
 }
@@ -269,6 +274,14 @@ const qualifiedSignalHelper = await readFile(
   join(root, "infrastructure", "deployment", "scripts", "signal-qualified-process.py"),
   "utf8",
 );
+if (
+  !detachedDeployController.includes("  ORGMEMORY_ENV_FILE\n") ||
+  !detachedDeployController.includes('ORGMEMORY_ENV_FILE="$ORGMEMORY_ENV_FILE"')
+) {
+  failures.push(
+    "detached deployment controller must validate and propagate the host production environment file",
+  );
+}
 for (const finalizerCleanupContract of [
   'if ! rm -rf -- "$state_directory/docker-config"',
   "record_intervention credential-cleanup-failed",

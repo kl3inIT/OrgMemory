@@ -325,6 +325,7 @@ jobs:
 
           {
             printf '%s=%q\n' COMMIT_SHA "$COMMIT_SHA"
+            printf '%s=%q\n' ORGMEMORY_ENV_FILE /apps/orgmemory/.env.production
             printf '%s=%q\n' DEPLOY_INTERVENTION_LATCH /apps/orgmemory-runtime/deployment-intervention-required
             printf '%s=%q\n' DEPLOY_KILL_AFTER_SECONDS 900
             printf '%s=%q\n' DEPLOY_TIMEOUT_SECONDS 1800
