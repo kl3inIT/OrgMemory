@@ -6,10 +6,12 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/web/src/features/sources`, `apps/web/test/e2e`,
 `apps/worker/src/test/java/com/orgmemory/worker/ingestion`,
 `apps/worker/src/test/java/com/orgmemory/worker/connector`,
+`components/graph-rag-core/src/test/java/com/orgmemory/graphrag/parsing`,
 `components/graph-rag-core/src/test/java/com/orgmemory/graphrag/chunking`, and
+`integrations/document-parsing-spring-ai/src/test`,
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-08-10-structured-block-v1 (3db08fb2)`.
+Reconciled: `2026-08-10-ingestion-coverage (c0c12728)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -32,7 +34,8 @@ Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIng
 Evidence classes: `RequestedProcessingPolicyTests`,
 `DocumentProcessingEngineTests`, `SourceIngestionJobProcessingProfileTests`,
 `SourceProcessingProfileMigrationTests`, `SourceIngestionPipelineIntegrationTests`, `TypedBlockParsingTests`,
-`PdfPageProvenanceTests`, and `ParagraphSemanticChunkerTests`.
+`PdfPageProvenanceTests`, `ParagraphSemanticChunkerTests`,
+`SupportedFormatParsingTests`, and `XhtmlBlockHandlerTests`.
 
 | Behavior | Automated evidence |
 | --- | --- |
@@ -46,9 +49,24 @@ Evidence classes: `RequestedProcessingPolicyTests`,
 | PostgreSQL migration stores requested/resolved snapshots, requires a complete profile on READY, and publication retry keeps both profile hashes unchanged | `sourceUploadFlowsThroughValidationParsingChunkingEmbeddingAndReady`, `keepsPublicationPendingWhenAuthorizationProjectionIsUnavailable` |
 | V29-to-V30 preserves a historical READY revision without manufacturing a profile while the new unvalidated constraint rejects a new READY row without one | `SourceProcessingProfileMigrationTests.preservesLegacyReadyIdentityWhileEnforcingProfilesForNewReadyRows` |
 | V30 refuses migration while a legacy ingestion job is PENDING instead of guessing the new deployment's policy | `SourceProcessingProfileMigrationTests.refusesToGuessAPolicyForLegacyNonterminalJobs` |
+| The reusable parser advertises all sixteen admitted suffixes and parses CSV, Office, OpenDocument, HTML/HTM, RTF, text, Markdown, and PDF through real format fixtures | `SupportedFormatParsingTests`, `TypedBlockParsingTests`, `PdfPageProvenanceTests` |
+| A genuine Microsoft Word Heading 1 survives as a typed `HEADING`; spreadsheets become tables; HTML navigation, script, and style are removed | `preservesAHeadingAuthoredByMicrosoftWordAsATypedBlock`, `parsesNewOfficeAndOpenDocumentFormatsEndToEnd`, `removesHtmlNavigationScriptAndStyleBeforeCreatingEvidence` |
+| CSV handles UTF-8 BOM, delimiter sniffing, quoted newlines, and escaped quotes while preserving one table | `SupportedFormatParsingTests.readsBomSemicolonCsvWithQuotedNewlinesAsOneTypedTable` plus the CSV cases in `TypedBlockParsingTests` |
+| Generic archives and renamed container/media mismatches fail closed, while bounded OOXML and OpenDocument containers remain admissible | `refusesDeclaredArchivesButStillAcceptsZipBasedOfficeAndOpenDocumentFiles` plus the mismatch cases in `TypedBlockParsingTests` |
+| Parser/media policy failures quarantine once without consuming the retry budget | `SourceIngestionPipelineIntegrationTests.quarantinesDeterministicParserFailureWithoutSchedulingARetry` |
+| The requested snapshot pins the complete per-format chunk ceilings so a retry cannot observe changed defaults | `RequestedProcessingPolicyTests.pinsDifferentChunkCeilingsForSpreadsheetHtmlAndPdfRetries` |
 
-Gap: HTML is not admitted by the current upload allowlist, so its full policy
-proof belongs to format-allowlist item 3.
+## Format Admission And Upload Limit Coverage
+
+Evidence classes: `KnowledgeContentTypeTests`, `SourceUploadServiceTests`, and
+`source-upload-dialog.test.ts`.
+
+| Behavior | Automated evidence |
+| --- | --- |
+| Knowledge admission, reusable parser capability, and browser selection share the closed sixteen-suffix set; worker routing consumes parser capability rather than another copied list | `KnowledgeContentTypeTests.admitsEveryOrganizationalDocumentFormatAndNoArchive`, `SupportedFormatParsingTests.publishesTheCompleteReusableParserCapability`, `source-upload-dialog.test.ts` |
+| Upload limits are 10 MB for CSV/HTML/HTM/RTF/TXT/Markdown, 15 MB for spreadsheets, and 25 MB for PDF/Word/PowerPoint/OpenDocument text and presentation | `KnowledgeContentTypeTests.assignsLimitsByFormatCostInsteadOfOneGlobalDocumentLimit`, `SourceUploadServiceTests.rejectsASpreadsheetAboveItsFormatLimitWithAnActionableMessage`, `source-upload-dialog.test.ts` |
+| An extension outside the closed policy and a file exceeding its format limit are rejected before evidence is persisted | `KnowledgeContentTypeTests`, `SourceUploadServiceTests`, `source-upload-dialog.test.ts` |
+| Browser users can select a spreadsheet and an HTML export and submit each as a governed multipart upload | `document-actions.spec.ts#uploads a spreadsheet and an HTML export through the governed document dialog` |
 
 ## Documents View And Retirement Coverage
 
