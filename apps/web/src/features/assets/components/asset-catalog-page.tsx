@@ -2,7 +2,6 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { Link } from "@tanstack/react-router"
 import {
   ArrowUpRight,
-  Boxes,
   ChevronRight,
   LayoutGrid,
   List,
@@ -43,6 +42,10 @@ import {
 } from "@/features/assets/asset-format"
 import { AssetPageError, AssetPageLoading } from "@/features/assets/components/asset-state"
 import { AssetCreateMenu } from "@/features/assets/components/asset-create-menu"
+import {
+  AssetCatalogMark,
+  AssetTypeMark,
+} from "@/features/assets/components/asset-type-mark"
 import { AssetTypeFilter } from "@/features/assets/components/asset-type-filter"
 import type { AssetRecommendation, AssetSummary } from "@/lib/hey-api"
 import {
@@ -51,7 +54,9 @@ import {
   getSkillActivationOptions,
   getSkillActivationQueryKey,
   setSkillActivationMutation,
+  contextOptions,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
+import { avatarInitials } from "@/lib/avatar"
 import { formatDate } from "@/lib/format"
 
 const ASSET_PAGE_SIZE = 24
@@ -146,6 +151,7 @@ function AssetLink({
       to="/assets/$assetId"
       params={{ assetId: asset.assetId }}
       search={{ release: asset.releaseId }}
+      preload={false}
       className={className}
     >
       {children}
@@ -166,6 +172,7 @@ function OwnedAssetLink({
     <Link
       to="/assets/$assetId/governance"
       params={{ assetId: asset.id }}
+      preload={false}
       className={className}
     >
       {children}
@@ -182,7 +189,6 @@ type AssetItemViewModel = {
   topBadge: string
   topBadgeClassName?: string
   secondaryBadge?: string
-  secondaryBadgeClassName?: string
   detail: string
   timestamp?: string
   actionLabel: string
@@ -192,7 +198,11 @@ type AssetItemViewModel = {
   link: (children: ReactNode, className: string) => ReactNode
 }
 
-function catalogItem(asset: CatalogAsset): AssetItemViewModel {
+function catalogItem(
+  asset: CatalogAsset,
+  ownerName?: string,
+  ownerPending = false,
+): AssetItemViewModel {
   return {
     key: `${asset.assetId}:${asset.releaseId}`,
     type: asset.type,
@@ -202,8 +212,6 @@ function catalogItem(asset: CatalogAsset): AssetItemViewModel {
     topBadge: asset.versionLabel ?? "—",
     topBadgeClassName: "font-mono text-metadata",
     secondaryBadge: asset.availability === "DEPRECATED" ? "Update available" : undefined,
-    secondaryBadgeClassName:
-      "bg-status-warning-surface text-status-warning-content",
     detail: asset.versionLabel ?? "—",
     timestamp: asset.releasedAt,
     actionLabel: assetActionLabel(asset.type),
@@ -213,7 +221,7 @@ function catalogItem(asset: CatalogAsset): AssetItemViewModel {
         : asset.sharingState === "SHARED"
           ? "Shared"
           : "Private",
-    ownerLabel: asset.ownerUserId ? `Owner ${asset.ownerUserId.slice(0, 8)}` : "Owner recovery needed",
+    ownerLabel: ownerPending ? "Loading owner" : (ownerName ?? "Owner unavailable"),
     skillAssetId: asset.type === "SKILL" ? asset.assetId : undefined,
     link: (children, className) => (
       <AssetLink asset={asset} className={className}>
@@ -251,57 +259,66 @@ function ownedItem(asset: OwnedAsset): AssetItemViewModel {
 
 function AssetCard({ asset }: { asset: AssetItemViewModel }) {
   const meta = ASSET_TYPE_META[asset.type]
-  const Icon = meta.icon
   return (
     <Card
-      className="group min-h-64 gap-0 overflow-hidden border-border-default bg-surface-raised py-0 transition-[border-color,transform,box-shadow] hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md"
+      className="group relative min-h-68 gap-0 overflow-hidden border-border-default bg-surface-raised py-0 shadow-none transition-[border-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-action-primary/55 hover:shadow-[0_14px_34px_-24px_var(--color-action-primary)]"
     >
-      <CardHeader className="gap-4 px-5 pt-5 pb-3">
+      {asset.link(
+        <span className="sr-only">{asset.title}</span>,
+        "absolute inset-0 z-10 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring",
+      )}
+      <CardHeader className="gap-5 px-5 pt-5 pb-3">
         <div className="flex items-start justify-between gap-3">
-          <span className={`grid size-10 place-items-center rounded-xl ${meta.tone}`}>
-            <Icon className="size-5" strokeWidth={1.9} aria-hidden="true" />
+          <span
+            className={`grid size-11 place-items-center rounded-[0.7rem] border border-current/10 ${meta.tone}`}
+          >
+            <AssetTypeMark type={asset.type} className="size-6" aria-hidden="true" />
           </span>
-          <Badge variant="outline" className={asset.topBadgeClassName}>
-            {asset.topBadge}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {asset.secondaryBadge ? (
+              <span className="text-metadata text-status-warning-content">
+                {asset.secondaryBadge}
+              </span>
+            ) : null}
+            <Badge variant="outline" className={asset.topBadgeClassName}>
+              {asset.topBadge}
+            </Badge>
+          </div>
         </div>
-        <div>
-          <p className="truncate text-metadata font-mono text-content-muted">
-            {asset.coordinate}
-          </p>
-          {asset.link(
-            <h2 className="line-clamp-2 text-section-title text-content-primary">
-              {asset.title}
-            </h2>,
-            "mt-2 block rounded-sm outline-none hover:text-action-link-hover focus-visible:ring-2 focus-visible:ring-focus-ring",
-          )}
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <h2 className="line-clamp-2 text-section-title tracking-[-0.015em] text-content-primary transition-colors group-hover:text-action-link-hover">
+            {asset.title}
+          </h2>
+          <ChevronRight
+            className="mt-0.5 size-4 shrink-0 text-content-muted transition-[color,transform] group-hover:translate-x-0.5 group-hover:text-action-link-hover"
+            aria-hidden="true"
+          />
         </div>
       </CardHeader>
-      <CardContent className="px-5 pb-4">
-        <p className="line-clamp-2 text-sm text-content-secondary">{asset.summary}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Badge className={meta.tone}>{meta.label}</Badge>
-          {asset.secondaryBadge ? (
-            <Badge className={asset.secondaryBadgeClassName}>{asset.secondaryBadge}</Badge>
-          ) : null}
-          <Badge variant="outline">{asset.sharingLabel}</Badge>
+      <CardContent className="flex flex-1 flex-col px-5 pb-5">
+        <p className="line-clamp-2 min-h-10 text-sm leading-5 text-content-secondary">
+          {asset.summary || "No description provided."}
+        </p>
+        <div className="mt-auto flex min-w-0 items-center gap-2.5 pt-5">
+          <span className="grid size-7 shrink-0 place-items-center rounded-md border border-border-subtle bg-surface-subtle text-metadata font-semibold text-content-secondary">
+            {avatarInitials(asset.ownerLabel)}
+          </span>
+          <span className="min-w-0 truncate text-metadata font-medium text-content-secondary">
+            {asset.ownerLabel}
+          </span>
+          <span className="h-3.5 w-px shrink-0 bg-border-subtle" aria-hidden="true" />
+          <Badge variant="outline" className="shrink-0 bg-surface-subtle font-normal">
+            {asset.sharingLabel}
+          </Badge>
         </div>
-        {asset.ownerLabel ? (
-          <p className="mt-3 text-metadata text-content-muted">{asset.ownerLabel}</p>
-        ) : null}
-        {asset.skillAssetId ? <SkillActivationToggle assetId={asset.skillAssetId} /> : null}
       </CardContent>
-      <CardFooter className="mt-auto px-5 pt-0 pb-5">
-        {asset.link(
-          <>
-            {asset.actionLabel}
-            <ChevronRight
-              className="size-4 transition-transform group-hover:translate-x-0.5"
-              aria-hidden="true"
-            />
-          </>,
-          "flex w-full items-center justify-between rounded-md text-label text-content-primary outline-none transition-colors hover:text-action-link-hover focus-visible:ring-2 focus-visible:ring-focus-ring",
-        )}
+      <CardFooter className="pointer-events-none mt-auto min-h-14 justify-between border-t border-border-subtle bg-surface-subtle/45 px-5 py-3">
+        <span className="text-metadata font-medium text-content-muted">{meta.label}</span>
+        {asset.skillAssetId ? (
+          <div className="pointer-events-auto relative z-20">
+            <SkillActivationToggle assetId={asset.skillAssetId} />
+          </div>
+        ) : null}
       </CardFooter>
     </Card>
   )
@@ -322,13 +339,11 @@ function SkillActivationToggle({ assetId }: { assetId: string }) {
     onError: () => toast.error("Skill activation could not be updated"),
   })
   return (
-    <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-border-subtle bg-surface-subtle px-3 py-2">
-      <div>
-        <p className="text-label text-content-primary">Use in Assistant</p>
-        <p className="text-metadata text-content-muted">Personal setting</p>
-      </div>
+    <div className="flex items-center gap-2.5">
+      <span className="text-metadata font-medium text-content-secondary">Use in Assistant</span>
       <Switch
         aria-label="Use this Skill in Assistant"
+        size="sm"
         checked={Boolean(activation.data?.enabled)}
         disabled={activation.isPending || activation.isError || update.isPending}
         onCheckedChange={(enabled) =>
@@ -348,7 +363,7 @@ function AssetGrid({
 }) {
   return (
     <section
-      className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+      className="grid gap-5 md:grid-cols-2 xl:grid-cols-3"
       aria-label={label}
     >
       {assets.map((asset) => <AssetCard key={asset.key} asset={asset} />)}
@@ -516,6 +531,12 @@ export function AssetCatalogPage({
     placeholderData: keepPreviousData,
     enabled: scope === "MINE",
   })
+  const directoryOptions = contextOptions()
+  const directory = useQuery({
+    ...directoryOptions,
+    queryKey: scopeAssetQueryKey(directoryOptions.queryKey, actorKey),
+    enabled: scope === "ALL",
+  })
 
   const activeQuery = scope === "ALL" ? catalog : owned
   if (activeQuery.isPending) return <AssetPageLoading />
@@ -526,8 +547,21 @@ export function AssetCatalogPage({
   const recommendations = (catalog.data?.items ?? []).filter(isCatalogAsset)
   const ownedAssets = (owned.data?.items ?? []).filter(isOwnedAsset)
   const visibleAssets = scope === "ALL" ? recommendations : ownedAssets
+  const ownerNames = new Map(
+    (directory.data?.users ?? []).flatMap((user) =>
+      user.id && user.name ? [[user.id, user.name] as const] : [],
+    ),
+  )
   const assetItems =
-    scope === "ALL" ? recommendations.map(catalogItem) : ownedAssets.map(ownedItem)
+    scope === "ALL"
+      ? recommendations.map((asset) =>
+          catalogItem(
+            asset,
+            asset.ownerUserId ? ownerNames.get(asset.ownerUserId) : undefined,
+            directory.isPending,
+          ),
+        )
+      : ownedAssets.map(ownedItem)
   const total = scope === "ALL" ? (catalog.data?.total ?? 0) : (owned.data?.total ?? 0)
   const hasFilters = query.length > 0 || type !== undefined
   const hasUnrenderablePage = total > 0 && visibleAssets.length === 0
@@ -541,9 +575,9 @@ export function AssetCatalogPage({
   return (
     <PageLayout.Root variant="wide">
       <PageLayout.Header
-        icon={<Boxes className="size-7" strokeWidth={1.7} aria-hidden="true" />}
-        title="Assets"
-        description="Discover reusable capabilities and manage the Assets you own."
+        icon={<AssetCatalogMark className="text-action-primary" aria-hidden="true" />}
+        title="Asset catalog"
+        description="Reusable capabilities shared across your company."
         actions={<AssetCreateMenu />}
       >
         <div className="grid gap-2 pt-2 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -554,7 +588,7 @@ export function AssetCatalogPage({
             <InputGroupInput
               value={query}
               onChange={(event) => onQueryChange(event.currentTarget.value)}
-              placeholder="Search by task, role, or outcome"
+              placeholder="Search assets"
               aria-label="Search visible assets"
             />
           </InputGroup>
@@ -636,6 +670,17 @@ export function AssetCatalogPage({
       </PageLayout.Header>
 
       <PageLayout.Body>
+        {scope === "ALL" && directory.isError ? (
+          <div
+            role="status"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-subtle bg-surface-subtle px-4 py-2.5 text-metadata text-content-secondary"
+          >
+            <span>Owner names could not be loaded.</span>
+            <Button variant="ghost" size="sm" onClick={() => void directory.refetch()}>
+              Retry owner names
+            </Button>
+          </div>
+        ) : null}
         {total === 0 ? (
           <Card className="border-dashed bg-surface-subtle">
             <EmptyState
