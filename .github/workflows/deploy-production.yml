@@ -421,20 +421,30 @@ jobs:
                    /apps/orgmemory-runtime/deployment-intervention-required 3000 \
                    </dev/null >/dev/null 2>&1
              done
-             reconciler_marker_is_live() {
-               local marker=\"\$1\" pid starttime extra observed
-               [[ \"\$(stat -c '%a' \"\$marker\" 2>/dev/null || true)\" == 600 ]] || return 1
-               IFS=' ' read -r pid starttime extra <\"\$marker\" || return 1
-               [[ -z \"\$extra\" && \"\$pid\" =~ ^[1-9][0-9]*\$ && \
-                 \"\$starttime\" =~ ^[1-9][0-9]*\$ ]] || return 1
-               [[ -r \"/proc/\$pid/stat\" ]] || return 1
-               observed=\"\$(cut -d ' ' -f 22 \"/proc/\$pid/stat\" 2>/dev/null || true)\"
-               [[ \"\$observed\" == \"\$starttime\" ]]
-             }
              reconcilers_ready=false
              for _ in {1..100}; do
-               if reconciler_marker_is_live '$state_directory/reconciler-ready.1' && \
-                 reconciler_marker_is_live '$state_directory/reconciler-ready.2'; then
+               markers_ready=true
+               for marker in '$state_directory/reconciler-ready.1' \
+                 '$state_directory/reconciler-ready.2'; do
+                 pid=
+                 starttime=
+                 extra=
+                 observed=
+                 if [[ \"\$(stat -c '%a' \"\$marker\" 2>/dev/null || true)\" != 600 ]] ||
+                   ! IFS=' ' read -r pid starttime extra <\"\$marker\" ||
+                   [[ -n \"\$extra\" || ! \"\$pid\" =~ ^[1-9][0-9]*\$ ||
+                     ! \"\$starttime\" =~ ^[1-9][0-9]*\$ ]] ||
+                   [[ ! -r \"/proc/\$pid/stat\" ]]; then
+                   markers_ready=false
+                   break
+                 fi
+                 observed=\"\$(cut -d ' ' -f 22 \"/proc/\$pid/stat\" 2>/dev/null || true)\"
+                 if [[ \"\$observed\" != \"\$starttime\" ]]; then
+                   markers_ready=false
+                   break
+                 fi
+               done
+               if [[ \"\$markers_ready\" == true ]]; then
                  reconcilers_ready=true
                  break
                fi
