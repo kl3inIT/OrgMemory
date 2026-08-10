@@ -198,7 +198,11 @@ type AssetItemViewModel = {
   link: (children: ReactNode, className: string) => ReactNode
 }
 
-function catalogItem(asset: CatalogAsset, ownerName?: string): AssetItemViewModel {
+function catalogItem(
+  asset: CatalogAsset,
+  ownerName?: string,
+  ownerPending = false,
+): AssetItemViewModel {
   return {
     key: `${asset.assetId}:${asset.releaseId}`,
     type: asset.type,
@@ -217,7 +221,7 @@ function catalogItem(asset: CatalogAsset, ownerName?: string): AssetItemViewMode
         : asset.sharingState === "SHARED"
           ? "Shared"
           : "Private",
-    ownerLabel: ownerName ?? "Owner unavailable",
+    ownerLabel: ownerPending ? "Loading owner" : (ownerName ?? "Owner unavailable"),
     skillAssetId: asset.type === "SKILL" ? asset.assetId : undefined,
     link: (children, className) => (
       <AssetLink asset={asset} className={className}>
@@ -531,7 +535,7 @@ export function AssetCatalogPage({
   const directory = useQuery({
     ...directoryOptions,
     queryKey: scopeAssetQueryKey(directoryOptions.queryKey, actorKey),
-    retry: false,
+    enabled: scope === "ALL",
   })
 
   const activeQuery = scope === "ALL" ? catalog : owned
@@ -551,7 +555,11 @@ export function AssetCatalogPage({
   const assetItems =
     scope === "ALL"
       ? recommendations.map((asset) =>
-          catalogItem(asset, asset.ownerUserId ? ownerNames.get(asset.ownerUserId) : undefined),
+          catalogItem(
+            asset,
+            asset.ownerUserId ? ownerNames.get(asset.ownerUserId) : undefined,
+            directory.isPending,
+          ),
         )
       : ownedAssets.map(ownedItem)
   const total = scope === "ALL" ? (catalog.data?.total ?? 0) : (owned.data?.total ?? 0)
@@ -662,6 +670,17 @@ export function AssetCatalogPage({
       </PageLayout.Header>
 
       <PageLayout.Body>
+        {scope === "ALL" && directory.isError ? (
+          <div
+            role="status"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-subtle bg-surface-subtle px-4 py-2.5 text-metadata text-content-secondary"
+          >
+            <span>Owner names could not be loaded.</span>
+            <Button variant="ghost" size="sm" onClick={() => void directory.refetch()}>
+              Retry owner names
+            </Button>
+          </div>
+        ) : null}
         {total === 0 ? (
           <Card className="border-dashed bg-surface-subtle">
             <EmptyState

@@ -239,10 +239,14 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await expect(page.getByRole("table")).toHaveCount(0)
   await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
   await expect(page.getByText("Showing 1–18 of 18", { exact: true })).toBeVisible()
-  await expect(page.getByText("Operations Lead").first()).toBeVisible()
+  const executiveStrategyReviewCard = page
+    .getByRole("link", { name: "Executive Strategy Review" })
+    .locator("..")
+  await expect(
+    executiveStrategyReviewCard.getByText("Operations Lead", { exact: true }),
+  ).toBeVisible()
   await expect(page.getByText(`Owner ${OWNER_ID.slice(0, 8)}`)).toHaveCount(0)
   await expect(page.getByText("support/l1-onboarding", { exact: true })).toHaveCount(0)
-  await expect(page.getByRole("link", { name: "Executive Strategy Review" })).toBeVisible()
   await expect(page.getByRole("link", { name: "View skill" })).toHaveCount(0)
   const skillToggles = page.getByRole("switch", { name: "Use this Skill in Assistant" })
   await expect(skillToggles).toHaveCount(4)
