@@ -54,6 +54,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Reusable document parsing and Assistant file evidence](increments/active/2026-08-10-assistant-file-evidence/plan.md) | design challenge | challenge the reusable parser boundary and governed-only composer upload before implementation |
 | [Knowledge ingestion coverage](increments/active/2026-08-07-knowledge-ingestion-coverage/plan.md) | active | typed block IR so a table survives parsing, content-type strategy resolution, then the organization formats an upload is refused today |
 | [Assistant turn activity continuity](increments/completed/2026-08-06-assistant-turn-activity-continuity/verification.md) | shipped | one stable pre-answer surface now preserves thinking through renderable text and presents Skill detail only when useful; the unrelated browser timing baseline gap is recorded |
 | [Assistant conversation memory SSOT](increments/completed/2026-08-06-assistant-conversation-memory-ssot/verification.md) | shipped | collapsed the conversation to one owned store read back through a project-owned read-only turn advisor, and gave a failed turn a sentence naming its cause |
@@ -116,13 +117,6 @@ implementation-active until their predecessor exit gates pass.
 
 ## Engineering Backlog
 
-- Decide whether a file attached at the Assistant composer may become evidence.
-  The composer has no attachment path at all today: `prompt-input.tsx` submits
-  `files: []` and `AssistantPage` forwards only `message.text`. Copying
-  Northstar's per-turn attachment flow would bypass the permission model that
-  makes an OrgMemory answer citable, so the question is a permission boundary —
-  who owns the file, who may see it, and whether it is turn-local or durable
-  evidence — and needs its own architecture challenge, not a UI change.
 - Widen Knowledge Base ingestion coverage. `KnowledgeContentType` allows upload
   of PDF, DOCX, PPTX, MD and TXT only; `SpringAiDocumentParser.ALLOWED_MEDIA_TYPES`
   matches. Spreadsheets (XLSX/XLS/CSV), HTML, JSON/XML and legacy Office are
