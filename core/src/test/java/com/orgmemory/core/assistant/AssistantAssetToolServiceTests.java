@@ -77,6 +77,8 @@ class AssistantAssetToolServiceTests {
                         "Approved support flow",
                         UUID.randomUUID(),
                         AssetPortfolioState.ACTIVE,
+                        actor.userId(),
+                        com.orgmemory.core.assetregistry.api.AssetSharingState.PRIVATE,
                         releaseId,
                         "1.0.0",
                         "a".repeat(64),

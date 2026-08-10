@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { Archive, Pencil, Rocket, Send } from "lucide-react"
+import { Archive, Pencil, Rocket } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -9,14 +9,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { parsePayload } from "@/features/assets/asset-format"
 import { GovernanceDecisionDialog } from "@/features/assets/components/governance-decision-dialog"
 import { MetadataTile } from "@/features/assets/components/metadata-tile"
-import { canPublishSkillDirectly } from "@/features/assets/governance-policy"
+import { canPublishDirectly } from "@/features/assets/governance-policy"
 import {
-  publishSkillReleaseMutation,
-  submitAssetRevisionMutation,
+  publishAssetDraftMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type {
   AssetGovernanceActions,
@@ -42,53 +40,35 @@ export function GovernanceDraftWorkspace({
   asset,
   actions,
   onChanged,
-  onSubmitted,
   onPublished,
 }: {
   asset: AssetView
   actions?: AssetGovernanceActions
   onChanged: () => Promise<unknown>
-  onSubmitted: () => void
   onPublished: () => void
 }) {
   const draft = asset.draft!
-  const [changeNote, setChangeNote] = useState("")
   const [versionLabel, setVersionLabel] = useState("")
-  const submit = useMutation({
-    ...submitAssetRevisionMutation(),
-    onSuccess: async () => {
-      setChangeNote("")
-      await onChanged()
-      onSubmitted()
-      toast.success("Draft submitted for exact-digest review")
-    },
-    onError: () => toast.error("The Draft could not be submitted"),
-  })
-  const publishSkill = useMutation({
-    ...publishSkillReleaseMutation(),
+  const publish = useMutation({
+    ...publishAssetDraftMutation(),
     onSuccess: async () => {
       setVersionLabel("")
       await onChanged()
       onPublished()
-      toast.success("Immutable Skill release published")
+      toast.success("Immutable Release published")
     },
-    onError: () => toast.error("The Skill could not be published"),
+    onError: () => toast.error("The working copy could not be published"),
   })
-  const canPublishSkill = canPublishSkillDirectly(asset, actions)
-  const canSubmit = Boolean(
-    actions?.canSubmitReview &&
-      (asset.type !== "SKILL" || !actions?.canPublishSkill),
-  )
-  const hasAction = canPublishSkill || canSubmit
+  const canPublish = canPublishDirectly(asset, actions)
 
   return (
-    <div className={hasAction ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}>
+    <div className={canPublish ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}>
       <div className="space-y-6">
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <Badge variant="outline">Draft</Badge>
+                <Badge variant="outline">Working copy</Badge>
                 <CardTitle className="mt-3">{draft.title}</CardTitle>
               </div>
               <p className="text-supporting text-content-secondary">
@@ -102,7 +82,7 @@ export function GovernanceDraftWorkspace({
               <MetadataTile label="Classification" value={draft.classification} />
               <MetadataTile label="Schema" value={draft.schemaVersion} mono />
               <MetadataTile
-                label="Draft version"
+                label="Working copy version"
                 value={String(draft.lockVersion ?? 0)}
                 mono
               />
@@ -118,20 +98,20 @@ export function GovernanceDraftWorkspace({
         ) : null}
       </div>
 
-      {canPublishSkill ? (
+      {canPublish ? (
         <Card className="h-fit">
           <CardHeader>
-            <CardTitle>Publish Skill</CardTitle>
+            <CardTitle>Publish update</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-supporting text-content-secondary">
-              Publish this validated package directly for people who already have access to the
-              Asset.
+              Snapshot the current working copy into an immutable Release. Existing Releases do
+              not change.
             </p>
             <div className="space-y-2">
-              <Label htmlFor="skill-version-label">Version</Label>
+              <Label htmlFor="asset-version-label">Version</Label>
               <Input
-                id="skill-version-label"
+                id="asset-version-label"
                 value={versionLabel}
                 onChange={(event) => setVersionLabel(event.currentTarget.value)}
                 placeholder="1.0.0"
@@ -139,44 +119,14 @@ export function GovernanceDraftWorkspace({
               />
             </div>
             <GovernanceDecisionDialog
-              label="Publish Skill"
-              description="This creates an immutable release from the structurally validated package. No independent content review is recorded."
-              disabled={!versionLabel.trim() || publishSkill.isPending}
+              label="Publish update"
+              description="This creates an immutable Release directly from the current working copy."
+              disabled={!versionLabel.trim() || publish.isPending}
               icon={Rocket}
               onConfirm={() =>
-                publishSkill.mutate({
+                publish.mutate({
                   path: { assetId: asset.id! },
                   body: { versionLabel: versionLabel.trim() },
-                })
-              }
-            />
-          </CardContent>
-        </Card>
-      ) : canSubmit ? (
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Submit for review</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="draft-change-note">Change note</Label>
-              <Textarea
-                id="draft-change-note"
-                value={changeNote}
-                onChange={(event) => setChangeNote(event.currentTarget.value)}
-                rows={5}
-                placeholder="What should the reviewer verify?"
-              />
-            </div>
-            <GovernanceDecisionDialog
-              label="Submit for review"
-              description="This creates an immutable revision from the current Draft and opens an exact-digest review case."
-              disabled={!changeNote.trim() || submit.isPending}
-              icon={Send}
-              onConfirm={() =>
-                submit.mutate({
-                  path: { assetId: asset.id! },
-                  body: { changeNote: changeNote.trim() },
                 })
               }
             />

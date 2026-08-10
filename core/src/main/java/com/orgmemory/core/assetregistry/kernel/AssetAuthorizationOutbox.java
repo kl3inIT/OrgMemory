@@ -28,6 +28,13 @@ class AssetAuthorizationOutbox extends BaseEntity {
     @Column(name = "role_assignment_id", updatable = false)
     private UUID roleAssignmentId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16, updatable = false)
+    private AssetAuthorizationOperation operation;
+
+    @Column(name = "relationship_generation", nullable = false, updatable = false)
+    private long relationshipGeneration;
+
     @Column(name = "tuple_user", nullable = false, length = 256, updatable = false)
     private String tupleUser;
 
@@ -72,11 +79,18 @@ class AssetAuthorizationOutbox extends BaseEntity {
             UUID organizationId,
             UUID assetId,
             UUID roleAssignmentId,
+            AssetAuthorizationOperation operation,
+            long relationshipGeneration,
             RelationshipTuple tuple) {
         super(UUID.randomUUID());
         this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
         this.assetId = Objects.requireNonNull(assetId, "assetId");
         this.roleAssignmentId = roleAssignmentId;
+        this.operation = Objects.requireNonNull(operation, "operation");
+        if (relationshipGeneration <= 0) {
+            throw new IllegalArgumentException("Relationship generation must be positive");
+        }
+        this.relationshipGeneration = relationshipGeneration;
         RelationshipTuple relationship = Objects.requireNonNull(tuple, "tuple");
         this.tupleUser = relationship.user();
         this.tupleRelation = relationship.relation();
@@ -142,6 +156,14 @@ class AssetAuthorizationOutbox extends BaseEntity {
 
     UUID getRoleAssignmentId() {
         return roleAssignmentId;
+    }
+
+    AssetAuthorizationOperation getOperation() {
+        return operation;
+    }
+
+    long getRelationshipGeneration() {
+        return relationshipGeneration;
     }
 
     AssetAuthorizationStatus getStatus() {

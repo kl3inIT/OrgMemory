@@ -4,12 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.assetregistry.kernel.AssetAuthorizationBatch;
 import com.orgmemory.core.assetregistry.kernel.AssetAuthorizationProjectionQueue;
 import com.orgmemory.core.authorization.RelationshipTuple;
+import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
@@ -35,13 +37,15 @@ class AssetAuthorizationProjectionServiceTests {
         AssetAuthorizationBatch batch = mock(AssetAuthorizationBatch.class);
         UUID organizationId = UUID.randomUUID();
         UUID assetId = UUID.randomUUID();
-        when(batch.tuples()).thenReturn(List.of(RelationshipTuple.of(
+        when(batch.writes()).thenReturn(List.of(RelationshipTuple.of(
                 "user:" + UUID.randomUUID(), "owner", "asset:" + assetId)));
+        when(batch.deletes()).thenReturn(List.of());
         when(queue.claimForAsset(organizationId, assetId)).thenReturn(Optional.of(batch));
         when(writer.write(any(RelationshipTupleWriteRequest.class)))
                 .thenReturn(RelationshipTupleWriteResult.applied("model-1"));
         AssetAuthorizationProjectionService service =
-                new AssetAuthorizationProjectionService(queue, writer);
+                new AssetAuthorizationProjectionService(
+                        queue, writer, mock(RelationshipTupleReconciliationPort.class));
 
         service.project(organizationId, assetId);
 
@@ -55,13 +59,15 @@ class AssetAuthorizationProjectionServiceTests {
         AssetAuthorizationBatch batch = mock(AssetAuthorizationBatch.class);
         UUID organizationId = UUID.randomUUID();
         UUID assetId = UUID.randomUUID();
-        when(batch.tuples()).thenReturn(List.of(RelationshipTuple.of(
+        when(batch.writes()).thenReturn(List.of(RelationshipTuple.of(
                 "user:" + UUID.randomUUID(), "owner", "asset:" + assetId)));
+        when(batch.deletes()).thenReturn(List.of());
         when(queue.claimForAsset(organizationId, assetId)).thenReturn(Optional.of(batch));
         when(writer.write(any(RelationshipTupleWriteRequest.class)))
                 .thenThrow(new IllegalStateException("provider detail"));
         AssetAuthorizationProjectionService service =
-                new AssetAuthorizationProjectionService(queue, writer);
+                new AssetAuthorizationProjectionService(
+                        queue, writer, mock(RelationshipTupleReconciliationPort.class));
 
         assertThrows(
                 AssetUnavailableException.class,
@@ -74,13 +80,41 @@ class AssetAuthorizationProjectionServiceTests {
     }
 
     @Test
+    void appliesDeletesBeforeWritesForAnOwnershipGeneration() {
+        AssetAuthorizationProjectionQueue queue = mock(AssetAuthorizationProjectionQueue.class);
+        RelationshipTupleWritePort writer = mock(RelationshipTupleWritePort.class);
+        RelationshipTupleReconciliationPort reconciliation =
+                mock(RelationshipTupleReconciliationPort.class);
+        AssetAuthorizationBatch batch = mock(AssetAuthorizationBatch.class);
+        when(batch.deletes()).thenReturn(List.of(RelationshipTuple.of(
+                "user:old", "owner", "asset:one")));
+        when(batch.writes()).thenReturn(List.of(RelationshipTuple.of(
+                "user:new", "owner", "asset:one")));
+        when(reconciliation.delete(any()))
+                .thenReturn(RelationshipTupleWriteResult.applied("model-1"));
+        when(writer.write(any()))
+                .thenReturn(RelationshipTupleWriteResult.applied("model-1"));
+        AssetAuthorizationProjectionService service =
+                new AssetAuthorizationProjectionService(queue, writer, reconciliation);
+
+        service.project(batch);
+
+        var order = inOrder(reconciliation, writer, queue);
+        order.verify(reconciliation).delete(any());
+        order.verify(writer).write(any());
+        order.verify(queue).complete(batch, "model-1");
+    }
+
+    @Test
     void rejectsAClaimThatIsAlreadyBeingProjected() {
         AssetAuthorizationProjectionQueue queue = mock(AssetAuthorizationProjectionQueue.class);
         UUID organizationId = UUID.randomUUID();
         UUID assetId = UUID.randomUUID();
         when(queue.claimForAsset(organizationId, assetId)).thenReturn(Optional.empty());
         AssetAuthorizationProjectionService service = new AssetAuthorizationProjectionService(
-                queue, mock(RelationshipTupleWritePort.class));
+                queue,
+                mock(RelationshipTupleWritePort.class),
+                mock(RelationshipTupleReconciliationPort.class));
 
         assertThrows(
                 AssetUnavailableException.class,
@@ -93,7 +127,9 @@ class AssetAuthorizationProjectionServiceTests {
         AssetAuthorizationProjectionQueue queue = mock(AssetAuthorizationProjectionQueue.class);
         AssetAuthorizationProjectionService projection = transactionalProxy(
                 new AssetAuthorizationProjectionService(
-                        queue, mock(RelationshipTupleWritePort.class)),
+                        queue,
+                        mock(RelationshipTupleWritePort.class),
+                        mock(RelationshipTupleReconciliationPort.class)),
                 AssetAuthorizationProjectionService.class,
                 transactions);
         AssetAuthorizationConvergenceService convergence = transactionalProxy(

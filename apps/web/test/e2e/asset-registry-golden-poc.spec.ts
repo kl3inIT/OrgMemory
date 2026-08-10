@@ -21,7 +21,7 @@ const SKILL_REVISION_ID = "b1000000-0000-0000-0000-000000000002"
 const SKILL_RELEASE_ID = "b1000000-0000-0000-0000-000000000005"
 const SKILL_DIGEST = "c".repeat(64)
 
-test("Skill publication hands the author to capability-aware Governance", async ({
+test("Skill publication stays in the owner-led Asset workspace", async ({
   page,
 }) => {
   const harness = await skillGovernanceHarness(page)
@@ -30,8 +30,8 @@ test("Skill publication hands the author to capability-aware Governance", async 
   }
 
   await page.goto(`/assets/${SKILL_ID}/governance`)
-  await expect(page.getByRole("heading", { name: "Governance workspace" })).toBeVisible()
-  await expect(page.getByRole("tab", { name: "Draft" })).toHaveAttribute(
+  await expect(page.getByRole("heading", { name: "Asset workspace" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "Working copy" })).toHaveAttribute(
     "data-state",
     "active",
   )
@@ -56,12 +56,13 @@ test("Skill publication hands the author to capability-aware Governance", async 
   await page.getByRole("button", { name: "Replace Draft package" }).click()
   await expect(page).toHaveURL(new RegExp(`/assets/${SKILL_ID}/governance$`))
 
-  await expect(page.getByRole("tab", { name: "Review" })).toHaveCount(0)
+  await expect(page.getByRole("tab", { name: "Legacy reviews" })).toHaveCount(0)
   await page.getByLabel("Version").fill("1.0.0")
-  await page.getByRole("button", { name: "Publish Skill" }).click()
-  await page.getByRole("button", { name: "Confirm publish skill" }).click()
+  await page.getByRole("button", { name: "Publish update" }).click()
+  await page.getByRole("button", { name: "Confirm publish update" }).click()
 
-  await expect(page.getByRole("tab", { name: "Releases" })).toHaveAttribute(
+  await page.getByRole("tab", { name: "Release history" }).click()
+  await expect(page.getByRole("tab", { name: "Release history" })).toHaveAttribute(
     "data-state",
     "active",
   )
@@ -71,7 +72,7 @@ test("Skill publication hands the author to capability-aware Governance", async 
     `GET /api/assets/${SKILL_ID}/governance-actions`,
   )
   expect(harness.requests).toContain(
-    `POST /api/assets/${SKILL_ID}/skill-releases`,
+    `POST /api/assets/${SKILL_ID}/direct-releases`,
   )
   expect(harness.requests).toContain(
     `PUT /api/assets/${SKILL_ID}/skill-draft`,
@@ -154,11 +155,11 @@ test("two users prove governed release and second-user Pack completion", async (
   const ownerHarness = await assetHarness(ownerPage, "owner")
 
   await ownerPage.goto(`/assets/${PACK_ID}/governance`)
-  await expect(ownerPage.getByRole("heading", { name: "Governance workspace" })).toBeVisible()
-  await ownerPage.getByRole("tab", { name: "Review" }).click()
+  await expect(ownerPage.getByRole("heading", { name: "Asset workspace" })).toBeVisible()
+  await ownerPage.getByRole("tab", { name: "Legacy reviews" }).click()
   await expect(ownerPage.getByText("APPROVED", { exact: true })).toBeVisible()
   await expect(ownerPage.getByText("Approved by independent reviewer")).toBeVisible()
-  await ownerPage.getByRole("tab", { name: "Releases" }).click()
+  await ownerPage.getByRole("tab", { name: "Release history" }).click()
   await expect(ownerPage.getByText("1.0.0", { exact: true })).toBeVisible()
   await expect(ownerPage.getByText("AVAILABLE", { exact: true })).toBeVisible()
   expect(ownerHarness.unexpectedRequests).toEqual([])
@@ -215,7 +216,8 @@ test("two users prove governed release and second-user Pack completion", async (
 test("asset catalog defaults to a grid and keeps list state in the URL", async ({
   page,
 }) => {
-  const harness = await assetHarness(page, "support", catalogRecommendations())
+  const recommendations = catalogRecommendations()
+  const harness = await assetHarness(page, "support", recommendations)
 
   if (process.env.DESIGN_QA_CAPTURE) {
     await page.emulateMedia({ colorScheme: "dark" })
@@ -229,14 +231,25 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
 
   await expect(page.getByText("18 results", { exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Add asset" })).toBeVisible()
-  await expect(page.getByRole("tab", { name: "All Assets" })).toHaveAttribute(
+  await expect(page.getByRole("tab", { name: "Available to me" })).toHaveAttribute(
     "data-state",
     "active",
   )
-  await expect(page.getByRole("tab", { name: "My Assets" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "Created by me" })).toBeVisible()
   await expect(page.getByRole("table")).toHaveCount(0)
   await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
   await expect(page.getByText("Showing 1–18 of 18", { exact: true })).toBeVisible()
+  const skillToggles = page.getByRole("switch", { name: "Use this Skill in Assistant" })
+  await expect(skillToggles).toHaveCount(4)
+  await expect(skillToggles.first()).not.toBeChecked()
+  await skillToggles.first().click()
+  await expect(skillToggles.first()).toBeChecked()
+  await expect.poll(() => harness.skillActivationUpdates).toEqual([
+    {
+      assetId: recommendations.find((item) => item.type === "SKILL")!.assetId,
+      enabled: true,
+    },
+  ])
 
   const searchBox = await page.locator('[data-slot="input-group"]').first().boundingBox()
   const scopeTabs = await page.getByRole("tablist", { name: "Asset scope" }).boundingBox()
@@ -262,7 +275,7 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   )
 
   await page.goto("/assets?page=2")
-  await page.getByRole("tab", { name: "My Assets" }).click()
+  await page.getByRole("tab", { name: "Created by me" }).click()
   await expect(page).toHaveURL(/scope=MINE/)
   await expect(page).not.toHaveURL(/page=2/)
   await expect(page.getByText("1 result", { exact: true })).toBeVisible()
@@ -292,10 +305,10 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
       path: "../output/design-qa/asset-layout-balance-implementation.png",
     })
   }
-  await page.getByRole("tab", { name: "All Assets" }).click()
+  await page.getByRole("tab", { name: "Available to me" }).click()
   await expect(page).not.toHaveURL(/scope=/)
   await expect(page.getByText("18 results", { exact: true })).toBeVisible()
-  await expect(page.getByRole("tab", { name: "All Assets" })).toHaveAttribute(
+  await expect(page.getByRole("tab", { name: "Available to me" })).toHaveAttribute(
     "data-state",
     "active",
   )
@@ -383,7 +396,7 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await page.getByRole("button", { name: "Create Draft" }).click()
 
   await expect(page).toHaveURL(new RegExp(`/assets/${SKILL_ID}/governance$`))
-  await expect(page.getByRole("heading", { name: "Governance workspace" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Asset workspace" })).toBeVisible()
   expect(harness.skillImportQueries).toEqual([
     {
       namespace: "engineering_team",
@@ -404,7 +417,7 @@ test("asset navigation stacks without horizontal page overflow", async ({ page }
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/assets")
 
-  await expect(page.getByRole("tab", { name: "All Assets" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "Available to me" })).toBeVisible()
   await expect(page.getByRole("combobox", { name: "Filter assets by type" })).toBeVisible()
   const searchBox = await page.locator('[data-slot="input-group"]').first().boundingBox()
   const scopeTabs = await page.getByRole("tablist", { name: "Asset scope" }).boundingBox()
@@ -603,6 +616,8 @@ async function assetHarness(
   const skillImportCsrfTokens: Array<string | undefined> = []
   const githubPreviewBodies: Array<Record<string, unknown>> = []
   const githubImportBodies: Array<Record<string, unknown>> = []
+  const skillActivationState = new Map<string, boolean>()
+  const skillActivationUpdates: Array<{ assetId: string; enabled: boolean }> = []
 
   await page.route("**/api/**", async (route) => {
     const requestContext = await harness.beginRoute(route)
@@ -638,6 +653,23 @@ async function assetHarness(
         pageSize: 24,
         totalPages: 1,
         sort: url.searchParams.get("sort") ?? "RECENTLY_UPDATED",
+      })
+      return
+    }
+    const activationMatch = url.pathname.match(/^\/api\/assets\/([^/]+)\/skill-activation$/)
+    if (activationMatch && request.method() === "PUT") {
+      const assetId = activationMatch[1]!
+      const body = request.postDataJSON() as { enabled: boolean }
+      skillActivationState.set(assetId, body.enabled)
+      skillActivationUpdates.push({ assetId, enabled: body.enabled })
+      await json(route, { assetId, enabled: body.enabled })
+      return
+    }
+    if (activationMatch && request.method() === "GET") {
+      const assetId = activationMatch[1]!
+      await json(route, {
+        assetId,
+        enabled: skillActivationState.get(assetId) ?? false,
       })
       return
     }
@@ -759,6 +791,7 @@ async function assetHarness(
         canCancel: false,
         canPublish: false,
         canPublishSkill: true,
+        canPublishDirect: true,
         canWithdraw: false,
         canOpenGovernance: true,
       })
@@ -766,6 +799,10 @@ async function assetHarness(
     }
     if (url.pathname === `/api/assets/${PACK_ID}`) {
       await json(route, packAsset())
+      return
+    }
+    if (url.pathname === `/api/assets/${PACK_ID}/released`) {
+      await json(route, releasedPackAsset())
       return
     }
     if (url.pathname === `/api/assets/${PACK_ID}/governance-actions`) {
@@ -778,6 +815,7 @@ async function assetHarness(
         canReject: true,
         canCancel: true,
         canPublish: true,
+        canPublishDirect: true,
         canWithdraw: true,
         canOpenGovernance: true,
       })
@@ -823,6 +861,7 @@ async function assetHarness(
     skillImportCsrfTokens,
     githubPreviewBodies,
     githubImportBodies,
+    skillActivationUpdates,
   }
 }
 
@@ -836,6 +875,8 @@ function supportPackRecommendation() {
     summary: "Complete the first correct L1 support ticket",
     knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
     portfolioState: "ACTIVE",
+    ownerUserId: OWNER_ID,
+    sharingState: "SHARED",
     releaseId: PACK_RELEASE_ID,
     versionLabel: "1.0.0",
     releaseDigest: "a".repeat(64),
@@ -854,6 +895,8 @@ function ownedDraftSummary() {
     summary: "",
     knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
     portfolioState: "DRAFT_ONLY",
+    ownerUserId: OWNER_ID,
+    sharingState: "PRIVATE",
     updatedAt: "2026-07-31T12:00:00Z",
   }
 }
@@ -899,6 +942,8 @@ function catalogRecommendations() {
       summary: "Approved reusable guidance for a common company workflow.",
       knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
       portfolioState: "ACTIVE",
+      ownerUserId: OWNER_ID,
+      sharingState: "ORGANIZATION",
       releaseId: `b9000000-0000-4000-8000-${number}`,
       versionLabel: "1.0.0",
       releaseDigest: String(index).padStart(64, "0"),
@@ -931,6 +976,7 @@ async function skillGovernanceHarness(page: Page) {
         canCancel: false,
         canPublish: false,
         canPublishSkill: true,
+        canPublishDirect: true,
         canWithdraw: false,
         canOpenGovernance: true,
       })
@@ -952,7 +998,7 @@ async function skillGovernanceHarness(page: Page) {
     }
     if (
       request.method() === "POST" &&
-      url.pathname === `/api/assets/${SKILL_ID}/skill-releases`
+      url.pathname === `/api/assets/${SKILL_ID}/direct-releases`
     ) {
       published = true
       await json(route, skillDraftAsset(true))
@@ -973,7 +1019,7 @@ async function releasedSkillHarness(page: Page) {
     const requestContext = await harness.beginRoute(route)
     if (!requestContext) return
     const { url, signature } = requestContext
-    if (url.pathname === `/api/assets/${SKILL_ID}`) {
+    if (url.pathname === `/api/assets/${SKILL_ID}/released`) {
       await json(route, releasedSkillAsset())
       return
     }
@@ -1040,6 +1086,10 @@ function baseHarness(
         await json(route, profile(actor))
         return undefined
       }
+      if (url.pathname === "/api/organization/context") {
+        await json(route, organizationContext())
+        return undefined
+      }
 
       return { request, url, signature }
     },
@@ -1071,6 +1121,37 @@ function profile(actor: "owner" | "support") {
   }
 }
 
+function organizationContext() {
+  return {
+    organizationId: ORGANIZATION_ID,
+    departments: [
+      {
+        id: DEPARTMENT_ID,
+        organizationId: ORGANIZATION_ID,
+        name: "Customer Support",
+      },
+    ],
+    users: [
+      {
+        id: OWNER_ID,
+        organizationId: ORGANIZATION_ID,
+        departmentId: DEPARTMENT_ID,
+        name: "Operations Lead",
+        email: "lead@example.test",
+        clearance: "STANDARD",
+      },
+      {
+        id: SUPPORT_AGENT_ID,
+        organizationId: ORGANIZATION_ID,
+        departmentId: DEPARTMENT_ID,
+        name: "Support Agent",
+        email: "agent@example.test",
+        clearance: "STANDARD",
+      },
+    ],
+  }
+}
+
 function packAsset() {
   const payload = JSON.stringify({
     purpose: "ROLE_ONBOARDING",
@@ -1092,6 +1173,8 @@ function packAsset() {
     slug: "l1-onboarding",
     knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
     portfolioState: "ACTIVE",
+    ownerUserId: OWNER_ID,
+    sharingState: "SHARED",
     authorizationReady: true,
     draft: {
       id: "a1000000-0000-0000-0000-000000000005",
@@ -1171,9 +1254,24 @@ function packAsset() {
       continuityAtRisk: false,
     },
     roleAssignments: [
-      roleAssignment(SUPPORT_AGENT_ID, "OWNER"),
+      roleAssignment(OWNER_ID, "OWNER"),
       roleAssignment(BACKUP_OWNER_ID, "BACKUP_OWNER"),
     ],
+  }
+}
+
+function releasedPackAsset() {
+  const asset = packAsset()
+  return {
+    id: asset.id,
+    type: asset.type,
+    namespace: asset.namespace,
+    slug: asset.slug,
+    knowledgeSpaceId: asset.knowledgeSpaceId,
+    portfolioState: asset.portfolioState,
+    ownerUserId: asset.ownerUserId,
+    sharingState: asset.sharingState,
+    releases: asset.releases,
   }
 }
 
@@ -1202,6 +1300,8 @@ function skillDraftAsset(published: boolean) {
     slug: "expense-review",
     knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
     portfolioState: published ? "ACTIVE" : "DRAFT_ONLY",
+    ownerUserId: OWNER_ID,
+    sharingState: "PRIVATE",
     authorizationReady: true,
     draft: {
       id: "b1000000-0000-0000-0000-000000000004",

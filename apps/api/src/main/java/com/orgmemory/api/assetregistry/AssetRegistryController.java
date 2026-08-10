@@ -8,6 +8,7 @@ import com.orgmemory.core.assetregistry.AssetDraftInput;
 import com.orgmemory.core.assetregistry.AssetGovernanceActions;
 import com.orgmemory.core.assetregistry.AssetOwnedSort;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
+import com.orgmemory.core.assetregistry.AssetReleasedView;
 import com.orgmemory.core.assetregistry.AssetReviewDecisionType;
 import com.orgmemory.core.assetregistry.AssetSummary;
 import com.orgmemory.core.assetregistry.AssetSummaryPage;
@@ -16,6 +17,7 @@ import com.orgmemory.core.assetregistry.skill.SkillGitHubOperations;
 import com.orgmemory.core.assetregistry.skill.SkillGitHubSourcePort;
 import com.orgmemory.core.assetregistry.skill.SkillPackageInspection;
 import com.orgmemory.core.assetregistry.skill.SkillPackageOperations;
+import com.orgmemory.core.assetregistry.skill.SkillActivationOperations;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import com.orgmemory.core.shared.error.BusinessException;
@@ -33,6 +35,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -64,16 +67,19 @@ class AssetRegistryController {
     private final AssetRegistryService assets;
     private final SkillPackageOperations skills;
     private final SkillGitHubOperations skillGitHub;
+    private final SkillActivationOperations skillActivations;
     private final CurrentActorProvider actors;
 
     AssetRegistryController(
             AssetRegistryService assets,
             SkillPackageOperations skills,
             SkillGitHubOperations skillGitHub,
+            SkillActivationOperations skillActivations,
             CurrentActorProvider actors) {
         this.assets = assets;
         this.skills = skills;
         this.skillGitHub = skillGitHub;
+        this.skillActivations = skillActivations;
         this.actors = actors;
     }
 
@@ -123,6 +129,19 @@ class AssetRegistryController {
     }
 
     record PublishSkillReleaseRequest(String versionLabel) {
+    }
+
+    record ShareAssetRequest(
+            String principalType, String principalId, AssetRole role) {
+    }
+
+    record TransferAssetOwnershipRequest(@NotNull UUID nextOwnerUserId) {
+    }
+
+    record SkillActivationRequest(boolean enabled) {
+    }
+
+    record SkillActivationView(UUID assetId, boolean enabled) {
     }
 
     record GitHubSkillSourceRequest(
@@ -371,11 +390,49 @@ class AssetRegistryController {
     }
 
     @GetMapping("/{assetId}")
-    @Operation(operationId = "getAsset", summary = "Read an authorized Asset and its governance history")
+    @Operation(operationId = "getAsset", summary = "Read an Asset's authoring and governance history")
     AssetView get(
             @PathVariable UUID assetId,
             Authentication authentication) {
         return assets.get(actors.current(authentication), assetId);
+    }
+
+    @GetMapping("/{assetId}/released")
+    @Operation(
+            operationId = "getReleasedAsset",
+            summary = "Read released Asset content without exposing its working copy or governance history")
+    AssetReleasedView getReleased(
+            @PathVariable UUID assetId,
+            Authentication authentication) {
+        return assets.getReleased(actors.current(authentication), assetId);
+    }
+
+    @GetMapping("/{assetId}/skill-activation")
+    @Operation(
+            operationId = "getSkillActivation",
+            summary = "Read the current user's opt-in state for one visible Skill")
+    SkillActivationView getSkillActivation(
+            @PathVariable UUID assetId,
+            Authentication authentication) {
+        CurrentActor actor = actors.current(authentication);
+        requireSkill(assets.getReleased(actor, assetId));
+        return new SkillActivationView(
+                assetId, skillActivations.isEnabled(actor, assetId));
+    }
+
+    @PutMapping("/{assetId}/skill-activation")
+    @Operation(
+            operationId = "setSkillActivation",
+            summary = "Enable or disable one visible Skill for the current user")
+    SkillActivationView setSkillActivation(
+            @PathVariable UUID assetId,
+            @RequestBody SkillActivationRequest request,
+            Authentication authentication) {
+        CurrentActor actor = actors.current(authentication);
+        requireSkill(assets.getReleased(actor, assetId));
+        return new SkillActivationView(
+                assetId,
+                skillActivations.setEnabled(actor, assetId, request.enabled()));
     }
 
     @GetMapping("/{assetId}/governance-actions")
@@ -459,6 +516,94 @@ class AssetRegistryController {
                 request.versionLabel());
     }
 
+    @PostMapping("/{assetId}/direct-releases")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+            operationId = "publishAssetDraft",
+            summary = "Publish the current working copy as an immutable Release")
+    AssetView publishDraft(
+            @PathVariable UUID assetId,
+            @RequestBody PublishSkillReleaseRequest request,
+            Authentication authentication) {
+        return assets.publishDraft(
+                actors.current(authentication), assetId, request.versionLabel());
+    }
+
+    @PostMapping("/{assetId}/shares")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+            operationId = "shareAsset",
+            summary = "Share an Asset with one Viewer or Editor audience")
+    AssetView share(
+            @PathVariable UUID assetId,
+            @RequestBody ShareAssetRequest request,
+            Authentication authentication) {
+        return assets.share(
+                actors.current(authentication),
+                assetId,
+                request.principalType(),
+                request.principalId(),
+                request.role());
+    }
+
+    @DeleteMapping("/{assetId}/shares")
+    @Operation(operationId = "unshareAsset", summary = "Remove one Viewer or Editor share")
+    AssetView unshare(
+            @PathVariable UUID assetId,
+            @RequestBody ShareAssetRequest request,
+            Authentication authentication) {
+        return assets.unshare(
+                actors.current(authentication),
+                assetId,
+                request.principalType(),
+                request.principalId(),
+                request.role());
+    }
+
+    @PostMapping("/{assetId}/ownership-transfer")
+    @Operation(operationId = "transferAssetOwnership", summary = "Transfer Asset ownership to another user")
+    AssetView transferOwnership(
+            @PathVariable UUID assetId,
+            @Valid @RequestBody TransferAssetOwnershipRequest request,
+            Authentication authentication) {
+        return assets.transferOwnership(
+                actors.current(authentication), assetId, request.nextOwnerUserId());
+    }
+
+    @PostMapping("/{assetId}/ownership-recovery")
+    @Operation(
+            operationId = "recoverAssetOwnership",
+            summary = "Recover an owner-vacant Asset as an administrator")
+    AssetView recoverOwnership(
+            @PathVariable UUID assetId,
+            @Valid @RequestBody TransferAssetOwnershipRequest request,
+            Authentication authentication) {
+        return assets.recoverOwnership(
+                actors.current(authentication), assetId, request.nextOwnerUserId());
+    }
+
+    @PostMapping("/{assetId}/withdrawal")
+    @Operation(operationId = "withdrawAsset", summary = "Withdraw every Release and retire an owned Asset")
+    AssetView withdrawAsset(
+            @PathVariable UUID assetId,
+            @RequestBody AssetAvailabilityRequest request,
+            Authentication authentication) {
+        return assets.withdrawAsset(
+                actors.current(authentication), assetId, request.reason());
+    }
+
+    @PostMapping("/{assetId}/emergency-withdrawal")
+    @Operation(
+            operationId = "emergencyWithdrawAsset",
+            summary = "Emergency-withdraw every Release from an Asset as an administrator")
+    AssetView emergencyWithdrawAsset(
+            @PathVariable UUID assetId,
+            @RequestBody AssetAvailabilityRequest request,
+            Authentication authentication) {
+        return assets.emergencyWithdrawAsset(
+                actors.current(authentication), assetId, request.reason());
+    }
+
     @PostMapping("/{assetId}/releases/{releaseId}/deprecation")
     @Operation(operationId = "deprecateAssetRelease", summary = "Deprecate an Asset release")
     AssetView deprecate(
@@ -494,5 +639,11 @@ class AssetRegistryController {
                 request.principalType(),
                 request.principalId(),
                 request.role());
+    }
+
+    private static void requireSkill(AssetReleasedView asset) {
+        if (asset.type() != AssetType.SKILL) {
+            throw new ApiRequestException("Skill activation is available only for Skill Assets");
+        }
     }
 }

@@ -66,14 +66,14 @@ import {
   acknowledgeWorkInstructionMutation,
   getAssetGovernanceActionsOptions,
   getCapabilityPackDefinitionOptions,
-  getAssetOptions,
-  getAssetQueryKey,
+  getReleasedAssetOptions,
+  getReleasedAssetQueryKey,
   getSkillInstallContractOptions,
   renderAssistantPromptMutation,
   runAssistantPromptMutation,
   submitAssistantAssetFeedbackMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
-import type { AssetView, Release } from "@/lib/hey-api"
+import type { AssetReleasedView, Release } from "@/lib/hey-api"
 import { formatBytes, formatDate } from "@/lib/format"
 
 type PromptVariable = {
@@ -123,7 +123,7 @@ export function AssetDetailPage({
   releaseId?: string
   onReleaseChange: (releaseId?: string) => void
 }) {
-  const assetOptions = getAssetOptions({ path: { assetId } })
+  const assetOptions = getReleasedAssetOptions({ path: { assetId } })
   const asset = useQuery({
     ...assetOptions,
     queryKey: scopeAssetQueryKey(assetOptions.queryKey, actorKey),
@@ -179,18 +179,18 @@ function AssetIdentityHeader({
   canOpenGovernance,
   onReleaseChange,
 }: {
-  asset: AssetView
+  asset: AssetReleasedView
   release?: Release
   canOpenGovernance: boolean
   onReleaseChange: (releaseId?: string) => void
 }) {
   const meta = ASSET_TYPE_META[asset.type!]
   const Icon = meta.icon
-  const title = release?.title ?? asset.draft?.title ?? "Untitled asset"
+  const title = release?.title ?? "Untitled asset"
   return (
     <PageLayout.Header
       title={title}
-      description={release?.summary ?? asset.draft?.summary}
+      description={release?.summary}
       icon={<Icon className="size-5" aria-hidden="true" />}
       breadcrumb={<AssetBreadcrumb assetId={asset.id} assetTitle={title} />}
       metadata={
@@ -199,13 +199,13 @@ function AssetIdentityHeader({
           <Badge variant="outline">
             {asset.portfolioState?.replaceAll("_", " ").toLocaleLowerCase()}
           </Badge>
-          {asset.ownershipHealth?.orphaned ? (
-            <Badge className="bg-status-danger-surface text-status-danger-content">Orphaned</Badge>
-          ) : asset.ownershipHealth?.continuityAtRisk ? (
-            <Badge className="bg-status-warning-surface text-status-warning-content">
-              Ownership gap
-            </Badge>
-          ) : null}
+          <Badge variant="outline">
+            {asset.sharingState === "ORGANIZATION"
+              ? "Company"
+              : asset.sharingState === "SHARED"
+                ? "Shared"
+                : "Private"}
+          </Badge>
           {release?.availability === "DEPRECATED" ? (
             <Badge className="bg-status-warning-surface text-status-warning-content">
               Deprecated
@@ -270,7 +270,7 @@ function AssetIdentityHeader({
   )
 }
 
-function ProfilePanel({ asset, release }: { asset: AssetView; release: Release }) {
+function ProfilePanel({ asset, release }: { asset: AssetReleasedView; release: Release }) {
   if (!asset.id || !release.id) return null
   if (asset.type === "PROMPT_TEMPLATE") {
     return <PromptPanel assetId={asset.id} release={release} />
@@ -566,7 +566,9 @@ function WorkInstructionPanel({ assetId, release }: { assetId: string; release: 
   const acknowledge = useMutation({
     ...acknowledgeWorkInstructionMutation(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: getAssetQueryKey({ path: { assetId } }) })
+      await queryClient.invalidateQueries({
+        queryKey: getReleasedAssetQueryKey({ path: { assetId } }),
+      })
       toast.success("Work instruction acknowledged")
     },
   })
