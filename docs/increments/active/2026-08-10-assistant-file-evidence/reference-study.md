@@ -32,6 +32,18 @@ documentation or recollection.
   repeated on every turn because conversation memory can replay old attachment
   evidence.
 
+Evidence:
+
+- `core/src/main/java/com/northstar/core/attachment/AttachmentService.java`
+  (`store`, `safeFilename`)
+- `apps/api/src/main/java/com/northstar/api/attachment/AttachmentController.java`
+  (`upload`, `indexStatus`, `serve`)
+- `apps/worker/src/main/java/com/northstar/worker/search/SearchIndexingWorker.java`
+- `core/src/main/java/com/northstar/core/search/SearchService.java`
+  (`indexAttachment`, `indexAttachmentLocked`)
+- `apps/api/src/main/java/com/northstar/api/assistant/AssistantController.java`
+  (`chat`, `streamTurn`, `userMessageWithEvidence`, `ChatRequest`)
+
 ### What OrgMemory should learn
 
 1. Preparation is asynchronous and visible; Tika and embedding do not belong on
@@ -75,6 +87,18 @@ search or metadata plus a file-reader tool. Tabular data is metadata-only. Chat
 files and durable user files remain separate allowlists for tools. File download
 returns 404 across ownership boundaries.
 
+Evidence:
+
+- `backend/onyx/file_store/models.py` (`ChatFileType`, `FileDescriptor`)
+- `backend/onyx/db/models.py` (`UserFile`)
+- `backend/onyx/db/enums.py` (`UserFileStatus`)
+- `backend/onyx/server/features/projects/api.py` (`upload_user_files`,
+  `delete_user_file`, `get_user_file`)
+- `backend/onyx/file_store/utils.py` (`verify_user_files`)
+- `backend/onyx/chat/process_message.py` (`resolve_context_user_files`,
+  `extract_context_files`, and their verified turn-setup call sites)
+- `backend/onyx/tools/tool_implementations/file_reader/file_reader_tool.py`
+
 ### What OrgMemory should learn
 
 1. Transient chat files and durable reusable files are different product
@@ -101,4 +125,3 @@ Onyx's separation of identities and use-time verification. Do not copy either
 authorization model. The first OrgMemory composer upload should create governed
 Knowledge evidence through the existing Source Ledger. A separate transient-turn
 lane remains a future architecture decision, not an implementation shortcut.
-

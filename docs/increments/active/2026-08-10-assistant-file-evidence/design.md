@@ -1,13 +1,12 @@
-# Reusable Document Parsing and Assistant File Evidence
+# Assistant Governed File Evidence
 
 ## Intent
 
-Design two related capabilities without collapsing their boundaries:
-
-1. a reusable, channel-neutral document parsing adapter that produces OrgMemory's
-   canonical typed-block IR; and
-2. a governed Assistant composer upload that can become citable evidence without
-   bypassing Source Ledger, processing identity, or authorization.
+Deliver a governed Assistant composer upload that becomes citable evidence
+without bypassing Source Ledger, processing identity, or authorization. It uses
+the reusable parser boundary shipped by the preceding Knowledge ingestion
+coverage increment; this increment does not add another parser caller or move
+ingestion ownership into Assistant.
 
 The first Assistant delivery is deliberately durable governed evidence. It does
 not introduce an ephemeral “send these bytes directly to the model for this turn”
@@ -15,37 +14,35 @@ path.
 
 ## Current facts
 
-- `components:graph-rag-core` already owns channel-neutral `DocumentParser`,
-  `DocumentParseRequest`, `DocumentParseResult`, `CanonicalDocument`, and typed
-  `DocumentBlock` contracts.
-- The concrete `SpringAiDocumentParser` is package-private in `apps:worker` and
-  mixes extraction with Knowledge-specific admission and rejection exceptions.
+- `components:graph-rag-core` owns the channel-neutral parsing port, canonical
+  document IR, typed blocks, and parse-failure taxonomy.
+- `integrations:document-parsing-spring-ai` owns the concrete public parser
+  adapter, dedicated CSV reader, sanitized XHTML extraction, format capability,
+  and parser identity. Worker remains its only production caller.
 - `DocumentProcessingEngine` is correctly worker-owned: it resolves the immutable
   processing profile, chunks, embeds, and coordinates durable publication.
-- `structured-block-v1` is the production processing policy on the stacked
-  ingestion branch. It dispatches by canonical block kind and pins requested and
-  resolved processing identity for deterministic retry.
+- `structured-block-v1` is the production processing policy. It dispatches by
+  canonical block kind and pins requested and resolved processing identity for
+  deterministic retry.
 - `SourceUploadService` already validates the actor, Knowledge Space,
   classification, declared access, immutable object key, and upload limits before
   registering an asynchronous Source revision.
 - Assistant currently accepts text only. Its answers and persisted citations use
   permission-scoped Knowledge retrieval and re-hydrate canonical Source evidence.
 
-## Architecture decision 1: reusable parsing boundary
+## Shipped dependency: reusable parsing boundary
 
 ### Ownership
 
-Keep the deterministic contracts and canonical IR in
-`components:graph-rag-core`. Extract the concrete Tika/Spring AI implementation
-from `apps:worker` into a new replaceable integration:
+The completed Knowledge ingestion coverage increment keeps deterministic
+contracts and canonical IR in `components:graph-rag-core` and the concrete
+Tika/Spring AI implementation in the replaceable integration:
 
 `integrations:document-parsing-spring-ai`
 
-This module is justified by the replaceable framework boundary and the imminent
-CSV/HTML reader family in Knowledge ingestion coverage item 3. Worker remains
-the only direct production caller after Assistant ships, because Assistant uses
-the Source pipeline rather than calling the parser. Future reuse is enabled but
-is not the present-day justification. The module owns:
+Worker remains the only direct production caller after Assistant ships, because
+Assistant uses the Source pipeline rather than calling the parser. The module
+owns:
 
 - PDF page reading;
 - Tika XHTML extraction for structured office and HTML documents;
@@ -65,12 +62,9 @@ It does not own:
 - Spring component discovery for a particular application.
 
 The implementation is a public adapter constructed by worker configuration.
-Framework exceptions are translated into a small channel-neutral parse failure
-taxonomy at the `DocumentParser` boundary. It distinguishes deterministic
-unsupported, corrupt, empty, and encoding failures from retryable infrastructure
-failure. The worker maps those failures to its durable ingestion terminal
-reasons; deterministic parse failure is non-retryable instead of falling through
-to the current generic `PARSING_FAILED` retry path.
+Framework exceptions are translated into the channel-neutral parse failure
+taxonomy at the `DocumentParser` boundary. Knowledge admission and durable
+failure mapping remain outside the adapter.
 
 ### Capability is not admission
 
@@ -100,7 +94,7 @@ worker. Moving `DocumentProcessingEngine` into a shared module would duplicate
 Source lifecycle semantics in a nominally generic layer and encourage request-
 thread processing.
 
-## Architecture decision 2: governed Assistant evidence
+## Architecture decision: governed Assistant evidence
 
 ### One upload, one Source identity
 
@@ -236,10 +230,6 @@ selection events but contains no Knowledge or permission policy.
    request threads.
 7. No uploaded bytes or extracted text enter logs, traces, audit payloads, or
    Northstar notes.
-8. Moving the parser across modules without changing behavior preserves
-   `spring-ai-document-reader@2.1.0` and produces byte-identical requested and
-   resolved profile hashes; an identity change requires an intentional version
-   bump.
 
 ## Upstream influence
 
@@ -253,10 +243,10 @@ The pinned evidence is in [reference-study.md](reference-study.md).
 - Deliberately not inherited: Northstar's UUID-sufficient attachment access and
   Onyx's user/project authorization ceiling.
 
-## Required challenge
+## Architecture challenge result
 
-The independent reviewer must attack both decisions, with special focus on
-whether governed-only uploads make the Assistant UX unacceptably slow and
-whether extracting a parser integration before a second direct caller is
-premature. The final verdict belongs in `challenge-verdict.md` before
-implementation starts.
+The independent reviewer returned `REVISE`. The accepted design now gates READY
+on active-engine answerability, carries a selected-evidence ceiling through
+retrieval and citation hydration, and requires usable evidence from every
+selected binding. The execution record and rejected transient-lane alternative
+are in `challenge-verdict.md`.

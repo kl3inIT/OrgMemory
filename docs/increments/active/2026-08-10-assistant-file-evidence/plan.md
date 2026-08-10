@@ -1,9 +1,10 @@
-# Reusable Document Parsing and Assistant File Evidence Plan
+# Assistant Governed File Evidence Plan
 
 ## Status
 
-Design and architecture challenge only. No Assistant upload behavior is
-implemented by this increment yet.
+Active implementation. The reusable parser and coordinated Knowledge format
+coverage shipped in the preceding Knowledge ingestion coverage increment. This
+increment owns only governed Assistant file evidence.
 
 ## 1. Ground the decision
 
@@ -18,24 +19,7 @@ implemented by this increment yet.
   answerability and selection-constrained retrieval added as must-fix design
   gates.
 
-## 2. Reusable parser adapter
-
-- [ ] Create `integrations:document-parsing-spring-ai` and move only the concrete
-  extraction adapter, readers, canonical block construction, capability
-  descriptors, and adapter tests out of `apps:worker`.
-- [ ] Add a channel-neutral parse failure taxonomy; keep Knowledge rejection
-  mapping and ingestion terminal state in worker/core Source ownership. Prove a
-  deterministic corrupt file does not enter the generic retryable
-  `PARSING_FAILED` path.
-- [ ] Make format capability queryable without making it an admission policy.
-- [ ] Wire the worker through explicit configuration and prove unchanged parser
-  component identity and byte-identical requested/resolved profile hashing for a
-  behavior-preserving move; bump the identity only for extraction behavior
-  changes.
-- [ ] Implement ingestion-coverage item 3 readers/admission against this boundary:
-  dedicated CSV, sanitized HTML, and the coordinated format gates.
-
-## 3. Governed Assistant evidence
+## 2. Governed Assistant evidence
 
 - [ ] Define the Assistant evidence-binding aggregate and Flyway migration with
   organization/conversation/creator/source/revision identity, ordering, and
@@ -62,7 +46,7 @@ implemented by this increment yet.
 - [ ] Keep images, direct provider uploads, transient attachments, OCR, archives,
   MSG/EML recursion, and generated files closed.
 
-## 4. Verification and consolidation
+## 3. Verification and consolidation
 
 - [ ] Cover cross-organization ID probing, another conversation's binding,
   revoked access between upload and send, unready/failed/retired revisions,
@@ -79,6 +63,7 @@ implemented by this increment yet.
 
 ## Sequencing
 
-Finish Knowledge ingestion coverage item 3 and the reusable parser extraction
-before wiring the composer. Assistant may depend on the resulting Source
-pipeline; ingestion must never depend on Assistant.
+The Knowledge ingestion coverage dependency is shipped and immutable. Assistant
+depends on its Source pipeline and parser capability; neither Knowledge nor the
+parser integration may depend on Assistant. Backend binding/readiness and
+selection-constrained retrieval land before composer UI wiring.
