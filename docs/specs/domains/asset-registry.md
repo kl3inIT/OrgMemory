@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-10-asset-library-sharing-lifecycle (03993bca)`.
+Reconciled: `2026-08-10-asset-catalog-visual-refinement (5183f9b6)`.
 
 ## Current Behavior
 
@@ -376,7 +376,11 @@ The authenticated web application provides four generic surfaces:
   not expand the page horizontally. Search, scope, type, sort, layout, and page
   are URL state; the grid is the clean-URL default and the list remains
   available. Both server collections return bounded pages, authorized totals,
-  and explicit stable orders. An `Add asset` menu preserves the shared profile
+  and explicit stable orders. Grid cards are single click targets with compact
+  type-specific SVG marks, human owner names when directory access permits,
+  sharing state, and a subordinate per-user `Use in Assistant` switch for Skills;
+  they never expose package coordinates or shortened owner identifiers. An
+  `Add asset` menu preserves the shared profile
   taxonomy without a full-page catalog duplicate. Skill opens a creation-only
   route whose scratch, upload, and GitHub paths create governed private Drafts
   through canonical package validation; unsupported profiles remain visible but
