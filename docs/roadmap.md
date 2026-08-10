@@ -38,6 +38,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Observability pipeline and payload boundary | shipped | [completed verification](increments/completed/2026-07-29-observability-pipeline/verification.md) |
 | Authorization consolidation: typed batch-recheck policy and served governance affordances | shipped | [completed plan](increments/completed/2026-08-01-authz-consolidation/plan.md), [decision 0023](decisions/0023-batch-recheck-policy-and-served-affordances.md) |
 | Ingestion throughput: batched staging writes and bounded-burst schedulers | shipped | [completed plan](increments/completed/2026-08-01-ingestion-throughput/plan.md), [decision 0024](decisions/0024-bounded-burst-scheduling-over-drain.md) |
+| Knowledge ingestion coverage | shipped | [completed verification](increments/completed/2026-08-07-knowledge-ingestion-coverage/verification.md), [decision 0037](decisions/0037-separate-parser-capability-from-knowledge-admission.md) |
 | Copy-forward coordination: durable ownership and bounded streaming | shipped | [completed plan](increments/completed/2026-08-01-copyforward-coordinator/plan.md), [decision 0025](decisions/0025-copyforward-durable-ownership.md) |
 | Connector polling coordination: shared lifecycle, client rotation, and failure admission | shipped | [completed plan](increments/completed/2026-08-01-connector-polling-driver/plan.md), [decision 0026](decisions/0026-connector-polling-lifecycle.md) |
 | Authorized graph traversal coordinator | shipped | [completed verification](increments/completed/2026-08-01-authorized-graph-traversal/verification.md), [decision 0027](decisions/0027-core-owned-authorized-graph-traversal.md) |
@@ -54,7 +55,6 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
-| [Knowledge ingestion coverage](increments/active/2026-08-07-knowledge-ingestion-coverage/plan.md) | active | complete PR CI and review, then merge the locally verified reusable parser, sixteen-suffix admission, structured-block policy, and per-format limits |
 | [Asset library sharing lifecycle](increments/active/2026-08-10-asset-library-sharing-lifecycle/plan.md) | next | characterize ownership/review conflicts and split released-consumption from governance reads after the overlapping Asset Registry package-refactor slice lands; then implement the challenged owner-only direct-sharing lifecycle |
 | [Assistant turn activity continuity](increments/completed/2026-08-06-assistant-turn-activity-continuity/verification.md) | shipped | one stable pre-answer surface now preserves thinking through renderable text and presents Skill detail only when useful; the unrelated browser timing baseline gap is recorded |
 | [Assistant conversation memory SSOT](increments/completed/2026-08-06-assistant-conversation-memory-ssot/verification.md) | shipped | collapsed the conversation to one owned store read back through a project-owned read-only turn advisor, and gave a failed turn a sentence naming its cause |
