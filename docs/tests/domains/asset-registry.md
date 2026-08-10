@@ -14,7 +14,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets/**/*.test.ts`,
 `apps/web/test/e2e/asset-registry-golden-poc.spec.ts`.
 
-Reconciled: `2026-08-10-asset-library-sharing-lifecycle`.
+Reconciled: `2026-08-10-asset-library-sharing-lifecycle (03993bca)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |

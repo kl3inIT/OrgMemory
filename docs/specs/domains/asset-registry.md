@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-10-asset-library-sharing-lifecycle`.
+Reconciled: `2026-08-10-asset-library-sharing-lifecycle (03993bca)`.
 
 ## Current Behavior
 
