@@ -56,9 +56,9 @@
   sensitivity, retry across configuration change, pinned fallback, unavailable
   components, and READY constraints. HTML remains in item 3 because its upload
   allowlist is not open yet.
-- [x] Add a V29-to-V30 migration fixture containing an existing READY revision
+- [x] Add a V29-to-latest migration fixture containing an existing READY revision
   to prove the migration validates it without changing its processing identity.
-- [x] Lock the job table and fail the V30 cutover while legacy PENDING or
+- [x] Lock the job table and fail the V31 cutover while legacy PENDING or
   PROCESSING jobs exist; the rollout must stop and drain the old worker rather
   than pin those jobs from new deployment defaults.
 

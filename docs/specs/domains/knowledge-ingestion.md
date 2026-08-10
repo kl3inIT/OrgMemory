@@ -145,7 +145,7 @@ processing profile and its SHA-256 at the database boundary. The constraint is
 introduced without validating historical rows, so an existing READY revision
 that predates the profile remains unchanged and cannot be silently reparsed or
 rechunked when defaults change; a rebuild requires a new explicit revision
-identity. The V30 cutover locks the ingestion-job table and refuses to migrate
+identity. The V31 cutover locks the ingestion-job table and refuses to migrate
 while a legacy job is `PENDING` or `PROCESSING`; deployment must stop and drain
 the old worker before migration because the new deployment cannot safely guess
 the old job's complete policy. Publication first

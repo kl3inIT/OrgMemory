@@ -1,4 +1,4 @@
-# 0036 — Separate parser capability from Knowledge admission
+# 0037 — Separate parser capability from Knowledge admission
 
 Status: accepted
 Date: 2026-08-10
