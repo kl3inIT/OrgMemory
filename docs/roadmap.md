@@ -55,6 +55,7 @@ The table is a delivery index, not a second description of current behavior.
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
 | [Knowledge ingestion coverage](increments/active/2026-08-07-knowledge-ingestion-coverage/plan.md) | active | typed block IR so a table survives parsing, content-type strategy resolution, then the organization formats an upload is refused today |
+| [Asset library sharing lifecycle](increments/active/2026-08-10-asset-library-sharing-lifecycle/plan.md) | next | characterize ownership/review conflicts and split released-consumption from governance reads after the overlapping Asset Registry package-refactor slice lands; then implement the challenged owner-only direct-sharing lifecycle |
 | [Assistant turn activity continuity](increments/completed/2026-08-06-assistant-turn-activity-continuity/verification.md) | shipped | one stable pre-answer surface now preserves thinking through renderable text and presents Skill detail only when useful; the unrelated browser timing baseline gap is recorded |
 | [Assistant conversation memory SSOT](increments/completed/2026-08-06-assistant-conversation-memory-ssot/verification.md) | shipped | collapsed the conversation to one owned store read back through a project-owned read-only turn advisor, and gave a failed turn a sentence naming its cause |
 | [Clearance separation](increments/active/2026-08-06-clearance-separation/plan.md) | active | complete the implementation gates, then review the migration, two Executive call sites, and generated contract diff in the merge loop |
@@ -93,15 +94,18 @@ implementation-active until their predecessor exit gates pass.
 
 1. Begin the owner-led public-docs queue with the context and outline
    checkpoints for What is OrgMemory?.
-2. Complete the guarded ZM database cutover, runtime health, browser login,
+2. Finish the overlapping Asset Registry package-refactor slice, then begin the
+   Asset library sharing lifecycle with the governance-read split and redacted
+   ownership/review conflict characterization.
+3. Complete the guarded ZM database cutover, runtime health, browser login,
    upload, GraphRAG, Assistant/citation, restore, rollback, and resource gates.
-3. Complete the reproducible demo's real ingestion and permission-evaluation
+4. Complete the reproducible demo's real ingestion and permission-evaluation
    path.
-4. Run the Slack live proof with credentials outside the repository and retain
+5. Run the Slack live proof with credentials outside the repository and retain
    only redacted evidence.
-5. Close the production proofs for asset projection generation and LightRAG
+6. Close the production proofs for asset projection generation and LightRAG
    latency.
-6. Continue the dependency-ordered native identity program: provisioning
+7. Continue the dependency-ordered native identity program: provisioning
    foundation, Users private beta, inert Directory Groups, optional explicit
    authorization mapping, then vendor/operations certification.
 
