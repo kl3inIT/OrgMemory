@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-10-asset-catalog-visual-refinement (5183f9b6)`.
+Reconciled: `2026-08-10-asset-catalog-visual-refinement (5300ac0e)`.
 
 ## Current Behavior
 
