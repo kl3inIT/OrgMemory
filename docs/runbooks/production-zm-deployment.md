@@ -233,7 +233,18 @@ The deployment:
     publish unique child-owned PID/start-time readiness markers. The launcher
     validates each live identity within a bounded interval before linked-worktree
     creation or registry login; a detached-fork exec failure therefore remains a
-    pre-reconciler cleanup failure. The reconcilers close any inherited FD 198
+    pre-reconciler cleanup failure. Remote preparation runs in strict mode and
+    exclusively creates a private, deployment-user-owned state directory. If
+    deployment terminates before the active-controller handshake completes, the
+    launcher accepts its atomic regular-file terminal status only after validating
+    state/marker ownership and modes, rejecting symlinks and any status bytes beyond
+    the canonical decimal line, checking the status range and qualified owner identity,
+    and proving registry credential removal with no residual credential symlink. A
+    status appearing while the ACTIVE lease is still held is fully validated rather
+    than bypassed; if ACTIVE identity or lease validation observes a concurrent
+    controller exit, the verifier also revalidates the terminal state published
+    before lease release. The
+    reconcilers close any inherited FD 198
     defensively; the controller and deploy
     subprocess tree inherit the launcher lease, which is never rebound by the
     deployment lock FD. A reconciler can therefore prove the whole controller tree
