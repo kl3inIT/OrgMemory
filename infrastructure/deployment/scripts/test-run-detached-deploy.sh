@@ -131,6 +131,7 @@ write_environment() {
     printf 'DEPLOY_TIMEOUT_SECONDS=%q\n' "$timeout_seconds"
     printf 'DOCKER_CONFIG=%q\n' "$state/docker-config"
     printf 'ORGMEMORY_EXTERNAL_GATE_DIRECTORY=%q\n' "/tmp/orgmemory-deploy-gate.detached-test-$$"
+    printf 'ORGMEMORY_ENV_FILE=%q\n' "$state/production.env"
     printf 'ORGMEMORY_KEYCLOAK_CONFIGURATION_SCRIPT=%q\n' /bin/true
     printf 'ORGMEMORY_KEYCLOAK_LOGIN_THEME=%q\n' keycloak
     printf 'ORGMEMORY_KEYCLOAK_THEME_CONFIGURATION_SCRIPT=%q\n' /bin/true
@@ -146,6 +147,8 @@ write_environment() {
     printf 'TRUSTED_DEPLOY_SCRIPT=%q\n' "$deploy_script"
   } >"$state/launch.env"
   chmod 0600 "$state/launch.env"
+  : >"$state/production.env"
+  chmod 0600 "$state/production.env"
   cp "$repo_root/infrastructure/deployment/scripts/signal-qualified-process.py" \
     "$state/signal-qualified-process.py"
   chmod 0700 "$state/signal-qualified-process.py"
@@ -153,7 +156,12 @@ write_environment() {
 }
 
 failure_deploy="$failure_state/deploy"
-printf '%s\n' '#!/usr/bin/env bash' 'printf "detached failure exercised\\n"' 'exit 23' >"$failure_deploy"
+# shellcheck disable=SC2016  # Generated fixture expands the environment variable at runtime.
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'printf "detached failure exercised\\n"' \
+  'printf "environment=%s\\n" "${ORGMEMORY_ENV_FILE:-unset}"' \
+  'exit 23' >"$failure_deploy"
 chmod 0700 "$failure_deploy"
 write_environment "$failure_state" "$failure_deploy" 5
 "$runner" "$failure_state"
@@ -165,6 +173,7 @@ read -r failure_status <"$failure_state/status"
 [[ "$(readlink "$failure_state/ownership")" == controller.* ]]
 [[ ! -e "$failure_state/docker-config" ]]
 grep -Fx 'detached failure exercised' "$failure_state/deploy.log" >/dev/null
+grep -Fx "environment=$failure_state/production.env" "$failure_state/deploy.log" >/dev/null
 "$launch_verifier" "$failure_state"
 printf '256\n' >"$failure_state/status"
 if "$launch_verifier" "$failure_state" >/dev/null 2>&1; then
