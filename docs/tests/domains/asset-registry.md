@@ -14,7 +14,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets/**/*.test.ts`,
 `apps/web/test/e2e/asset-registry-golden-poc.spec.ts`.
 
-Reconciled: `2026-08-10-asset-catalog-visual-refinement (5300ac0e)`.
+Reconciled: `2026-08-10-asset-catalog-visual-refinement (82f01cab)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
