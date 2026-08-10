@@ -2,20 +2,29 @@
 
 Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `core/src/test/java/com/orgmemory/core/ai`,
+`core/src/test/java/com/orgmemory/core/knowledge/graph`,
+`core/src/test/java/com/orgmemory/core/knowledge/retrieval`,
 `integrations/ai-model-gateways/src/test`,
+`apps/api/src/test/java/com/orgmemory/api/OpenApiContractTests.java`,
 `apps/api/src/test/java/com/orgmemory/api/assistant`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`,
 `apps/web/src/components/ai-elements/prompt-input.test.tsx`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-06-assistant-prompt-input-alignment (b83d45d9)`.
+Reconciled: `2026-08-10-assistant-file-evidence (5aee7535)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
 | API context boots without provider key | `OrgMemoryApiContextLoadTests` | covered |
 | Assistant sends only permission-verified evidence to the model | `AssistantServiceTests#streamsOnlyPermissionVerifiedEvidenceToTheModel` | covered |
 | Assistant consumes only the parent `knowledge::search` contract and never imports Retrieval implementation | `ModulithVerificationTests#topLevelSearchConsumersUseOnlyTheParentSearchInterface`, `#assistantAndAssetRegistryDoNotDependOnRetrievalImplementation` | covered |
+| Assistant upload validates an existing conversation before side effects, delegates bytes to the general governed Source port, and creates only an exact Source/revision binding | `AssistantEvidenceUploadServiceTests`, `AssistantEvidenceServiceTests#claimsOnlyTheExactReadyRevisionAndPersistsTheTurnSelection` | covered |
+| Cross-organization and other-conversation binding probes remain opaque, while revoked, processing, failed, retired, and active-engine-indexing states fail closed | `AssistantEvidenceServiceTests`, `GraphEvidenceAnswerabilityQueryTests#sourceReadyStillIndexesUntilTheExactGraphGenerationIsPublished` | covered |
+| A selected turn is limited to three distinct ordered bindings, persists the USER-message association, and refuses generation unless every selected file yields usable evidence | `AssistantChatRequestValidationTests#limitsOneTurnToThreeEvidenceBindings`, `AssistantConversationServiceTests`, `AssistantServiceTests#refusesGenerationWhenAnySelectedFileHasNoUsableEvidence` | covered |
+| Canonical retrieval rejects exact revision drift before scoring/context; GraphRAG keeps the selected Asset set through seed and expansion | `CanonicalHybridKnowledgeSearchTests#selectedEvidenceNarrowsCandidatesBeforeScoringAndRejectsExactRevisionDrift`, `GraphRagKnowledgeRetrievalServiceTests#selectedEvidenceIsTheScopeUsedByGraphSeedAndExpansion` | covered |
+| Product OpenAPI exposes upload/list/get only and no bind-existing-Source evidence route | `OpenApiContractTests#assistantEvidenceContractHasNoBindExistingSourceEndpoint`, `#theCommittedProductContractDescribesTheLiveProductApi` | covered |
+| Composer discloses durable Space publication, disables attachment with no writable Space, waits for READY, sends ordered IDs, retains them across a failed retry, and clears only on success | `assistant-evidence.test.ts`, `assistant-pipeline.spec.ts#uploads governed evidence and submits its ordered binding with the turn`, `#keeps the exact governed binding across a failed turn retry`, `#keeps governed attachment closed when no upload Space is authorized` | covered |
 | Empty authorized retrieval returns bounded same-language user-perspective wording plus one escalation sentence, with no model call or citations | `AssistantServiceTests#answersInVietnameseWithoutCallingTheModelWhenNoAccessibleEvidenceExists`, `#answersInEnglishWithoutCallingTheModelWhenNoAccessibleEvidenceExists` | covered |
 | Canonical and already-verified LightRAG prompts share permission-safe no-answer, adjacent-information, exact-citation, and direct-voice rules while preserving injection boundaries | `AssistantPromptFactoryTests#encodesPermissionSafeNoAnswerAndExactCitationBehavior`, `AssistantServiceTests#usesTheAlreadyVerifiedLightRagPromptWithoutRebuildingIt` | covered |
 | Evidence-scope disclosure renders below Assistant answers but not user messages | `assistant-answer.test.tsx` | covered |

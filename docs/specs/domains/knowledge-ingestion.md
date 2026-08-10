@@ -11,7 +11,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `integrations/document-parsing-spring-ai/src/main`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-08-10-ingestion-coverage (c0c12728)`.
+Reconciled: `2026-08-10-assistant-file-evidence (5aee7535)`.
 
 ## Current Behavior
 
@@ -35,6 +35,16 @@ Source Ledger also owns the citation evidence read boundary. It maps a
 tenant-scoped ready revision and validated evidence blob into immutable citation
 metadata, while revision/blob entities, repositories, and lifecycle enums remain
 internal to the closed module.
+
+Parent Knowledge exposes a general `knowledge::evidence` named interface for
+product channels that need to register governed bytes or resolve an exact
+Source/revision without importing Source Ledger internals. Source Ledger adapts
+that interface to its existing upload validation, object storage, revision, and
+job registration services and maps lifecycle state into a channel-neutral
+reference. Assistant is its first consumer. It still does not call the parser or
+processing engine: the worker remains the sole production parser caller, and
+all heavy parsing, chunking, embedding, and projection publication stays on the
+durable ingestion path.
 
 The Documents list uses Source Object ids as its stable browser identity and
 reads row state from each object's latest revision, including staged revisions
@@ -480,3 +490,5 @@ implemented as rebuildable projections over this canonical ledger.
 - [0005](../../decisions/0005-secure-java-graph-kernel.md)
 - [0008](../../decisions/0008-worker-owns-ingestion-and-derived-indexes.md)
 - [0009](../../decisions/0009-dynamic-source-acl-ceiling.md)
+- [0037](../../decisions/0037-separate-parser-capability-from-knowledge-admission.md)
+- [0038](../../decisions/0038-use-governed-source-bindings-for-assistant-files.md)

@@ -1,6 +1,7 @@
 # Knowledge Ingestion Coverage
 
 Source: `core/src/test/java/com/orgmemory/core/knowledge`,
+`core/src/test/java/com/orgmemory/core/assistant`,
 `apps/api/src/test/java/com/orgmemory/api/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/source`,
 `apps/web/src/features/sources`, `apps/web/test/e2e`,
@@ -11,7 +12,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `integrations/document-parsing-spring-ai/src/test`,
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-08-10-ingestion-coverage (c0c12728)`.
+Reconciled: `2026-08-10-assistant-file-evidence (5aee7535)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -67,6 +68,15 @@ Evidence classes: `KnowledgeContentTypeTests`, `SourceUploadServiceTests`, and
 | Upload limits are 10 MB for CSV/HTML/HTM/RTF/TXT/Markdown, 15 MB for spreadsheets, and 25 MB for PDF/Word/PowerPoint/OpenDocument text and presentation | `KnowledgeContentTypeTests.assignsLimitsByFormatCostInsteadOfOneGlobalDocumentLimit`, `SourceUploadServiceTests.rejectsASpreadsheetAboveItsFormatLimitWithAnActionableMessage`, `source-upload-dialog.test.ts` |
 | An extension outside the closed policy and a file exceeding its format limit are rejected before evidence is persisted | `KnowledgeContentTypeTests`, `SourceUploadServiceTests`, `source-upload-dialog.test.ts` |
 | Browser users can select a spreadsheet and an HTML export and submit each as a governed multipart upload | `document-actions.spec.ts#uploads a spreadsheet and an HTML export through the governed document dialog` |
+
+## Governed Evidence Boundary Coverage
+
+| Behavior | Automated evidence |
+| --- | --- |
+| `knowledge::evidence` is an exact named interface; Assistant and Graph consume it without opening Source Ledger or importing its persistence types | `ModulithVerificationTests#knowledgeEvidenceNamedInterfaceIsExact`, `#topLevelSearchConsumersUseOnlyTheParentSearchInterface` |
+| Assistant bytes pass through the existing governed upload service and no Assistant parser/embedding path exists on the API request thread | `AssistantEvidenceUploadServiceTests`, `SourceUploadServiceTests` |
+| Existing conversation ownership is checked before Source creation, while Source Ledger remains authoritative for Space, classification, format, limit, storage, revision, and job identity | `AssistantEvidenceUploadServiceTests#rejectsAnOpaqueConversationBeforeCreatingAGovernedSource`, `#delegatesBytesToTheGovernedFilePortBeforeCreatingTheBinding`, `SourceUploadServiceTests` |
+| Exact tenant-scoped Source/revision lifecycle maps to processing, failed, unavailable, and ready binding states without granting access | `AssistantEvidenceServiceTests#reportsProcessingFailedAndRetiredSourceStatesBeforeAnswerability`, `#revokedAccessBecomesUnavailableAndCannotBeClaimed` |
 
 ## Documents View And Retirement Coverage
 

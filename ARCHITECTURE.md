@@ -163,7 +163,11 @@ Executive facts and resolve organization/department existence without exposing
 Organization persistence or roles. Source Ledger resolves tenant-scoped ready
 revision plus validated blob state through `SourceCitationEvidenceQuery`, so
 citation opening consumes immutable evidence rather than revision/blob
-persistence. Asset has no direct dependency on Retrieval and is a closed
+persistence. Parent Knowledge also exposes the exact `knowledge::evidence`
+named interface for governed byte registration and exact Source/revision state.
+Source Ledger implements it through the canonical upload and query services;
+Assistant consumes it without importing Source Ledger persistence, parsing, or
+processing types. Asset has no direct dependency on Retrieval and is a closed
 nested module with an exact outgoing dependency allowlist. Parent Knowledge
 exposes the stable permission-aware
 search contract, immutable evidence, secure result, and verified grounding as
@@ -330,6 +334,14 @@ pipeline after generation. Revocation affects the next request;
 an in-flight turn may finish under its request snapshot and is bounded by the
 configured turn timeout. Missing, unknown, stale, unsupported, changed, or
 denied retrieval decisions fail closed.
+
+Assistant governed-file turns add an immutable `KnowledgeEvidenceSelection`
+after actor authorization. Canonical retrieval intersects the selected Assets
+before ranking; GraphRAG carries the same ceiling through seed, expansion,
+closure verification, and citation output. The selection pins exact binding,
+Source, revision, and Asset identity, and every selected Source must contribute
+usable final evidence before generation. Upload remains the ordinary durable
+Source pipeline; the API never parses or embeds the multipart bytes.
 
 ACL evidence is sealed and append-only. ACL rotation appends a new generation
 and compare-and-set advances the current head. The current head has a 24-hour
