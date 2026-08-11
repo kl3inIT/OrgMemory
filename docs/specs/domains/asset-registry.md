@@ -110,7 +110,11 @@ release or promote a mutable alias.
 The browser authors schema-v1 text-template Prompts as one atomic private
 Draft, including typed variables, up to ten persisted synthetic evaluation
 fixtures, and either no Knowledge requirement or optional natural-language
-requirements. The Knowledge Space chosen during creation is governance
+requirements. Prompt authoring reuses the shared Asset identity vocabulary of
+name and Description, then groups objective, intended users, use/do-not-use
+guidance, and limitations under a Usage contract. Intended users is descriptive
+payload metadata and does not grant access; sharing remains independent. The
+optional JSON response shape is a separate Output contract. The Knowledge Space chosen during creation is governance
 placement, not a grounding target. Ordered-message Drafts remain read-only in
 the editor and can be published unchanged. Direct publication snapshots the
 last saved Draft as an immutable exact release and does not change sharing.
@@ -394,7 +398,9 @@ The authenticated web application provides four generic surfaces:
   taxonomy without a full-page catalog duplicate. Skill opens a creation-only
   route whose scratch, upload, and GitHub paths create governed private Drafts
   through canonical package validation. Prompt opens a responsive visual
-  authoring route and creates the Asset plus populated private Draft atomically;
+  authoring route, presents the same name-and-Description identity as Skill,
+  separates Prompt Usage and Output contracts, and creates the Asset plus
+  populated private Draft atomically;
   Work Instruction and Capability Pack remain visible but non-interactive. The
   browser does not infer authorization or owner identity from the session.
 - **Asset detail / use** shares identity, provenance, and release selection,

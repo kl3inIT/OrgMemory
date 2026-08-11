@@ -52,7 +52,7 @@ export function PromptCreationPage() {
     <PageLayout.Root variant="wide">
       <PageLayout.Header
         title="Create a Prompt"
-        description="Author a private working copy, validate its contract, then publish an immutable release."
+        description="Author a private Draft, validate its contract, then publish an immutable release."
         breadcrumb={
           <Breadcrumb>
             <BreadcrumbList>
@@ -69,14 +69,14 @@ export function PromptCreationPage() {
           value={value}
           onChange={setValue}
           onSubmit={submit}
-          submitLabel={create.isPending ? "Creating working copy" : "Create private working copy"}
+          submitLabel={create.isPending ? "Creating Draft" : "Create private Draft"}
           submitting={create.isPending}
           error={error ?? (spaces.isError ? "Creation targets could not be loaded." : undefined)}
           spaces={spaces.data}
           asideAction={
             <p className="flex items-start gap-2 text-xs leading-5 text-content-muted">
               <Plus className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              Creation is atomic: the Asset and populated working copy are stored together.
+              Creation is atomic: the Asset and populated Draft are stored together.
             </p>
           }
         />

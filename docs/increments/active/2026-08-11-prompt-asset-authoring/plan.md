@@ -27,9 +27,11 @@ approval, PR/CI, merge, and exact-SHA deployment remain separate gates.
   `/assets/new/prompt` through TanStack Router.
 - [x] Load live authorized Asset creation targets and keep server-denied or empty
   target states opaque and actionable.
-- [x] Build the primary name, summary, and text-template form with generated
-  namespace/slug under Advanced settings; do not expose IDs, coordinates, or raw
-  JSON.
+- [x] Build the shared Prompt name and Description identity, followed by the
+  text-template editor and Prompt-specific Usage and Output contracts. Keep
+  intended users explicitly descriptive rather than authorization-bearing. Use
+  generated namespace/slug under Advanced settings; do not expose IDs,
+  coordinates, or raw JSON.
 - [x] Map the complete schema-v1 form into `CreateAssetRequest.draft` with one
   typed, unit-tested serializer and generated client mutation. Create the Asset
   and populated working copy atomically; do not follow creation with a second

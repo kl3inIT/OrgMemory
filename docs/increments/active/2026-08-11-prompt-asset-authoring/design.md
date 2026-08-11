@@ -55,13 +55,21 @@ a higher trust status.
 
 ### Entry and information hierarchy
 
-`Add asset -> Prompt` opens `/assets/new/prompt`. The primary editor asks for:
+`Add asset -> Prompt` opens `/assets/new/prompt`. The editor follows the shared
+Asset hierarchy first, then the Prompt-specific contract:
 
-1. name and short summary;
+1. Prompt name and Description, matching the shared Skill identity vocabulary;
 2. prompt text, with `{{lower_snake_case}}` variable syntax;
 3. variable definitions;
-4. bounded test cases; and
-5. optional Knowledge grounding.
+4. a Usage contract with task objective, intended users, use/do-not-use
+   guidance, and known limitations;
+5. an optional Output contract;
+6. bounded test cases; and
+7. optional Knowledge grounding.
+
+`Intended users` is descriptive Prompt metadata and never an authorization
+audience. The editor states that distinction beside the field; sharing remains
+the only control that grants access.
 
 Namespace and slug remain required by the canonical create command but are
 generated from the visible name and placed under Advanced settings. The user can
@@ -97,9 +105,10 @@ allowed values, and an optional regex for strings. Removing a variable still
 used by the prompt is blocked locally and rejected by the server. Variable
 definitions describe sensitivity but never require or collect a real value.
 
-Advanced settings expose the existing objective, audience, use-when,
-do-not-use-when, output contract, and known limitations without inventing new
-server fields. Compatibility defaults to `chat`, and the first slice fixes both
+The Usage contract exposes the existing objective, audience, use-when,
+do-not-use-when, and known-limitations fields. The separate Output contract
+contains the optional JSON response shape. These labels and groups do not
+invent new server fields. Compatibility defaults to `chat`, and the first slice fixes both
 raw-retention data-policy flags to `false`; it does not present an authoring
 control that encourages retention of raw Prompt variables or provider output.
 

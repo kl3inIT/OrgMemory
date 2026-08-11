@@ -121,7 +121,7 @@ export function PromptTemplateEditor({
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
-      <section className="grid gap-5 rounded-xl border border-border-default bg-surface-raised p-5 md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.55fr)]">
+      <section className="grid gap-5 rounded-xl border border-border-default bg-surface-raised p-5 md:grid-cols-2">
         <Field label="Prompt name" id="prompt-name">
           <Input
             id="prompt-name"
@@ -133,34 +133,14 @@ export function PromptTemplateEditor({
             onChange={(event) => changeTitle(event.currentTarget.value)}
           />
         </Field>
-        <Field label="Audience" id="prompt-audience">
-          <Input
-            id="prompt-audience"
-            value={value.audience}
-            maxLength={1000}
-            disabled={submitting}
-            placeholder="L1 Support"
-            onChange={(event) => patch({ audience: event.currentTarget.value })}
-          />
-        </Field>
-        <Field label="Summary" id="prompt-summary">
+        <Field label="Description" id="prompt-summary" hint="What this Prompt does and when it helps.">
           <Input
             id="prompt-summary"
             value={value.summary}
             maxLength={1024}
             disabled={submitting}
-            placeholder="What this Prompt does and when it helps."
+            placeholder="Classifies incoming support tickets by category and urgency."
             onChange={(event) => patch({ summary: event.currentTarget.value })}
-          />
-        </Field>
-        <Field label="Objective" id="prompt-objective">
-          <Input
-            id="prompt-objective"
-            value={value.objective}
-            maxLength={2000}
-            disabled={submitting}
-            placeholder="Classify incoming support tickets"
-            onChange={(event) => patch({ objective: event.currentTarget.value })}
           />
         </Field>
       </section>
@@ -249,26 +229,62 @@ export function PromptTemplateEditor({
             )}
           </section>
 
-          <Collapsible className="rounded-xl border border-border-default bg-surface-raised">
+          <Collapsible defaultOpen className="rounded-xl border border-border-default bg-surface-raised">
             <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 px-5 py-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-focus-ring">
               <div>
-                <h2 className="text-section-title">Advanced prompt contract</h2>
-                <p className="mt-1 text-supporting text-content-secondary">Usage guidance, output shape, and known limits.</p>
+                <h2 className="text-section-title">Usage contract</h2>
+                <p className="mt-1 text-supporting text-content-secondary">Who this Prompt is for, the task it performs, and its safe-use boundaries.</p>
               </div>
               <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" aria-hidden="true" />
             </CollapsibleTrigger>
             <CollapsibleContent className="grid gap-5 border-t border-border-subtle p-5 md:grid-cols-2">
+              <Field label="Task objective" id="prompt-objective">
+                <Input
+                  id="prompt-objective"
+                  value={value.objective}
+                  maxLength={2000}
+                  disabled={submitting}
+                  placeholder="Classify and route incoming support tickets"
+                  onChange={(event) => patch({ objective: event.currentTarget.value })}
+                />
+              </Field>
+              <Field
+                label="Intended users"
+                id="prompt-audience"
+                hint="Descriptive metadata only. This does not grant access."
+              >
+                <Input
+                  id="prompt-audience"
+                  value={value.audience}
+                  maxLength={1000}
+                  disabled={submitting}
+                  placeholder="L1 Support"
+                  onChange={(event) => patch({ audience: event.currentTarget.value })}
+                />
+              </Field>
               <Field label="Use when" id="prompt-use-when" hint="One condition per line.">
                 <Textarea id="prompt-use-when" value={value.useWhen} rows={4} disabled={submitting} onChange={(event) => patch({ useWhen: event.currentTarget.value })} />
               </Field>
               <Field label="Do not use when" id="prompt-do-not-use" hint="One condition per line.">
                 <Textarea id="prompt-do-not-use" value={value.doNotUseWhen} rows={4} disabled={submitting} onChange={(event) => patch({ doNotUseWhen: event.currentTarget.value })} />
               </Field>
-              <Field label="Output contract" id="prompt-output-contract" hint="Optional JSON object.">
-                <Textarea id="prompt-output-contract" value={value.outputContract} rows={6} spellCheck={false} className="font-mono text-xs" disabled={submitting} placeholder={'{\n  "type": "object"\n}'} onChange={(event) => patch({ outputContract: event.currentTarget.value })} />
-              </Field>
-              <Field label="Known limitations" id="prompt-limitations">
+              <Field label="Known limitations" id="prompt-limitations" hint="Be explicit about cases that need human judgment or another workflow.">
                 <Textarea id="prompt-limitations" value={value.knownLimitations} rows={6} disabled={submitting} onChange={(event) => patch({ knownLimitations: event.currentTarget.value })} />
+              </Field>
+            </CollapsibleContent>
+          </Collapsible>
+
+          <Collapsible className="rounded-xl border border-border-default bg-surface-raised">
+            <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 px-5 py-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-focus-ring">
+              <div>
+                <h2 className="text-section-title">Output contract</h2>
+                <p className="mt-1 text-supporting text-content-secondary">Optional JSON shape expected from this Prompt.</p>
+              </div>
+              <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" aria-hidden="true" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border-subtle p-5">
+              <Field label="JSON object" id="prompt-output-contract" hint="Leave empty when the response is free-form text.">
+                <Textarea id="prompt-output-contract" value={value.outputContract} rows={8} spellCheck={false} className="font-mono text-xs" disabled={submitting} placeholder={'{\n  "type": "object"\n}'} onChange={(event) => patch({ outputContract: event.currentTarget.value })} />
               </Field>
             </CollapsibleContent>
           </Collapsible>

@@ -94,16 +94,16 @@ test("Prompt authoring creates one private Draft and evaluates the exact direct 
   await expect(page.getByLabel("Scope")).toHaveCount(0)
 
   await page.getByLabel("Prompt name").fill("Support ticket classifier")
-  await page.getByLabel("Summary").fill("Classifies an incoming support ticket.")
-  await page.getByLabel("Audience").fill("L1 Support")
-  await page.getByLabel("Objective").fill("Classify incoming support tickets")
+  await page.getByLabel("Description").fill("Classifies an incoming support ticket.")
+  await page.getByLabel("Intended users").fill("L1 Support")
+  await page.getByLabel("Task objective").fill("Classify incoming support tickets")
   await page
     .getByLabel("Prompt template")
     .fill("Classify this support ticket.\n\nTicket:\n{{ticket_text}}\n\nReturn category and rationale.")
   await page.getByRole("button", { name: "Add detected" }).click()
   await page.getByLabel("Sensitive").click()
 
-  await page.getByRole("button", { name: "Optional" }).click()
+  await page.getByRole("button", { name: "Optional", exact: true }).click()
   await page.getByLabel("Knowledge requirements").fill("support runbook\nSLA policy")
   await page.getByLabel("Namespace").fill("support")
   await page.getByRole("combobox", { name: "Knowledge Space" }).click()
@@ -125,7 +125,15 @@ test("Prompt authoring creates one private Draft and evaluates the exact direct 
       path: "../output/design-qa/prompt-asset-authoring.png",
       fullPage: false,
     })
+    await page.getByRole("heading", { name: "Usage contract" }).evaluate((element) =>
+      element.scrollIntoView({ block: "start" }),
+    )
+    await page.screenshot({
+      path: "../output/design-qa/prompt-asset-authoring-contract.png",
+      fullPage: false,
+    })
     await page.setViewportSize({ width: 390, height: 844 })
+    await page.locator('[data-slot="page-layout"]').evaluate((element) => element.scrollTo(0, 0))
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true)
@@ -133,10 +141,17 @@ test("Prompt authoring creates one private Draft and evaluates the exact direct 
       path: "../output/design-qa/prompt-asset-authoring-mobile.png",
       fullPage: false,
     })
+    await page.getByRole("heading", { name: "Usage contract" }).evaluate((element) =>
+      element.scrollIntoView({ block: "start" }),
+    )
+    await page.screenshot({
+      path: "../output/design-qa/prompt-asset-authoring-contract-mobile.png",
+      fullPage: false,
+    })
     await page.setViewportSize({ width: 1536, height: 1024 })
   }
 
-  await page.getByRole("button", { name: "Create private working copy" }).click()
+  await page.getByRole("button", { name: "Create private Draft" }).click()
   await expect(page).toHaveURL(new RegExp(`/assets/${PROMPT_ID}/governance$`))
   await expect(page.getByRole("heading", { name: "Asset workspace" })).toBeVisible()
   expect(harness.createBodies).toHaveLength(1)
@@ -155,7 +170,7 @@ test("Prompt authoring creates one private Draft and evaluates the exact direct 
   expect(createdPayload.knowledgeRequirements).toEqual(["support runbook", "SLA policy"])
   expect(createdPayload.evaluationCases).toHaveLength(1)
 
-  await page.getByLabel("Objective").fill("Classify and route incoming support tickets")
+  await page.getByLabel("Task objective").fill("Classify and route incoming support tickets")
   await page.getByRole("button", { name: /1\. Password reset/ }).click()
   await page.getByLabel("I confirm these are synthetic, non-secret values").click()
   await page.getByRole("button", { name: "Save working copy" }).click()

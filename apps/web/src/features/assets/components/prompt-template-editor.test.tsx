@@ -6,6 +6,31 @@ import { PromptTemplateEditor } from "@/features/assets/components/prompt-templa
 import { createEmptyPromptForm } from "@/features/assets/prompt-template-form"
 
 describe("PromptTemplateEditor", () => {
+  it("uses the shared Asset identity and separates Prompt usage metadata from access", () => {
+    render(
+      <PromptTemplateEditor
+        value={createEmptyPromptForm()}
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        submitLabel="Create private Draft"
+      />,
+    )
+
+    expect(screen.getByLabelText("Prompt name")).toBeInTheDocument()
+    expect(screen.getByLabelText("Description")).toBeInTheDocument()
+    expect(screen.queryByLabelText("Summary")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Audience")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Objective")).not.toBeInTheDocument()
+
+    expect(screen.getByRole("heading", { name: "Usage contract" })).toBeInTheDocument()
+    expect(screen.getByLabelText("Task objective")).toBeInTheDocument()
+    expect(screen.getByLabelText("Intended users")).toBeInTheDocument()
+    expect(
+      screen.getByText("Descriptive metadata only. This does not grant access."),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Create private Draft" })).toBeInTheDocument()
+  })
+
   it("offers truthful optional grounding without Required or a grounding Scope selector", async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
@@ -20,16 +45,16 @@ describe("PromptTemplateEditor", () => {
         value={value}
         onChange={onChange}
         onSubmit={vi.fn()}
-        submitLabel="Create private working copy"
+        submitLabel="Create private Draft"
       />,
     )
 
     expect(screen.getByRole("button", { name: "None" })).toHaveAttribute("aria-pressed", "true")
-    expect(screen.getByRole("button", { name: "Optional" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /^Optional$/ })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Required" })).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Scope")).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole("button", { name: "Optional" }))
+    await user.click(screen.getByRole("button", { name: /^Optional$/ }))
     expect(onChange).toHaveBeenLastCalledWith({ ...value, grounding: "OPTIONAL" })
 
     rerender(
@@ -37,7 +62,7 @@ describe("PromptTemplateEditor", () => {
         value={{ ...value, grounding: "OPTIONAL" }}
         onChange={onChange}
         onSubmit={vi.fn()}
-        submitLabel="Create private working copy"
+        submitLabel="Create private Draft"
       />,
     )
     expect(screen.getByLabelText("Knowledge requirements")).toBeInTheDocument()

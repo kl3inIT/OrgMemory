@@ -540,7 +540,7 @@ function PromptPanel({ assetId, release }: { assetId: string; release: Release }
             <CardTitle>Release contract</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-body">
-            <Definition label="Audience" value={payload.audience} />
+            <Definition label="Intended users" value={payload.audience} />
             <Definition
               label="Grounding"
               value={(payload.knowledgeRequirements ?? []).join(" · ") || "Not required"}
