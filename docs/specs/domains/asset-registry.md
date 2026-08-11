@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-10-asset-catalog-visual-refinement (5300ac0e)`.
+Reconciled: `2026-08-11-prompt-asset-authoring (db23ef9e)`.
 
 ## Current Behavior
 
@@ -106,6 +106,16 @@ query's tenant and lifecycle predicates.
 Evaluation executes only the bounded cases embedded in a release. Release
 comparison reports the two exact evaluation results; it does not change a
 release or promote a mutable alias.
+
+The browser authors schema-v1 text-template Prompts as one atomic private
+Draft, including typed variables, up to ten persisted synthetic evaluation
+fixtures, and either no Knowledge requirement or optional natural-language
+requirements. The Knowledge Space chosen during creation is governance
+placement, not a grounding target. Ordered-message Drafts remain read-only in
+the editor and can be published unchanged. Direct publication snapshots the
+last saved Draft as an immutable exact release and does not change sharing.
+Release tests run only from the selected released-detail view after explicit
+confirmation and report aggregate plus case-level results.
 
 ### Work Instruction
 
@@ -383,9 +393,10 @@ The authenticated web application provides four generic surfaces:
   `Add asset` menu preserves the shared profile
   taxonomy without a full-page catalog duplicate. Skill opens a creation-only
   route whose scratch, upload, and GitHub paths create governed private Drafts
-  through canonical package validation; unsupported profiles remain visible but
-  non-interactive. The browser does not infer
-  authorization or owner identity from the session.
+  through canonical package validation. Prompt opens a responsive visual
+  authoring route and creates the Asset plus populated private Draft atomically;
+  Work Instruction and Capability Pack remain visible but non-interactive. The
+  browser does not infer authorization or owner identity from the session.
 - **Asset detail / use** shares identity, provenance, and release selection,
   then renders Prompt, Work Instruction, Capability Pack, or Skill profile
   actions. Consumption is primary; provenance is disclosed on demand and
