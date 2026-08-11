@@ -2,8 +2,9 @@
 
 ## Status
 
-Active design. Implementation is blocked on the independent architecture
-challenge.
+Active design. The independent one-round Fable 5 challenge returned `REVISE`
+and selected reusable retention-bounded private files. Implementation is blocked
+on the malware/DLP gate or an explicit project-owner waiver.
 
 ## 1. Challenge the boundary
 
@@ -12,8 +13,10 @@ challenge.
 - [x] Re-verify pinned Onyx and Northstar attachment implementations from source.
 - [x] Write the proposal, strongest counterargument, reference study, and
   challenge brief.
-- [ ] Obtain an independent cross-model verdict and incorporate every must-fix
-  item into this design or explicitly escalate it to the project owner.
+- [x] Obtain one independent Fable 5 response and incorporate its committed
+  `REVISE` verdict and must-fix conditions into the design.
+- [ ] Implement a malware/DLP gate before `READY`, or record an explicit
+  project-owner waiver for this increment.
 
 ## 2. Private file foundation
 
@@ -26,6 +29,8 @@ challenge.
   processor; keep Source lifecycle and Knowledge publication out of the lane.
 - [ ] Add exact private-file retrieval and require usable evidence from every
   selected live file before model generation.
+- [ ] Add a distinct private citation/hydration/download path, prohibit mixed
+  private/governed turns, and pin fixed non-renewing expiry semantics.
 
 ## 3. Composer product flow
 
@@ -56,4 +61,3 @@ challenge.
 No `Add from Knowledge`, promotion API, sharing/project association, legal hold,
 images/OCR, archives, email recursion, provider-native files, or migration of
 existing governed bindings belongs to this increment.
-

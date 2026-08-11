@@ -2,7 +2,10 @@
 
 ## Status
 
-Proposed. Implementation is blocked on the independent architecture challenge.
+Selected with `REVISE`. The one-round Fable 5 challenge chose a reusable,
+retention-bounded `AssistantFile` subject to the conditions in
+`challenge-verdict.md`. Implementation remains blocked only on the required
+malware/DLP gate or an explicit project-owner waiver.
 
 ## Intent
 
@@ -22,7 +25,8 @@ The default paperclip offers `Upload files` and `Recent files`. Uploading does
 not ask for a Knowledge Space or classification, does not create a Source or
 Knowledge Asset, and does not make the file visible in organizational search.
 The file remains private to the authenticated actor and reusable across that
-actor's conversations until explicit deletion or policy expiry.
+actor's conversations until explicit deletion or a fixed server-owned policy
+expiry. Use never renews expiry.
 
 `Publish to Knowledge` remains a separate explicit action using the current
 Source upload flow. Publishing creates a new Source identity and provenance; it
@@ -88,6 +92,11 @@ while the file is live. Expiry/deletion removes bytes and private retrieval
 projections but keeps the message snapshot so transcript shape remains stable
 and content becomes uniformly unavailable.
 
+Claim locks or compare-and-sets the file lifecycle in the message transaction.
+Delete and expiry first write a denial/deletion marker, then remove private
+projections, then remove object bytes. Every step is idempotent and a reconciler
+repairs orphaned blobs or projections after partial failure.
+
 ## Processing and retrieval
 
 Upload admission is channel-specific. Parser capability does not automatically
@@ -100,7 +109,14 @@ document-processing engine, pins the resolved profile, and writes private
 chunks/embeddings keyed by organization, owner, file ID, and processing
 generation. The first delivery does not publish an Asset or graph projection.
 
-Turn submission accepts at most three total selected file/evidence references.
+Server-side type detection is mandatory. `READY` additionally requires a
+malware/DLP scan to pass unless the project owner records an explicit temporary
+waiver in this increment. Download is always server-mediated, freshly
+owner-authorized, `nosniff`, sandboxed, and inline only for a closed safe-type
+allowlist. The browser receives no durable presigned object URL.
+
+Turn submission accepts at most three selected references. One turn uses one
+evidence lane in this delivery: private and governed selections cannot be mixed.
 Assistant-file turns are exact-selection-only: only chunks for the claimed
 private file IDs may be ranked or reach the model. Every selected file must
 yield usable evidence. A selected file that is processing, failed, expired,
@@ -111,10 +127,17 @@ Existing `KnowledgeEvidenceSelection` remains the ceiling for governed Source
 bindings. Private-file evidence receives a distinct internal selection and
 retrieval port; the two identities are not coerced into one ID namespace.
 
+Private chunks also use a distinct citation identity. Citation persistence,
+hydration, excerpt/content open, retry, and replay all resolve the current actor
+against organization, owner, file, lifecycle, expiry, and processing generation.
+Expired or deleted files retain only an inert bounded message marker and every
+content open returns the same opaque not-found response.
+
 ## Lifecycle
 
 An Assistant file is reusable by its owner across conversations only while it
-is live. The server returns recent live files ordered by last use. Removing a
+is live. The server returns a bounded, paginated page of recent live files
+ordered by last use. Removing a
 composer chip removes only the pending selection. Explicit delete and expiry
 transition the file to deletion, prevent new claims immediately, and enqueue
 idempotent removal of object bytes and private projections.
@@ -143,14 +166,25 @@ unexpected side effect. The architecture challenge must decide whether that
 product mismatch justifies the second lifecycle and which controls are
 mandatory before implementation.
 
+## Independent challenge result
+
+Fable 5 returned `REVISE` in one read-only round and selected the reusable file
+over the conversation-only alternative. It found the product mismatch real and
+the parser boundary reusable, but made private citations, single-lane turns,
+fixed non-renewing TTL, transactional claim/delete, malware/DLP or explicit
+waiver, bounded Recent Files, retrieval/cache isolation, worker-only parsing,
+fresh-authorized serving, and operational tests mandatory. The consolidated
+record is in `challenge-verdict.md`.
+
 ## Compatibility and sequencing
 
 - Never migrate or mutate existing governed evidence bindings.
 - Keep current Source/revision selection and citations functional.
 - Add private-file tables and APIs before switching the composer.
+- Keep the composer switch blocked until the malware/DLP gate is implemented or
+  the project owner records an explicit waiver.
 - Switch the paperclip only after owner-negative, expiry, deletion, exact-
   selection, retry, and parser-profile tests pass.
 - Keep `Publish to Knowledge` explicit and visually distinct.
 - A later increment may add `Add from Knowledge` and provenance-preserving
   promotion after a separate authorization/publication review.
-
