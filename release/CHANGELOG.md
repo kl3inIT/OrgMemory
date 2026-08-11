@@ -2,6 +2,440 @@
 
 Product releases are assembled from reviewed entries under `.tegami/`.
 
+## orgmemory@0.3.0
+
+### Keep Assistant evidence useful after reload
+
+#### Features
+
+Assistant citations now survive transcript reload while still rechecking each
+user's current access. Source opening starts with the exact governed evidence
+excerpt, supports safe Markdown, PDF, image, text, and download-only files, and
+shows truthful retrieval and answer-preparation activity before the first token.
+
+### Improve the Assistant conversation experience
+
+#### Features
+
+The Assistant now restores in-session conversation drafts, offers
+server-curated starting prompts, retries completed answers with fresh governed
+retrieval, and lets users save helpful or not-helpful feedback on an answer.
+
+### Choose a governed model in Assistant conversations
+
+#### Features
+
+Choose an administrator-approved model directly from the Assistant composer.
+The selected model stays with the conversation, remains bound to the exact
+approved gateway route, and safely falls back to the deployment default when
+no explicit choice is made.
+
+### Use governed Skills in Assistant answers
+
+#### Features
+
+The Assistant can now discover an authorized Skill, load its exact released
+instructions, and read bounded supporting text while preparing a grounded
+answer. Skill content never grants tools or permissions, and OrgMemory does not
+execute package scripts, binaries, or shell commands.
+
+### Restore organization-wide document visibility
+
+#### Fixes
+
+All-employees demo documents now target the organization-wide Company
+Knowledge space instead of inheriting a department-only audience. Department
+and executive documents retain their existing restricted placement.
+
+### Make Assistant no-answer guidance permission-safe
+
+#### Improvements
+
+The Assistant now responds in the user's language when accessible documents do
+not answer a question, offers one concise next step, labels nearby information
+instead of presenting it as the requested answer, and cites every source it
+uses without citing unrelated documents. Assistant answers also show a short
+reminder that they rely only on documents the user can access.
+
+### Keep parallel knowledge graph relations visible
+
+#### Fixes
+
+The Knowledge graph no longer fails to load when two distinct semantic
+relations connect the same directed pair of entities. Parallel relations remain
+separate and visible in the graph and entity inspector.
+
+### Keep Knowledge Graph controls from crushing the page title
+
+#### Improvements
+
+The Knowledge Graph workspace now keeps its page title readable while the
+explorer controls wrap into the remaining desktop width. The same shared header
+behavior prevents dense action groups from collapsing page identity elsewhere
+in the product.
+
+### Refine Knowledge document operations and graph inspection
+
+#### Improvements
+
+Documents now use a persistent desktop reader while keeping the list
+interactive, show ingestion failures without relying on hover, and guide
+quarantined evidence into a corrected upload. The graph inspector now presents
+readable entity context, directional connections, and permission-verified
+document evidence instead of generic numbered sources.
+
+### Complete the governed document reader
+
+#### Improvements
+
+The employee workspace is now named Knowledge, with Documents and Knowledge
+graph as its two clear surfaces. Documents open in a responsive right-side
+reader with safe rendered or raw Markdown, inline PDF and image previews,
+plain-text reading, explicit download-only fallbacks, and retry when governed
+content cannot be loaded.
+
+### Faster, fairer assistant retrieval under load
+
+#### Improvements
+
+Assistant knowledge retrieval now admits snapshot queries through one fair
+process-wide limit instead of per-request batches, so concurrent
+conversations can no longer exhaust the database connection pool and stall at
+the turn timeout. The API connection pool is right-sized for the production
+host, retrieval breadth returns to the upstream LightRAG default, and new
+payload-free timing stages make the previously unattributed portion of
+time-to-first-token observable.
+
+### Verify retrieval recall before query cutover
+
+#### Improvements
+
+Operators can now capture and score authorization-preserving retrieval recall
+against an explicitly restored projection copy without generating answers or
+touching the live database. The recorded 43-case comparison confirms that the
+raw-query bypass stays level with the current keyword-seeded path and preserves
+the evidence needed to diagnose shared misses before any query-plane cutover.
+
+### Unify governed document previews
+
+#### Improvements
+
+Knowledge documents and Assistant citations now open in one centered,
+responsive viewer. Long PDF, image, Markdown, and text evidence gets the full
+reading surface, inline citations open it directly, and the source sidebar
+remains available for comparing cited and discovered evidence.
+
+### Rebuild AI gateway consumers for production
+
+#### Fixes
+
+Production releases now rebuild the API and worker whenever their shared AI
+gateway integration changes, so approved Assistant and model-routing fixes are
+included in the immutable image set instead of being treated as deployment
+no-ops.
+
+### Keep Assistant tool calls compatible with OpenAI
+
+#### Fixes
+
+Fresh production deployments now set Answer reasoning to `none` so the
+Assistant's governed Skill tools work with `gpt-5.6-sol` on OpenAI Chat
+Completions without requiring an organization route workaround.
+
+### Tell people what to do when an Assistant turn fails
+
+#### Fixes
+
+A failed Assistant turn now ends on a sentence naming what the person who hit it
+can do next, instead of one generic message for every cause. An expired gateway
+key, a rate limit, a model that is no longer offered, a gateway that did not
+answer in time, and a busy assistant are now distinguishable and separately
+actionable.
+
+Every message remains a fixed sentence chosen from the failure's category, so a
+misconfigured or unusually talkative AI gateway cannot surface its own text,
+credentials, or prompt content in the browser. A failure that matches no known
+category still ends on the previous generic message.
+
+### Keep an Assistant conversation in one place
+
+#### Improvements
+
+An Assistant conversation is now stored once. The transcript that already served
+history, replay, rename, and delete is also what the model reads back as prior
+context, replacing a second copy that was kept in a table with no organization,
+no owner, and no link to the conversation it belonged to.
+
+Prior context is now read in whole question-and-answer turns rather than by
+counting messages. The question of the turn currently being answered can no
+longer be sent to the model twice, a turn that failed before answering no longer
+occupies the window, and the window can no longer begin partway through an
+exchange. Deleting a conversation removes its context in the same operation
+instead of relying on a separate call.
+
+### Make Assistant prompt controls consistent and accessible
+
+#### Improvements
+
+The Assistant composer now uses a consistent Prompt Input control set for its
+model picker, status-aware submit behavior, keyboard composition, tooltips, and
+future action menus. Text submission, stop controls, and input-method editing
+remain predictable without enabling file, screenshot, voice, or source
+attachment capabilities.
+
+### Show Assistant Skill activity without a blank wait
+
+#### Improvements
+
+The Assistant now keeps its progress state visible until answer text appears
+and shows a compact, current-turn receipt when it successfully activates a
+governed Skill. Skill titles are bounded plain text, denied or failed Skills
+remain unnamed, and the receipt clears safely when a turn ends without an
+answer.
+
+### Match Assistant requests against authorized Skills
+
+#### Fixes
+
+The Assistant now sees the current user's authorized Skill names and
+descriptions before choosing a workflow, so natural-language requests can
+activate the matching exact release without inventing catalog search terms.
+Unavailable Skills remain hidden, and activation still rechecks access.
+
+### Keep Assistant activity visible until the answer appears
+
+#### Fixes
+
+Assistant thinking and Skill activity now stay in one stable transcript
+position until meaningful answer text appears. Skill receipts no longer expose
+an empty disclosure when there is no resource detail to show.
+
+### Stop losing an Assistant answer that was already on screen
+
+#### Fixes
+
+An Assistant answer could disappear from a conversation after being delivered.
+When two turns of the same conversation finished at the same moment, only one of
+them was saved; the other was rolled back and was gone on the next reload, even
+though the person asking had watched it arrive. Both are now kept.
+
+Long answers with many sources also render far more cheaply. Each arriving
+source used to discard and rebuild the entire answer shown so far, which made a
+long, heavily cited reply progressively slower to display and could leave the
+page unresponsive while it finished. The answer is now updated in place as its
+sources arrive.
+
+### Separate data clearance from user roles
+
+#### Improvements
+
+The user "role" field is now a data clearance with two values, Standard and
+Executive, matching what the system actually enforces: Executive widens
+confidential and restricted document access, while action permissions stay
+governed by organization roles. Administrators can now assign a user's
+department (required for confidential document access), raising someone to
+Executive asks for confirmation and states its reach, and every user can see
+their own department and clearance in the account menu. Legacy titles such as
+Team lead, Manager, Director, and the misleading Admin label are removed;
+existing Executive users keep Executive and everyone else becomes Standard.
+
+### Reuse exact query embeddings across retrieval requests
+
+#### Improvements
+
+GraphRAG and hybrid knowledge retrieval now reuse exact query embeddings within
+an explicit projection namespace. Repeated requests avoid duplicate embedding
+provider work while authorization, evidence selection, and citation verification
+continue to run normally. Cached vectors remain isolated by embedding profile,
+provider version, and dimensions, with bounded PostgreSQL retention and expiry.
+
+### Keep synthetic redaction fixtures in secret scanning
+
+#### Fixes
+
+Secret scanning now narrowly recognizes the API-key-shaped value in the
+assistant redaction regression as synthetic test data while continuing to scan
+all other files and generic API-key findings.
+
+### Keep GraphRAG degree ranking within its retrieval budget
+
+#### Fixes
+
+GraphRAG degree ranking now resolves authorized relation visibility once and
+uses indexed source and target endpoint lookups. PostgreSQL also cancels an
+abnormally slow degree query before the assistant retrieval deadline, avoiding
+orphaned database work that could degrade later chat turns.
+
+### Bound authorized GraphRAG relation loading
+
+#### Fixes
+
+GraphRAG now resolves authorized relation candidates with set-based entity and
+relation visibility checks instead of repeating correlated ACL work for each
+candidate. Relation reads also use the transaction-scoped PostgreSQL timeout so
+a retrieval cancellation cannot leave database work running in the background.
+
+### Restore fast authorized GraphRAG relation scoring
+
+#### Fixes
+
+GraphRAG now limits relation contribution and relation-weight authorization work
+to the requested candidate relations before checking independently visible source
+and target entities. These reads also use the transaction-scoped PostgreSQL
+budget, preventing an expensive plan from continuing after retrieval is
+cancelled.
+
+#### Improvements
+
+Snapshot retrieval now reports bounded, payload-free timings for each graph
+storage operation under the existing retrieval operation identifier, making
+future latency regressions attributable without recording prompts, answers, or
+evidence identifiers.
+
+### Filter and page the Documents list
+
+#### Improvements
+
+Documents can now be narrowed by Knowledge Space and classification alongside
+the existing status tabs, so the Space shown on every row is finally something
+you can filter by. Filtering and search run on the server and the list is paged,
+so a large library no longer arrives in one response. Status tab counts describe
+the whole filtered library rather than the page you happen to be on, and a
+document still processing keeps its real status instead of disappearing while it
+publishes. The knowledge graph search now runs as you type, matching the
+Documents tab instead of waiting for a separate button.
+
+### Keep the knowledge graph stable while its panel is sizing
+
+#### Fixes
+
+The knowledge graph now waits for a visible, positively sized canvas before
+starting Sigma, and releases the renderer if the panel becomes size-less during
+a layout transition. Opening the graph while its tab or flex layout is still
+settling no longer crashes the page with a zero-height container error.
+
+### Put production services on one shared Docker DNS fabric
+
+#### Fixes
+
+OrgMemory, documentation, and observability services now join the same external
+Docker DNS network while retaining their existing private and proxy networks.
+Cross-stack diagnostics and integrations can use stable service names instead of
+container IP addresses without publishing additional host ports.
+
+### Keep the document list working for organization-wide sources
+
+#### Fixes
+
+The Documents list no longer fails when a source belongs to an
+organization-wide Knowledge Space. Those sources carry no owning department,
+and the provenance lookup rejected the missing identifier.
+
+### Clarify document provenance and content availability
+
+#### Fixes
+
+The Documents ledger now identifies each document's Knowledge Space, owning
+department, and uploader. Published documents outside the current user's
+content scope now show honest access guidance instead of being described as
+still waiting for publication.
+
+### Enforce the supported Assistant question length
+
+#### Fixes
+
+The Assistant composer now displays and enforces the 1,000-character question
+limit before a turn starts. Questions at the boundary remain accepted, while
+longer input is blocked instead of opening a stream that later fails.
+
+### Brand the OrgMemory sign-in experience
+
+#### Features
+
+- Give OrgMemory sign-in and password recovery a responsive, accessible visual
+  theme aligned with the product's light and dark design tokens.
+
+#### Operations
+
+- Package the Keycloak login theme in the immutable Keycloak image and reconcile
+  existing realms with rollback-safe restoration of their prior theme.
+- Deploy production images by their verified manifest digests. Keycloak rollback
+  now fails closed if the previous realm theme cannot be restored and verified,
+  rather than starting a potentially incompatible previous image.
+
+### Make the Asset catalog easier to scan
+
+#### Improvements
+
+Asset cards now use distinct, consistent marks and prioritize the capability's
+name, description, human owner, and sharing state. Technical coordinates and
+shortened owner identifiers no longer compete with discovery, while Skill
+activation remains available as a compact personal setting.
+
+### Share and use Assets from one company library
+
+#### Features
+
+The Asset catalog now separates reusable releases available to you from Assets
+you created, and shows each Asset's owner and sharing state. Owners can publish
+immutable updates directly, share Viewer or Editor access, transfer ownership,
+and withdraw an Asset without routing new contributions through review.
+Historical review evidence remains available in the Asset workspace.
+
+Skills now require a personal **Use in Assistant** opt-in in addition to live
+access to a released version, so each person controls which shared Skills may
+guide their Assistant sessions.
+
+### Use governed files as Assistant evidence
+
+#### Features
+
+- Upload up to three supported documents from the Assistant composer, publish
+  them to a chosen Knowledge Space, and wait for governed ingestion before use.
+- Keep the exact ordered file selection across a failed retry and cite the same
+  permission-verified evidence used for the answer.
+
+#### Security
+
+- Recheck conversation ownership, current Source revision, actor access, and
+  active retrieval-engine readiness before each selected-file turn.
+- Keep selected files as a hard retrieval ceiling through graph expansion and
+  citation output; direct provider files and transient attachment bypasses
+  remain unavailable.
+
+### Deploy releases from a clean checkout
+
+#### Fixes
+
+Production deployment now executes the exact released commit from an
+ephemeral clean linked worktree. Staged or local operator changes on the host
+can no longer replace deployment scripts or image references during rollout.
+
+### Ingest the document formats organizations already use
+
+#### Features
+
+Knowledge document upload now accepts CSV, Excel, legacy Word and PowerPoint,
+HTML exports, RTF, and OpenDocument files alongside the existing PDF, modern
+Office, Markdown, and text formats. Upload and processing limits adapt to each
+format instead of applying one global ceiling.
+
+Document processing now preserves headings, paragraphs, tables, spreadsheet
+headers, and PDF page provenance through a reusable parser boundary. The
+versioned structured policy keeps retries deterministic while table fragments
+retain the header context needed for useful answers.
+
+### Preserve rollback evidence after bootstrap cleanup
+
+#### Operations
+
+Production deployment now tolerates cleanup of the completed PostgreSQL
+bootstrap container when the previous release is already pinned by exact
+digest and that same image remains available locally for no-pull rollback.
+Mutable, missing, or mismatched rollback images remain blocked before rollout.
+
+
+
 ## orgmemory@0.2.0
 
 ### Route ACL reads through an owned query boundary
