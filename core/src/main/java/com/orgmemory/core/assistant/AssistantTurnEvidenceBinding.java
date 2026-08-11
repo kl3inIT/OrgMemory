@@ -56,4 +56,20 @@ class AssistantTurnEvidenceBinding extends BaseEntity {
         this.actorUserId = Objects.requireNonNull(actorUserId, "actorUserId");
         this.ordinal = ordinal;
     }
+
+    UUID turnId() {
+        return turnId;
+    }
+
+    UUID userMessageId() {
+        return userMessageId;
+    }
+
+    UUID bindingId() {
+        return bindingId;
+    }
+
+    int ordinal() {
+        return ordinal;
+    }
 }

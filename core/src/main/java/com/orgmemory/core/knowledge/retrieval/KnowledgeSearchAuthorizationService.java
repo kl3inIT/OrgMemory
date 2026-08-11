@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 class KnowledgeSearchAuthorizationService {
 
     static final String POLICY_VERSION = "secure-retrieval-v1";
+    static final String NO_AUTHORIZED_SELECTED_KNOWLEDGE_ASSETS =
+            "NO_AUTHORIZED_SELECTED_KNOWLEDGE_ASSETS";
     private static final PermissionKey CAN_SEARCH_KNOWLEDGE =
             PermissionKey.of("can_search_knowledge");
 

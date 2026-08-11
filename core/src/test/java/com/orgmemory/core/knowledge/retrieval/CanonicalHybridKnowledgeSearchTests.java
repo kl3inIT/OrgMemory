@@ -130,6 +130,28 @@ class CanonicalHybridKnowledgeSearchTests {
     }
 
     @Test
+    void selectedEvidenceOutsideTheAuthorizedScopeHasADistinctAuditReason() {
+        when(evidenceScopes.resolve(actor, MODEL_ID)).thenReturn(scope(Set.of(assetId)));
+        var selection = KnowledgeEvidenceSelection.restricted(List.of(
+                new KnowledgeEvidenceSelection.Item(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID())));
+
+        SecureKnowledgeSearchResult result = service.search(
+                actor,
+                "leave policy",
+                10,
+                "request-selected-empty",
+                selection);
+
+        assertEquals(List.of(), result.evidence());
+        verify(authorization, never()).batchCheck(any());
+        assertAuditReason("NO_AUTHORIZED_SELECTED_KNOWLEDGE_ASSETS");
+    }
+
+    @Test
     void candidateOutsideListObjectsBoundaryFailsClosed() {
         store.lexical = List.of(candidate(UUID.randomUUID(), UUID.randomUUID()));
 

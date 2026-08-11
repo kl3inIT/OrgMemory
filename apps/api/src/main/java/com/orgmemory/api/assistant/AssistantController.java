@@ -208,24 +208,15 @@ class AssistantController {
                                     AssistantStreamPart.Activity.Phase.RETRIEVAL,
                                     AssistantStreamPart.Activity.State.ACTIVE,
                                     null)),
-                    retrievalScheduler.schedule(() -> turnClaim.selection().restricted()
-                                    ? assistant.startTurn(
-                                            actor,
-                                            request.message(),
-                                            request.limit(),
-                                            requestId,
-                                            conversationId.toString(),
-                                            routeAuthority,
-                                            turnStartedAtNanos,
-                                            turnClaim.selection())
-                                    : assistant.startTurn(
-                                            actor,
-                                            request.message(),
-                                            request.limit(),
-                                            requestId,
-                                            conversationId.toString(),
-                                            routeAuthority,
-                                            turnStartedAtNanos))
+                    retrievalScheduler.schedule(() -> assistant.startTurn(
+                                    actor,
+                                    request.message(),
+                                    request.limit(),
+                                    requestId,
+                                    conversationId.toString(),
+                                    routeAuthority,
+                                    turnStartedAtNanos,
+                                    turnClaim.selection()))
                             .flatMapMany(turn -> completedTurnParts(
                                     actor,
                                     turnRef,

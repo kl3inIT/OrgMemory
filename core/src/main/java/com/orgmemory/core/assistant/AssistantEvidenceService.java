@@ -192,6 +192,20 @@ public class AssistantEvidenceService {
         if (source == null) {
             return unavailable(binding, null);
         }
+        if (source.knowledgeAssetId() != null
+                && !authorization.authorize(
+                                actor.organizationId(),
+                                actor.principal(),
+                                CAN_VIEW,
+                                ResourceRef.of(
+                                        actor.organizationId(),
+                                        ASSET_TYPE,
+                                        source.knowledgeAssetId()))
+                        .allowed()) {
+            return unavailable(binding, null);
+        }
+        // Before publication there is no Knowledge Asset to authorize. The binding lookup is
+        // actor-scoped, so its uploader may see the processing metadata until an asset exists.
         AssistantEvidenceStatus status;
         String failureCode = source.failureCode();
         if (!source.sourceActive() || !source.latestRevision()) {
@@ -203,17 +217,6 @@ public class AssistantEvidenceService {
                 || !source.currentRevision()
                 || source.knowledgeAssetId() == null) {
             status = AssistantEvidenceStatus.PROCESSING;
-        } else if (!authorization.authorize(
-                        actor.organizationId(),
-                        actor.principal(),
-                        CAN_VIEW,
-                        ResourceRef.of(
-                                actor.organizationId(),
-                                ASSET_TYPE,
-                                source.knowledgeAssetId()))
-                .allowed()) {
-            status = AssistantEvidenceStatus.UNAVAILABLE;
-            failureCode = null;
         } else {
             AssistantEvidenceAnswerabilityPort.Answerability engine = answerability.evaluate(source);
             status = switch (engine.state()) {

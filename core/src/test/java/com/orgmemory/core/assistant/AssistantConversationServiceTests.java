@@ -9,11 +9,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.ai.AssistantModelSelectionRef;
+import com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection;
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
+import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.core.shared.error.BusinessNotFoundException;
 import java.time.Clock;
@@ -38,6 +40,8 @@ class AssistantConversationServiceTests {
             mock(AssistantMessageCitationRepository.class);
     private final AssistantAnswerFeedbackRepository answerFeedback =
             mock(AssistantAnswerFeedbackRepository.class);
+    private final AssistantEvidenceService evidence =
+            mock(AssistantEvidenceService.class);
     private final CurrentActor actor = new CurrentActor(
             UUID.randomUUID(),
             UUID.randomUUID(),
@@ -53,7 +57,7 @@ class AssistantConversationServiceTests {
                 messages,
                 citations,
                 answerFeedback,
-                mock(AssistantEvidenceService.class),
+                evidence,
                 Clock.fixed(NOW, ZoneOffset.UTC));
         when(conversations.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(messages.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -151,6 +155,63 @@ class AssistantConversationServiceTests {
 
         verify(conversations, never()).save(any());
         verify(messages, never()).save(any());
+    }
+
+    @Test
+    void acceptsEightThousandCharactersInAnOrdinaryTurn() {
+        String messageText = "x".repeat(8_000);
+
+        service.beginTurn(actor, null, messageText);
+
+        ArgumentCaptor<AssistantConversationMessage> saved =
+                ArgumentCaptor.forClass(AssistantConversationMessage.class);
+        verify(messages).save(saved.capture());
+        assertEquals(messageText, saved.getValue().view().content());
+    }
+
+    @Test
+    void acceptsEightThousandCharactersInAnEvidenceBoundTurn() {
+        String messageText = "x".repeat(8_000);
+        UUID bindingId = UUID.randomUUID();
+        var selection = KnowledgeEvidenceSelection.restricted(List.of(
+                new KnowledgeEvidenceSelection.Item(
+                        bindingId,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID())));
+        when(evidence.claimForTurn(
+                        eq(actor),
+                        any(),
+                        any(),
+                        any(),
+                        eq(List.of(bindingId))))
+                .thenReturn(selection);
+
+        AssistantEvidenceTurnClaim claim = service.beginTurnWithEvidence(
+                actor,
+                null,
+                messageText,
+                null,
+                List.of(bindingId));
+
+        assertEquals(selection, claim.selection());
+        verify(messages).saveAndFlush(any());
+    }
+
+    @Test
+    void rejectsMoreThanEightThousandCharactersBeforeAnyTurnStateIsWritten() {
+        assertThrows(
+                BusinessValidationException.class,
+                () -> service.beginTurnWithEvidence(
+                        actor,
+                        null,
+                        "x".repeat(8_001),
+                        null,
+                        List.of(UUID.randomUUID())));
+
+        verify(conversations, never()).save(any());
+        verify(messages, never()).saveAndFlush(any());
+        verifyNoInteractions(evidence);
     }
 
     @Test

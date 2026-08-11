@@ -1,11 +1,13 @@
 package com.orgmemory.core.assistant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.authorization.AuthorizationDecision;
@@ -23,6 +25,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class AssistantEvidenceServiceTests {
 
@@ -72,34 +75,80 @@ class AssistantEvidenceServiceTests {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void claimsOnlyTheExactReadyRevisionAndPersistsTheTurnSelection() {
         GovernedEvidenceRef source = readySource();
+        UUID secondBindingId = UUID.randomUUID();
+        UUID secondSourceObjectId = UUID.randomUUID();
+        UUID secondSourceRevisionId = UUID.randomUUID();
+        UUID secondAssetId = UUID.randomUUID();
+        AssistantEvidenceBinding secondBinding = new AssistantEvidenceBinding(
+                secondBindingId,
+                actor.organizationId(),
+                conversationId,
+                actor.userId(),
+                secondSourceObjectId,
+                secondSourceRevisionId);
+        GovernedEvidenceRef secondSource = source(
+                GovernedEvidenceRef.ProcessingState.READY,
+                true,
+                true,
+                true,
+                secondSourceObjectId,
+                secondSourceRevisionId,
+                secondAssetId,
+                null);
         when(bindings.findAllByIdInAndOrganizationIdAndConversationIdAndCreatedByUserId(
-                        List.of(bindingId),
+                        List.of(bindingId, secondBindingId),
                         actor.organizationId(),
                         conversationId,
                         actor.userId()))
-                .thenReturn(List.of(binding));
+                .thenReturn(List.of(secondBinding, binding));
         when(sources.find(actor.organizationId(), sourceObjectId, sourceRevisionId))
                 .thenReturn(Optional.of(source));
+        when(sources.find(
+                        actor.organizationId(),
+                        secondSourceObjectId,
+                        secondSourceRevisionId))
+                .thenReturn(Optional.of(secondSource));
         when(authorization.authorize(any(), any(), any(), any()))
                 .thenReturn(AuthorizationDecision.allow("model-1"));
         when(answerability.evaluate(source))
                 .thenReturn(AssistantEvidenceAnswerabilityPort.Answerability.ready());
+        when(answerability.evaluate(secondSource))
+                .thenReturn(AssistantEvidenceAnswerabilityPort.Answerability.ready());
+
+        UUID turnId = UUID.randomUUID();
+        UUID userMessageId = UUID.randomUUID();
 
         var selection = service.claimForTurn(
                 actor,
                 conversationId,
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                List.of(bindingId));
+                turnId,
+                userMessageId,
+                List.of(bindingId, secondBindingId));
 
         assertTrue(selection.restricted());
-        assertEquals(List.of(bindingId), selection.items().stream()
+        assertEquals(List.of(bindingId, secondBindingId), selection.items().stream()
                 .map(item -> item.bindingId())
                 .toList());
         assertTrue(selection.contains(assetId, sourceObjectId, sourceRevisionId));
-        verify(turnBindings).saveAll(any());
+        assertTrue(selection.contains(
+                secondAssetId,
+                secondSourceObjectId,
+                secondSourceRevisionId));
+        ArgumentCaptor<List<AssistantTurnEvidenceBinding>> saved =
+                ArgumentCaptor.forClass(List.class);
+        verify(turnBindings).saveAll(saved.capture());
+        assertEquals(List.of(bindingId, secondBindingId), saved.getValue().stream()
+                .map(AssistantTurnEvidenceBinding::bindingId)
+                .toList());
+        assertEquals(List.of(1, 2), saved.getValue().stream()
+                .map(AssistantTurnEvidenceBinding::ordinal)
+                .toList());
+        assertTrue(saved.getValue().stream().allMatch(claim -> claim.turnId().equals(turnId)));
+        assertTrue(saved.getValue().stream()
+                .allMatch(claim -> claim.userMessageId().equals(userMessageId)));
     }
 
     @Test
@@ -144,9 +193,82 @@ class AssistantEvidenceServiceTests {
         when(authorization.authorize(any(), any(), any(), any()))
                 .thenReturn(AuthorizationDecision.deny("RELATIONSHIP_DENIED", "model-1"));
 
-        assertEquals(
-                AssistantEvidenceStatus.UNAVAILABLE,
-                service.get(actor, conversationId, bindingId).status());
+        assertUnavailableWithoutMetadata(service.get(actor, conversationId, bindingId));
+        verifyNoInteractions(answerability);
+    }
+
+    @Test
+    void revokedAccessHidesMetadataBeforeEveryPersistedSourceState() {
+        when(bindings.findByIdAndOrganizationIdAndConversationIdAndCreatedByUserId(
+                        bindingId,
+                        actor.organizationId(),
+                        conversationId,
+                        actor.userId()))
+                .thenReturn(Optional.of(binding));
+        when(conversations.findByIdAndOrganizationIdAndActorUserId(
+                        conversationId,
+                        actor.organizationId(),
+                        actor.userId()))
+                .thenReturn(Optional.of(mock(AssistantConversation.class)));
+        when(sources.find(actor.organizationId(), sourceObjectId, sourceRevisionId))
+                .thenReturn(Optional.of(source(
+                        GovernedEvidenceRef.ProcessingState.PROCESSING,
+                        true,
+                        true,
+                        true,
+                        assetId,
+                        "processing_detail")))
+                .thenReturn(Optional.of(source(
+                        GovernedEvidenceRef.ProcessingState.FAILED,
+                        true,
+                        true,
+                        true,
+                        assetId,
+                        "parse_failed")))
+                .thenReturn(Optional.of(source(
+                        GovernedEvidenceRef.ProcessingState.READY,
+                        false,
+                        true,
+                        true,
+                        assetId,
+                        "retired_detail")));
+        when(authorization.authorize(any(), any(), any(), any()))
+                .thenReturn(AuthorizationDecision.deny("RELATIONSHIP_DENIED", "model-1"));
+
+        assertUnavailableWithoutMetadata(service.get(actor, conversationId, bindingId));
+        assertUnavailableWithoutMetadata(service.get(actor, conversationId, bindingId));
+        assertUnavailableWithoutMetadata(service.get(actor, conversationId, bindingId));
+        verifyNoInteractions(answerability);
+    }
+
+    @Test
+    void preAssetProcessingMetadataRemainsVisibleOnlyThroughTheActorOwnedBinding() {
+        when(bindings.findByIdAndOrganizationIdAndConversationIdAndCreatedByUserId(
+                        bindingId,
+                        actor.organizationId(),
+                        conversationId,
+                        actor.userId()))
+                .thenReturn(Optional.of(binding));
+        when(conversations.findByIdAndOrganizationIdAndActorUserId(
+                        conversationId,
+                        actor.organizationId(),
+                        actor.userId()))
+                .thenReturn(Optional.of(mock(AssistantConversation.class)));
+        when(sources.find(actor.organizationId(), sourceObjectId, sourceRevisionId))
+                .thenReturn(Optional.of(source(
+                        GovernedEvidenceRef.ProcessingState.PROCESSING,
+                        true,
+                        true,
+                        true,
+                        null,
+                        null)));
+
+        AssistantEvidenceBindingView view = service.get(actor, conversationId, bindingId);
+
+        assertEquals(AssistantEvidenceStatus.PROCESSING, view.status());
+        assertEquals("Policy", view.title());
+        assertEquals("policy.pdf", view.fileName());
+        verifyNoInteractions(authorization, answerability);
     }
 
     @Test
@@ -211,6 +333,8 @@ class AssistantEvidenceServiceTests {
                         true,
                         assetId,
                         null)));
+        when(authorization.authorize(any(), any(), any(), any()))
+                .thenReturn(AuthorizationDecision.allow("model-1"));
 
         assertEquals(
                 AssistantEvidenceStatus.PROCESSING,
@@ -221,6 +345,7 @@ class AssistantEvidenceServiceTests {
         assertEquals(
                 AssistantEvidenceStatus.UNAVAILABLE,
                 service.get(actor, conversationId, bindingId).status());
+        verifyNoInteractions(answerability);
     }
 
     private GovernedEvidenceRef readySource() {
@@ -240,11 +365,31 @@ class AssistantEvidenceServiceTests {
             boolean current,
             UUID knowledgeAssetId,
             String failureCode) {
+        return source(
+                state,
+                active,
+                latest,
+                current,
+                sourceObjectId,
+                sourceRevisionId,
+                knowledgeAssetId,
+                failureCode);
+    }
+
+    private GovernedEvidenceRef source(
+            GovernedEvidenceRef.ProcessingState state,
+            boolean active,
+            boolean latest,
+            boolean current,
+            UUID selectedSourceObjectId,
+            UUID selectedSourceRevisionId,
+            UUID knowledgeAssetId,
+            String failureCode) {
         return new GovernedEvidenceRef(
                 actor.organizationId(),
                 UUID.randomUUID(),
-                sourceObjectId,
-                sourceRevisionId,
+                selectedSourceObjectId,
+                selectedSourceRevisionId,
                 state,
                 active,
                 latest,
@@ -254,5 +399,13 @@ class AssistantEvidenceServiceTests {
                 "Policy",
                 "policy.pdf",
                 failureCode);
+    }
+
+    private static void assertUnavailableWithoutMetadata(AssistantEvidenceBindingView view) {
+        assertEquals(AssistantEvidenceStatus.UNAVAILABLE, view.status());
+        assertEquals("Unavailable evidence", view.title());
+        assertEquals("Unavailable file", view.fileName());
+        assertNull(view.knowledgeAssetId());
+        assertNull(view.failureCode());
     }
 }

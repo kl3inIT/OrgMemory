@@ -59,6 +59,8 @@ import { createAssistantTransport } from "@/features/assistant/api/chat-transpor
 import { ASSISTANT_MESSAGE_MAX_CHARACTERS } from "@/features/assistant/assistant-message-constraints"
 import {
   assistantEvidenceReady,
+  assistantEvidenceShouldPoll,
+  assistantEvidenceStatusLabel,
   assistantEvidenceUploadDisabledReason,
   MAX_ASSISTANT_EVIDENCE_FILES,
 } from "@/features/assistant/assistant-evidence"
@@ -670,16 +672,16 @@ export function AssistantPage({
         queryKey: scopeActorQueryKey(options.queryKey, actorKey),
         enabled: Boolean(binding.conversationId && binding.id),
         refetchInterval: (query: { state: { data?: AssistantEvidenceBindingView } }) =>
-          query.state.data?.status === "PROCESSING" || query.state.data?.status === "INDEXING"
-            ? 1_500
-            : false,
+          assistantEvidenceShouldPoll(query.state.data?.status) ? 1_500 : false,
       }
     }),
   })
   const currentEvidenceBindings = evidenceBindings.map(
     (binding, index) => evidenceStatusQueries[index]?.data ?? binding,
   )
-  const evidenceReady = assistantEvidenceReady(currentEvidenceBindings)
+  const evidenceReady =
+    !evidenceStatusQueries.some((query) => query.isError) &&
+    assistantEvidenceReady(currentEvidenceBindings)
   const uploadEvidence = useMutation(uploadAssistantEvidenceMutation())
   const selectModel = useMutation({
     ...selectAssistantConversationModelMutation(),
@@ -737,6 +739,12 @@ export function AssistantPage({
     setSelectedModelActivationId(selected)
     modelActivationIdRef.current = selected
   }, [modelOptions.data])
+
+  useEffect(() => {
+    evidenceBindingIdsRef.current = evidenceBindings.flatMap((binding) =>
+      binding.id ? [binding.id] : [],
+    )
+  }, [evidenceBindings])
 
   useEffect(() => {
     if (
@@ -851,20 +859,16 @@ export function AssistantPage({
       )
       onConversationIdChangeRef.current(binding.conversationId)
     }
-    setEvidenceBindings((current) => {
-      const next = [...current, binding].slice(0, MAX_ASSISTANT_EVIDENCE_FILES)
-      evidenceBindingIdsRef.current = next.flatMap((item) => item.id ? [item.id] : [])
-      return next
-    })
+    setEvidenceBindings((current) =>
+      [...current, binding].slice(0, MAX_ASSISTANT_EVIDENCE_FILES),
+    )
     toast.success("File uploaded. Governed ingestion has started.")
   }
 
   function removeEvidence(bindingId: string) {
-    setEvidenceBindings((current) => {
-      const next = current.filter((binding) => binding.id !== bindingId)
-      evidenceBindingIdsRef.current = next.flatMap((binding) => binding.id ? [binding.id] : [])
-      return next
-    })
+    setEvidenceBindings((current) =>
+      current.filter((binding) => binding.id !== bindingId),
+    )
   }
 
   function send(rawMessage: string, clearComposer = true) {
@@ -942,8 +946,13 @@ export function AssistantPage({
       className="w-full [&_[data-slot=input-group]]:rounded-3xl [&_[data-slot=input-group]]:border-border-subtle [&_[data-slot=input-group]]:bg-assistant-composer [&_[data-slot=input-group]]:shadow-sm [&_[data-slot=input-group]]:ring-0"
     >
       {currentEvidenceBindings.length > 0 ? (
-        <PromptInputHeader aria-label="Selected governed files">
-          {currentEvidenceBindings.map((binding) => (
+        <PromptInputHeader
+          aria-label="Selected governed files"
+          role="status"
+          aria-live="polite"
+          aria-atomic="false"
+        >
+          {currentEvidenceBindings.map((binding, index) => (
             <span
               key={binding.id}
               className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border-subtle bg-surface-subtle px-2.5 py-1 text-xs text-content-secondary"
@@ -954,7 +963,11 @@ export function AssistantPage({
                 <FileText className="size-3.5 shrink-0" aria-hidden="true" />
               )}
               <span className="max-w-48 truncate">{binding.fileName ?? "Governed file"}</span>
-              <span className="text-content-muted">{binding.status?.toLowerCase()}</span>
+              <span className="text-content-muted">
+                {evidenceStatusQueries[index]?.isError
+                  ? "Status unavailable — retrying"
+                  : assistantEvidenceStatusLabel(binding.status)}
+              </span>
               {binding.id ? (
                 <button
                   type="button"

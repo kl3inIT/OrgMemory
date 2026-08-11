@@ -132,6 +132,39 @@ class GraphRagKnowledgeRetrievalServiceTests {
     }
 
     @Test
+    void selectedEvidenceOutsideTheAuthorizedScopeHasADistinctAuditReason() {
+        CurrentActor actor = actor();
+        PermissionAuditService audit = mock(PermissionAuditService.class);
+        KnowledgeEvidenceScopeResolver scopes = mock(KnowledgeEvidenceScopeResolver.class);
+        when(scopes.resolve(actor, MODEL_ID))
+                .thenReturn(scope(Set.of(ASSET_ID), 1L));
+        var selection = KnowledgeEvidenceSelection.restricted(List.of(
+                new KnowledgeEvidenceSelection.Item(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        SECOND_ASSET_ID)));
+
+        SecureKnowledgeSearchResult result = service(
+                        scopes,
+                        mock(RelationshipAuthorizationSetPort.class),
+                        mock(SecureKnowledgeRetrievalStore.class),
+                        mock(LightRagQueryEngine.class),
+                        GraphRagRetrievalPolicy.defaults(),
+                        audit,
+                        mock(GraphRagEventSink.class))
+                .search(
+                        actor,
+                        "Summarize this file",
+                        10,
+                        "request-selected-empty",
+                        selection);
+
+        assertEquals(List.of(), result.evidence());
+        assertAuditReason(audit, "NO_AUTHORIZED_SELECTED_KNOWLEDGE_ASSETS");
+    }
+
+    @Test
     void multipleSpacesPrepareOneLogicalQueryBeforeSnapshotRetrieval() {
         CurrentActor actor = new CurrentActor(
                 USER_ID,

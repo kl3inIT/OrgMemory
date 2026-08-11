@@ -27,6 +27,7 @@ import com.orgmemory.core.assistant.AssistantEvidenceUploadService;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
 import com.orgmemory.core.assistant.AssistantTurnRef;
+import com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection;
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.knowledge.retrieval.CitationEvidenceService;
 import com.orgmemory.core.knowledge.retrieval.CitationEvidenceReference;
@@ -242,7 +243,8 @@ class AssistantControllerStreamingTests {
                         anyString(),
                         eq(conversationId.toString()),
                         isNull(),
-                        anyLong()))
+                        anyLong(),
+                        eq(KnowledgeEvidenceSelection.unrestricted())))
                 .thenReturn(new AssistantTurn(
                         "request-1", List.of(), reactor.core.publisher.Flux.just("Answer")));
         when(properties.heartbeatInterval()).thenReturn(Duration.ofHours(1));
@@ -310,7 +312,8 @@ class AssistantControllerStreamingTests {
                         anyString(),
                         eq(conversationId.toString()),
                         isNull(),
-                        anyLong()))
+                        anyLong(),
+                        eq(KnowledgeEvidenceSelection.unrestricted())))
                 .thenAnswer(invocation -> {
                     retrievalEntered.countDown();
                     releaseRetrieval.await();

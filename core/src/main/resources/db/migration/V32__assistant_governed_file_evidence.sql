@@ -19,7 +19,7 @@ CREATE TABLE public.assistant_evidence_bindings (
         REFERENCES public.assistant_conversations(
             id, organization_id, actor_user_id
         )
-        ON DELETE CASCADE,
+        ON DELETE NO ACTION,
     CONSTRAINT fk_assistant_evidence_binding_source
         FOREIGN KEY (source_object_id, organization_id)
         REFERENCES public.source_objects(id, organization_id),

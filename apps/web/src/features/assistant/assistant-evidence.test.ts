@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import {
   assistantEvidenceReady,
+  assistantEvidenceShouldPoll,
+  assistantEvidenceStatusLabel,
   assistantEvidenceUploadDisabledReason,
 } from "@/features/assistant/assistant-evidence"
 
@@ -26,5 +28,22 @@ describe("Assistant governed file evidence", () => {
     expect(assistantEvidenceUploadDisabledReason({ ...base, selectedCount: 3 }))
       .toBe("A turn can include at most three files")
     expect(assistantEvidenceUploadDisabledReason(base)).toBeUndefined()
+  })
+
+  it("keeps polling through missing responses and stops only at terminal states", () => {
+    expect(assistantEvidenceShouldPoll(undefined)).toBe(true)
+    expect(assistantEvidenceShouldPoll("PROCESSING")).toBe(true)
+    expect(assistantEvidenceShouldPoll("INDEXING")).toBe(true)
+    expect(assistantEvidenceShouldPoll("READY")).toBe(false)
+    expect(assistantEvidenceShouldPoll("FAILED")).toBe(false)
+    expect(assistantEvidenceShouldPoll("UNAVAILABLE")).toBe(false)
+  })
+
+  it("provides product-facing evidence status labels", () => {
+    expect(assistantEvidenceStatusLabel("PROCESSING")).toBe("Processing")
+    expect(assistantEvidenceStatusLabel("INDEXING")).toBe("Indexing")
+    expect(assistantEvidenceStatusLabel("READY")).toBe("Ready")
+    expect(assistantEvidenceStatusLabel("UNAVAILABLE")).toBe("Unavailable")
+    expect(assistantEvidenceStatusLabel(undefined)).toBe("Status unavailable")
   })
 })

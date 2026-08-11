@@ -391,22 +391,25 @@ class DefaultGraphRagKnowledgeRetrievalService
             UUID operationId,
             int attempt,
             KnowledgeEvidenceSelection selection) {
-        ResolvedKnowledgeEvidenceScope initial =
-                restrict(
-                        resolve(
+        ResolvedKnowledgeEvidenceScope resolved =
+                resolve(
                         actor,
                         authorizationModelId,
                         requestId,
                         query,
-                        operationId),
-                        selection);
+                        operationId);
+        ResolvedKnowledgeEvidenceScope initial = restrict(resolved, selection);
         if (initial.allAssetIds().isEmpty()) {
+            boolean selectionRemovedAuthorizedScope =
+                    selection.restricted() && !resolved.allAssetIds().isEmpty();
             audit.record(searchAuthorization.command(
                     actor,
                     requestId,
                     query,
                     PermissionAuditDecision.ALLOW,
-                    "NO_AUTHORIZED_KNOWLEDGE_ASSETS",
+                    selectionRemovedAuthorizedScope
+                            ? KnowledgeSearchAuthorizationService.NO_AUTHORIZED_SELECTED_KNOWLEDGE_ASSETS
+                            : "NO_AUTHORIZED_KNOWLEDGE_ASSETS",
                     initial.authorizationModelId()));
             return RetrievalRun.empty(requestId);
         }

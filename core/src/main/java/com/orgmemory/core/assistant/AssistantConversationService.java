@@ -372,10 +372,10 @@ public class AssistantConversationService implements AssistantTranscriptContext 
 
     private static String requireUserMessage(String value) {
         String normalized = value == null ? "" : value.strip();
-        if (normalized.isEmpty() || normalized.length() > 4_000) {
+        if (normalized.isEmpty() || normalized.length() > 8_000) {
             throw new BusinessValidationException(
                     "assistant.message-invalid",
-                    "Assistant message must contain between 1 and 4000 characters");
+                    "Assistant message must contain between 1 and 8000 characters");
         }
         return normalized;
     }

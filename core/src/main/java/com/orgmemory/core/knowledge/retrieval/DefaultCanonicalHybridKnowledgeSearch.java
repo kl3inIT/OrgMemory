@@ -134,8 +134,11 @@ class DefaultCanonicalHybridKnowledgeSearch
                     unavailable);
         }
         Set<UUID> authorizedAssetIds = new LinkedHashSet<>(evidenceScope.allAssetIds());
+        boolean selectionRemovedAuthorizedScope = false;
         if (selection.restricted()) {
+            boolean hadAuthorizedAssets = !authorizedAssetIds.isEmpty();
             authorizedAssetIds.retainAll(selection.assetIds());
+            selectionRemovedAuthorizedScope = hadAuthorizedAssets && authorizedAssetIds.isEmpty();
         }
         if (authorizedAssetIds.isEmpty()) {
             audit.record(searchAudit(
@@ -143,7 +146,9 @@ class DefaultCanonicalHybridKnowledgeSearch
                     requestId,
                     normalizedQuery,
                     PermissionAuditDecision.ALLOW,
-                    "NO_AUTHORIZED_KNOWLEDGE_ASSETS",
+                    selectionRemovedAuthorizedScope
+                            ? KnowledgeSearchAuthorizationService.NO_AUTHORIZED_SELECTED_KNOWLEDGE_ASSETS
+                            : "NO_AUTHORIZED_KNOWLEDGE_ASSETS",
                     evidenceScope.authorizationModelId()));
             return new SecureKnowledgeSearchResult(requestId, List.of());
         }

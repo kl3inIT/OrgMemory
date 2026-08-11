@@ -81,6 +81,11 @@ retirement, revision drift, missing evidence, or revoked access produce
 chunks. Under the default GraphRAG engine it remains `INDEXING` until the exact
 Asset version's current graph profile job succeeded and its projection
 generation is published. Ownership and tenant probes remain opaque not-found.
+Before any state-specific Source metadata is returned for a published Asset,
+the Assistant rechecks current `can_view`; denial becomes generic `UNAVAILABLE`
+without the Asset identity, title, filename, or failure code. Before an Asset
+exists there is no relationship resource to check, so only the actor-owned
+binding exposes its uploader's processing metadata.
 
 A turn carrying bindings persists their distinct ordered IDs beside the same
 USER message and turn identity in one transaction. Claim time rechecks
@@ -94,6 +99,10 @@ Knowledge may enter a binding turn, and every selected file must contribute
 usable final evidence before generation. The browser retains the exact ordered
 selection on failure or abort and clears it only after a successful turn, so a
 retry cannot silently resolve to a newer revision.
+An empty actor authorization scope and a non-empty scope eliminated by the
+turn's evidence selection have distinct audit reasons. Persisted turn evidence
+uses a restrictive binding foreign key, so a referenced binding cannot be
+deleted and erase the immutable turn ceiling.
 
 Every turn is observed on its own surface, `orgmemory.assistant.turn`, rather
 than through `GraphRagEventSink`: generation runs above an engine-neutral
@@ -296,10 +305,14 @@ invariant. Its local Prompt Input surface supplies reusable header, body,
 footer, tooltip-aware action-button, side-effect-free action-menu, and
 status-aware submit primitives. Enter submits, Shift+Enter inserts a newline,
 IME composition does not submit, and the in-flight submit control stops the
-current turn. The mounted composer remains text-only: file, screenshot, speech,
-and referenced-source actions are not exposed. The composer keeps at most 4,000
-characters per actor and conversation in browser `sessionStorage`, including a
-separate new-conversation
+current turn. The mounted composer accepts at most 8,000 characters and can
+attach up to three files only through the governed Space-publication flow;
+provider-native file handles, screenshots, speech, and referenced-source
+actions are not exposed. Selected-file status is a polite live region. The
+browser keeps polling non-terminal evidence through temporary status-request
+failures, displays the retry state, and blocks submit until every status is
+fresh and `READY`. The composer keeps at most 8,000 characters per actor and
+conversation in browser `sessionStorage`, including a separate new-conversation
 draft. Submit, actor change, conversation deletion, and logout clear the
 applicable draft state. Drafts are neither server state nor telemetry. Retrying
 a completed answer resubmits its immediately preceding user message as a new

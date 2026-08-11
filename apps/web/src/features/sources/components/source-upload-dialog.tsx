@@ -1,5 +1,5 @@
 import { LoaderCircle, Upload } from "lucide-react"
-import { useState, type FormEvent, type ReactNode } from "react"
+import { useState, type FormEvent, type ReactElement, type ReactNode } from "react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -47,7 +47,7 @@ export function SourceUploadDialog({
   spacesError: boolean
   onRetrySpaces: () => void
   onUpload: (input: UploadSourceInput) => Promise<void>
-  trigger?: ReactNode | false
+  trigger?: ReactElement | false
   description?: ReactNode
 }) {
   const [internalOpen, setInternalOpen] = useState(false)

@@ -6,6 +6,31 @@ export function assistantEvidenceReady(bindings: AssistantEvidenceBindingView[])
   return bindings.every((binding) => binding.status === "READY")
 }
 
+export function assistantEvidenceShouldPoll(
+  status: AssistantEvidenceBindingView["status"] | undefined,
+) {
+  return status === undefined || status === "PROCESSING" || status === "INDEXING"
+}
+
+export function assistantEvidenceStatusLabel(
+  status: AssistantEvidenceBindingView["status"] | undefined,
+) {
+  switch (status) {
+    case "PROCESSING":
+      return "Processing"
+    case "INDEXING":
+      return "Indexing"
+    case "READY":
+      return "Ready"
+    case "FAILED":
+      return "Failed"
+    case "UNAVAILABLE":
+      return "Unavailable"
+    default:
+      return "Status unavailable"
+  }
+}
+
 export function assistantEvidenceUploadDisabledReason({
   busy,
   uploading,
