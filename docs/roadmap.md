@@ -55,6 +55,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Prompt Asset authoring and exact-release use](increments/active/2026-08-11-prompt-asset-authoring/plan.md) | active | implement browser Prompt creation/editing, bounded tests, optional Knowledge grounding, direct publication, and authenticated exact-release use on the existing contracts |
 | [Assistant governed file evidence](increments/active/2026-08-10-assistant-file-evidence/plan.md) | active | implement conversation-bound governed upload, active-engine answerability, and selection-constrained retrieval on the shipped parser and Source pipeline |
 | [Asset library sharing lifecycle](increments/active/2026-08-10-asset-library-sharing-lifecycle/plan.md) | next | characterize ownership/review conflicts and split released-consumption from governance reads after the overlapping Asset Registry package-refactor slice lands; then implement the challenged owner-only direct-sharing lifecycle |
 | [Assistant turn activity continuity](increments/completed/2026-08-06-assistant-turn-activity-continuity/verification.md) | shipped | one stable pre-answer surface now preserves thinking through renderable text and presents Skill detail only when useful; the unrelated browser timing baseline gap is recorded |
@@ -98,15 +99,18 @@ implementation-active until their predecessor exit gates pass.
 2. Finish the overlapping Asset Registry package-refactor slice, then begin the
    Asset library sharing lifecycle with the governance-read split and redacted
    ownership/review conflict characterization.
-3. Complete the guarded ZM database cutover, runtime health, browser login,
+3. Deliver Prompt Asset authoring and exact-release use on the existing direct
+   publication, evaluation, and optional Knowledge contracts; do not add review
+   or strict Required grounding.
+4. Complete the guarded ZM database cutover, runtime health, browser login,
    upload, GraphRAG, Assistant/citation, restore, rollback, and resource gates.
-4. Complete the reproducible demo's real ingestion and permission-evaluation
+5. Complete the reproducible demo's real ingestion and permission-evaluation
    path.
-5. Run the Slack live proof with credentials outside the repository and retain
+6. Run the Slack live proof with credentials outside the repository and retain
    only redacted evidence.
-6. Close the production proofs for asset projection generation and LightRAG
+7. Close the production proofs for asset projection generation and LightRAG
    latency.
-7. Continue the dependency-ordered native identity program: provisioning
+8. Continue the dependency-ordered native identity program: provisioning
    foundation, Users private beta, inert Directory Groups, optional explicit
    authorization mapping, then vendor/operations certification.
 
