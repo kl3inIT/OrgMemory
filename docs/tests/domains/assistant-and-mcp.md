@@ -12,7 +12,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/components/ai-elements/prompt-input.test.tsx`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-10-assistant-file-evidence (5aee7535)`.
+Reconciled: `2026-08-10-assistant-file-evidence (c49902a2)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |

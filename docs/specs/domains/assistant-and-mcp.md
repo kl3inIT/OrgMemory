@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/components/ai-elements/model-selector.tsx`, and
 `apps/web/src/components/ai-elements/prompt-input.tsx`.
 
-Reconciled: `2026-08-10-assistant-file-evidence (5aee7535)`.
+Reconciled: `2026-08-10-assistant-file-evidence (c49902a2)`.
 
 ## Current Behavior
 
