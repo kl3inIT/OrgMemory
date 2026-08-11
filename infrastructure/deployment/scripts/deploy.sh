@@ -159,6 +159,25 @@ replace_environment_value() {
   rm -f "$temporary_file"
 }
 
+resolve_local_registry_digest() {
+  local repository="$1"
+  local repo_digests="$2"
+  python3 - "$repository" "$repo_digests" <<'PY'
+import json
+import re
+import sys
+
+repository, payload = sys.argv[1:]
+matches = [
+    value for value in json.loads(payload)
+    if re.fullmatch(re.escape(repository) + r"@sha256:[0-9a-f]{64}", value)
+]
+if len(matches) != 1:
+    raise SystemExit(f"expected one local registry digest for {repository}, got {matches}")
+print(matches[0])
+PY
+}
+
 snapshot_previous_image_digest() {
   local key="$1"
   local component="$2"
@@ -187,6 +206,32 @@ snapshot_previous_image_digest() {
       --env-file "$environment_file" \
       ps --all --quiet "$service"
   )
+  if [[ "${#container_ids[@]}" -eq 0 && "$service" == "postgres-bootstrap" ]]; then
+    if [[ "$reference" != "$repository@sha256:"* ]]; then
+      printf 'Previous one-shot service %s has no retained container and is not pinned by exact digest: %s\n' \
+        "$service" "$reference" >&2
+      return 65
+    fi
+    if ! repo_digests="$(
+      docker image inspect "$reference" --format '{{json .RepoDigests}}'
+    )"; then
+      printf 'Previous one-shot image is not available locally for rollback: %s\n' \
+        "$reference" >&2
+      return 65
+    fi
+    if ! immutable_reference="$(
+      resolve_local_registry_digest "$repository" "$repo_digests"
+    )"; then
+      return 65
+    fi
+    if [[ "$reference" != "$immutable_reference" ]]; then
+      printf 'Previous environment digest does not match local image for %s: %s != %s\n' \
+        "$service" "$reference" "$immutable_reference" >&2
+      return 65
+    fi
+    replace_environment_value "$destination_environment" "$key" "$immutable_reference"
+    return 0
+  fi
   if [[ "${#container_ids[@]}" -ne 1 || -z "${container_ids[0]}" ]]; then
     printf 'Expected exactly one existing container for previous service %s, got %s\n' \
       "$service" "${#container_ids[@]}" >&2
@@ -217,21 +262,11 @@ snapshot_previous_image_digest() {
     return 65
   fi
   repo_digests="$(docker image inspect "$running_image_id" --format '{{json .RepoDigests}}')"
-  immutable_reference="$(python3 - "$repository" "$repo_digests" <<'PY'
-import json
-import re
-import sys
-
-repository, payload = sys.argv[1:]
-matches = [
-    value for value in json.loads(payload)
-    if re.fullmatch(re.escape(repository) + r"@sha256:[0-9a-f]{64}", value)
-]
-if len(matches) != 1:
-    raise SystemExit(f"expected one local registry digest for {repository}, got {matches}")
-print(matches[0])
-PY
-  )"
+  if ! immutable_reference="$(
+    resolve_local_registry_digest "$repository" "$repo_digests"
+  )"; then
+    return 65
+  fi
   if [[ "$reference" == "$repository@sha256:"* && "$reference" != "$immutable_reference" ]]; then
     printf 'Previous environment digest does not match service %s: %s != %s\n' \
       "$service" "$reference" "$immutable_reference" >&2

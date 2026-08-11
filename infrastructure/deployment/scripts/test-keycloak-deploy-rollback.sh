@@ -68,6 +68,11 @@ if [[ "${1:-}" == "compose" && " $* " == *" up "* && \
 fi
 if [[ "${1:-}" == "compose" && " $* " == *" ps --all --quiet "* ]]; then
   service="${!#}"
+  if [[ "$service" == "postgres-bootstrap" && \
+        "${TEST_MISSING_POSTGRES_BOOTSTRAP:-false}" == "true" && \
+        ! -f "$TEST_CONTAINER_STATE" ]]; then
+    exit 0
+  fi
   case "$service" in
     api) hex=a ;;
     worker) hex=b ;;
@@ -95,6 +100,10 @@ elif [[ "${1:-}" == "container" && "${2:-}" == "inspect" ]]; then
   fi
 elif [[ "${1:-}" == "image" && "${2:-}" == "inspect" ]]; then
   image_id="$3"
+  if [[ "$image_id" =~ ^ghcr\.io/kl3init/orgmemory-postgres-rag@sha256:([0-9a-f]{64})$ ]]; then
+    printf '["ghcr.io/kl3init/orgmemory-postgres-rag@sha256:%s"]\n' "${BASH_REMATCH[1]}"
+    exit 0
+  fi
   hex="${image_id#sha256:}"
   case "${hex:0:1}" in
     a) repository=ghcr.io/kl3init/orgmemory-api; key=ORGMEMORY_API_IMAGE ;;
@@ -169,6 +178,7 @@ run_case() {
   local theme_artifact_missing="${10:-false}"
   local stopped_worker="${11:-false}"
   local smoke_fail_mode="${12:-first}"
+  local missing_postgres_bootstrap="${13:-false}"
   local case_dir="$tmp_root/$name"
   local runtime="$case_dir/runtime"
   local environment="$case_dir/production.env"
@@ -184,6 +194,19 @@ text = path.read_text(encoding="utf-8")
 text = text.replace(
     "ORGMEMORY_API_IMAGE=ghcr.io/kl3init/orgmemory-api:sha-" + "2" * 40,
     "ORGMEMORY_API_IMAGE=ghcr.io/kl3init/orgmemory-api@sha256:" + "9" * 64,
+)
+path.write_text(text, encoding="utf-8")
+PY
+  elif [[ "$previous_mode" == "postgres-digest" ]]; then
+    python3 - "$environment" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace(
+    "ORGMEMORY_POSTGRES_IMAGE=ghcr.io/kl3init/orgmemory-postgres-rag:sha-" + "2" * 40,
+    "ORGMEMORY_POSTGRES_IMAGE=ghcr.io/kl3init/orgmemory-postgres-rag@sha256:" + "f" * 64,
 )
 path.write_text(text, encoding="utf-8")
 PY
@@ -230,6 +253,7 @@ PY
   TEST_CONTAINER_STATE="$case_dir/container-state" \
   TEST_STALE_CONTAINERS="$stale_containers" \
   TEST_STOPPED_WORKER="$stopped_worker" \
+  TEST_MISSING_POSTGRES_BOOTSTRAP="$missing_postgres_bootstrap" \
   TEST_THEME_ARTIFACT_MISSING="$theme_artifact_missing" \
   TEST_PREVIOUS_THEME="$previous_theme" \
   TEST_RESTORE_FAIL="$restore_fail" \
@@ -294,6 +318,8 @@ run_case previous-digest-mismatch keycloak orgmemory-shadcn false false digest "
 run_case stale-containers keycloak orgmemory-shadcn false false digest "" tag true
 run_case stock-missing-rollback-theme orgmemory-shadcn keycloak false false digest "" tag false true
 run_case stopped-worker keycloak orgmemory-shadcn false false digest "" tag false false true
+run_case missing-postgres-bootstrap keycloak orgmemory-shadcn false false digest "" postgres-digest false false false first true
+run_case missing-postgres-bootstrap-mutable keycloak orgmemory-shadcn false false digest "" tag false false false first true
 
 python3 - "$tmp_root" <<'PY'
 from pathlib import Path
@@ -387,6 +413,18 @@ stopped = events("stopped-worker")
 assert status("stopped-worker") != 0
 assert any("container inspect" in line and "State.Status" in line for line in stopped), stopped
 assert not any(" pull" in line for line in stopped), stopped
+
+missing_bootstrap = events("missing-postgres-bootstrap")
+assert status("missing-postgres-bootstrap") == 0, status("missing-postgres-bootstrap")
+assert any(
+    line == "docker image inspect ghcr.io/kl3init/orgmemory-postgres-rag@sha256:" + "f" * 64
+    + " --format {{json .RepoDigests}}"
+    for line in missing_bootstrap
+), missing_bootstrap
+
+missing_bootstrap_mutable = events("missing-postgres-bootstrap-mutable")
+assert status("missing-postgres-bootstrap-mutable") != 0
+assert not any(" pull" in line for line in missing_bootstrap_mutable), missing_bootstrap_mutable
 
 assert status("browser-approve") == 0
 rejected = events("browser-reject")

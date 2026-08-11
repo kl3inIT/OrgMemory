@@ -653,7 +653,11 @@ conversation store.
 
 The repository contains a production Compose topology, immutable six-image
 build set, automatic green-main deployment workflow, rollback-aware deploy
-script, and mandatory public health/OIDC/MCP smoke. These mechanics do not by
+script, and mandatory public health/OIDC/MCP smoke. Rollback evidence remains
+container-backed for running services; if the retained `postgres-bootstrap`
+one-shot container has been pruned, deployment accepts only the exact
+production-environment digest whose matching local repository digest is still
+available for the existing no-pull rollback. These mechanics do not by
 themselves certify pilot readiness. Main commits that change no product-image
 input are explicit release no-ops: they neither copy six manifests nor trigger
 the product SSH deployment. The independent docs portal has a separate

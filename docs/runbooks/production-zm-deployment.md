@@ -191,8 +191,11 @@ The deployment:
 
 1. acquires a host lock;
 2. inspects each existing Compose service container, proves its local image has
-   exactly one matching registry digest, and snapshots those six actual running
-   digests; an existing digest-pinned environment must match the containers;
+   exactly one matching registry digest, and snapshots those six deployed
+   digests; an existing digest-pinned environment must match the containers.
+   If the completed `postgres-bootstrap` one-shot container was pruned, its
+   exact environment digest must instead match the locally retained image used
+   by no-pull rollback; mutable tags and missing local images fail closed;
 3. validates Compose without printing resolved secrets;
 4. pulls the complete image set before mutation;
 5. idempotently checks database roles/databases;
