@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { parsePayload } from "@/features/assets/asset-format"
 import { GovernanceDecisionDialog } from "@/features/assets/components/governance-decision-dialog"
 import { MetadataTile } from "@/features/assets/components/metadata-tile"
+import { PromptDraftWorkspace } from "@/features/assets/components/prompt-draft-workspace"
 import { canPublishDirectly } from "@/features/assets/governance-policy"
 import {
   publishAssetDraftMutation,
@@ -37,6 +38,37 @@ type SkillDraftPayload = {
 }
 
 export function GovernanceDraftWorkspace({
+  asset,
+  actions,
+  onChanged,
+  onPublished,
+}: {
+  asset: AssetView
+  actions?: AssetGovernanceActions
+  onChanged: () => Promise<unknown>
+  onPublished: () => void
+}) {
+  if (asset.type === "PROMPT_TEMPLATE") {
+    return (
+      <PromptDraftWorkspace
+        asset={asset}
+        actions={actions}
+        onChanged={onChanged}
+        onPublished={onPublished}
+      />
+    )
+  }
+  return (
+    <GenericDraftWorkspace
+      asset={asset}
+      actions={actions}
+      onChanged={onChanged}
+      onPublished={onPublished}
+    />
+  )
+}
+
+function GenericDraftWorkspace({
   asset,
   actions,
   onChanged,

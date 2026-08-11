@@ -14,7 +14,7 @@ const CREATE_OPTIONS: Array<{
   type: AssetType
   description: string
   available: boolean
-  to?: "/assets/new/skill"
+  to?: "/assets/new/skill" | "/assets/new/prompt"
 }> = [
   {
     type: "SKILL",
@@ -25,7 +25,8 @@ const CREATE_OPTIONS: Array<{
   {
     type: "PROMPT_TEMPLATE",
     description: "Reuse a governed prompt with typed variables.",
-    available: false,
+    available: true,
+    to: "/assets/new/prompt",
   },
   {
     type: "WORK_INSTRUCTION",

@@ -6,6 +6,9 @@ import {
   Check,
   ChevronDown,
   CircleAlert,
+  CircleCheck,
+  CircleX,
+  FlaskConical,
   History,
   MessageSquareWarning,
   PackageCheck,
@@ -64,6 +67,7 @@ import { canOpenGovernance } from "@/features/assets/governance-policy"
 import { AssistantActionReceipt } from "@/features/assistant/components/assistant-action-receipt"
 import {
   acknowledgeWorkInstructionMutation,
+  evaluatePromptReleaseMutation,
   getAssetGovernanceActionsOptions,
   getCapabilityPackDefinitionOptions,
   getReleasedAssetOptions,
@@ -93,6 +97,7 @@ type PromptPayload = {
   variables?: PromptVariable[]
   knowledgeRequirements?: string[]
   knownLimitations?: string
+  evaluationCases?: Array<{ name?: string }>
 }
 
 type WorkInstructionPayload = {
@@ -299,6 +304,7 @@ function PromptPanel({ assetId, release }: { assetId: string; release: Release }
   const [knowledgeQuery, setKnowledgeQuery] = useState("")
   const render = useMutation(renderAssistantPromptMutation())
   const run = useMutation(runAssistantPromptMutation())
+  const evaluate = useMutation(evaluatePromptReleaseMutation())
   const result = run.data?.result
 
   if (!payload) return <InvalidPayload />
@@ -448,6 +454,87 @@ function PromptPanel({ assetId, release }: { assetId: string; release: Release }
         </CardContent>
       </Card>
       <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle>Release tests</CardTitle>
+                <p className="mt-1 text-supporting text-content-secondary">
+                  {payload.evaluationCases?.length ?? 0} cases embedded in version {release.versionLabel}.
+                </p>
+              </div>
+              <FlaskConical className="size-5 text-content-muted" aria-hidden="true" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={!payload.evaluationCases?.length || evaluate.isPending}
+                >
+                  <FlaskConical aria-hidden="true" />
+                  {evaluate.isPending ? "Running release tests" : "Run release tests"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Run tests for version {release.versionLabel}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This makes {payload.evaluationCases?.length ?? 0} bounded provider calls using
+                    only fixtures embedded in this immutable release. It does not publish or
+                    promote anything.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() =>
+                      evaluate.mutate({ path: { assetId, releaseId: release.id! } })
+                    }
+                  >
+                    Run exact release
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            {evaluate.isError ? (
+              <p role="alert" className="text-supporting text-status-danger-content">
+                Release tests could not be completed with your current access.
+              </p>
+            ) : null}
+            {evaluate.data ? (
+              <div className="space-y-3" aria-live="polite">
+                <p className="text-label">
+                  {evaluate.data.passedCases}/{evaluate.data.totalCases} cases passed
+                </p>
+                <ul className="divide-y divide-border-subtle rounded-lg border border-border-default">
+                  {evaluate.data.cases?.map((testCase, index) => (
+                    <li key={`${testCase.name ?? "case"}-${index}`} className="px-3 py-3">
+                      <div className="flex items-center gap-2 text-supporting font-medium">
+                        {testCase.passed ? (
+                          <CircleCheck className="size-4 text-status-success-content" aria-hidden="true" />
+                        ) : (
+                          <CircleX className="size-4 text-status-danger-content" aria-hidden="true" />
+                        )}
+                        <span>{testCase.name || `Case ${index + 1}`}</span>
+                        <span className="sr-only">{testCase.passed ? "passed" : "failed"}</span>
+                      </div>
+                      {testCase.failedAssertions?.length ? (
+                        <ul className="mt-2 space-y-1 pl-6 text-xs text-status-danger-content">
+                          {testCase.failedAssertions.map((assertion) => (
+                            <li key={assertion}>{assertion}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle>Release contract</CardTitle>

@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   CircleAlert,
-  FlaskConical,
   GitCompareArrows,
   History,
   Rocket,
@@ -39,7 +38,6 @@ import {
   decideAssetReviewMutation,
   getAssetGovernanceActionsOptions,
   getAssetGovernanceActionsQueryKey,
-  evaluatePromptReleaseMutation,
   getAssetOptions,
   getAssetQueryKey,
   publishAssetReleaseMutation,
@@ -104,11 +102,7 @@ export function GovernanceWorkspacePage({
     )
   }
   const activeTab = selectedTab ?? initialGovernanceTab(asset.data)
-  const showReviewTab = Boolean(
-    asset.data.type !== "SKILL" ||
-      asset.data.reviews?.length ||
-      actions.data?.canReview,
-  )
+  const showReviewTab = Boolean(asset.data.reviews?.length)
 
   return (
     <PageLayout.Root variant="wide">
@@ -698,9 +692,6 @@ function ReleaseHistory({
 
   return (
     <div className="space-y-5">
-      {asset.type === "PROMPT_TEMPLATE" ? (
-        <EvaluationCard assetId={asset.id!} releases={asset.releases} />
-      ) : null}
       {actions?.canWithdraw && asset.portfolioState !== "RETIRED" ? (
         <Card className="border-status-danger-border">
           <CardContent className="grid gap-4 p-6 lg:grid-cols-[1fr_20rem]">
@@ -777,56 +768,6 @@ function ReleaseHistory({
         </Card>
       ))}
     </div>
-  )
-}
-
-function EvaluationCard({ assetId, releases }: { assetId: string; releases: Release[] }) {
-  const [releaseId, setReleaseId] = useState(releases[0]?.id)
-  const evaluate = useMutation(evaluatePromptReleaseMutation())
-  return (
-    <Card className="border-status-info-border bg-status-info-surface/40">
-      <CardContent className="grid gap-5 p-6 md:grid-cols-[1fr_auto] md:items-end">
-        <div>
-          <div className="flex items-center gap-2">
-            <FlaskConical className="size-5 text-status-info-content" aria-hidden="true" />
-            <h2 className="text-section-title">Bounded release evaluation</h2>
-          </div>
-          <p className="mt-2 text-body text-content-secondary">
-            Executes only the cases embedded in the selected immutable release.
-          </p>
-          {evaluate.data ? (
-            <p className="mt-3 text-label">
-              {evaluate.data.passedCases}/{evaluate.data.totalCases} cases passed
-            </p>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <select
-            value={releaseId}
-            onChange={(event) => setReleaseId(event.currentTarget.value)}
-            className="h-9 rounded-md border border-control-border bg-control-surface px-3 text-label"
-            aria-label="Evaluation release"
-          >
-            {releases.map((release) => (
-              <option key={release.id} value={release.id}>
-                {release.versionLabel}
-              </option>
-            ))}
-          </select>
-          <Button
-            disabled={!releaseId || evaluate.isPending}
-            onClick={() =>
-              evaluate.mutate({
-                path: { assetId, releaseId: releaseId! },
-              })
-            }
-          >
-            <FlaskConical aria-hidden="true" />
-            Run evaluation
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
   )
 }
 
