@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge.retrieval;
 
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
+import com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -52,6 +53,31 @@ record ResolvedKnowledgeEvidenceScope(
         return assetIdsByKnowledgeSpace.keySet();
     }
 
+    public ResolvedKnowledgeEvidenceScope restrictTo(Set<UUID> permittedAssetIds) {
+        Set<UUID> permitted = Set.copyOf(Objects.requireNonNull(
+                permittedAssetIds,
+                "permittedAssetIds"));
+        Map<UUID, Set<UUID>> restrictedAssets = new LinkedHashMap<>();
+        Map<UUID, Long> restrictedGenerations = new LinkedHashMap<>();
+        assetIdsByKnowledgeSpace.forEach((spaceId, assetIds) -> {
+            LinkedHashSet<UUID> intersection = new LinkedHashSet<>(assetIds);
+            intersection.retainAll(permitted);
+            if (!intersection.isEmpty()) {
+                restrictedAssets.put(spaceId, Set.copyOf(intersection));
+                restrictedGenerations.put(spaceId, aclGenerationByKnowledgeSpace.get(spaceId));
+            }
+        });
+        return new ResolvedKnowledgeEvidenceScope(
+                organizationId,
+                actorUserId,
+                actorDepartmentId,
+                actorExecutive,
+                authorizationModelId,
+                evaluatedAt,
+                restrictedAssets,
+                restrictedGenerations);
+    }
+
     public SecureKnowledgeRetrievalStore.RetrievalScope toRetrievalScope() {
         return new SecureKnowledgeRetrievalStore.RetrievalScope(
                 organizationId,
@@ -64,20 +90,37 @@ record ResolvedKnowledgeEvidenceScope(
     }
 
     public AuthorizedEvidenceScope forKnowledgeSpace(UUID knowledgeSpaceId) {
+        return forKnowledgeSpace(
+                knowledgeSpaceId,
+                KnowledgeEvidenceSelection.unrestricted());
+    }
+
+    public AuthorizedEvidenceScope forKnowledgeSpace(
+            UUID knowledgeSpaceId,
+            KnowledgeEvidenceSelection selection) {
         Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
+        Objects.requireNonNull(selection, "selection");
+        Set<UUID> spaceAssetIds = assetIdsByKnowledgeSpace.getOrDefault(
+                knowledgeSpaceId,
+                Set.of());
         return new AuthorizedEvidenceScope(
                 organizationId,
                 actorUserId,
                 actorDepartmentId,
                 actorExecutive,
-                assetIdsByKnowledgeSpace.getOrDefault(
-                        knowledgeSpaceId,
-                        Set.of()),
+                spaceAssetIds,
                 authorizationModelId,
                 aclGenerationByKnowledgeSpace.getOrDefault(
                         knowledgeSpaceId,
                         0L),
-                evaluatedAt);
+                evaluatedAt,
+                selection.items().stream()
+                        .filter(item -> spaceAssetIds.contains(item.knowledgeAssetId()))
+                        .map(item -> new AuthorizedEvidenceScope.EvidenceIdentity(
+                                item.knowledgeAssetId(),
+                                item.sourceObjectId(),
+                                item.sourceRevisionId()))
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet()));
     }
 
     private static Map<UUID, Set<UUID>> immutableSets(

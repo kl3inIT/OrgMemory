@@ -57,7 +57,7 @@ class SourceUploadServiceTests {
                         any(),
                         any(),
                         any()))
-                .thenReturn(mock(SourceSummary.class));
+                .thenReturn(mock(SourceUploadResult.class));
         SourceUploadService service = new SourceUploadService(
                 objects,
                 registrations,

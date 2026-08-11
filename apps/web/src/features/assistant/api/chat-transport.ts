@@ -5,10 +5,12 @@ import { csrfFetch } from "@/features/session/csrf-fetch"
 export function createAssistantTransport({
   conversationId,
   modelActivationId,
+  evidenceBindingIds,
   onConversationId,
 }: {
   conversationId: () => string | undefined
   modelActivationId: () => string | undefined
+  evidenceBindingIds: () => string[]
   onConversationId: (conversationId: string) => void
 }) {
   return new DefaultChatTransport({
@@ -33,6 +35,7 @@ export function createAssistantTransport({
           limit: 5,
           conversationId: conversationId(),
           modelActivationId: modelActivationId(),
+          evidenceBindingIds: evidenceBindingIds(),
         },
       }
     },

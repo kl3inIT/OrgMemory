@@ -170,6 +170,7 @@ class ModulithVerificationTests {
         assertEquals(
                 Set.of(
                         "knowledge.acl",
+                        "knowledge::evidence",
                         "knowledge::storage",
                         "organization",
                         "permission",
@@ -727,6 +728,7 @@ class ModulithVerificationTests {
                         "authorization",
                         "knowledge.acl",
                         "knowledge.asset",
+                        "knowledge::evidence",
                         "knowledge.retrieval",
                         "knowledge.sourceledger",
                         "knowledge.space",
@@ -885,6 +887,7 @@ class ModulithVerificationTests {
                 Set.of(
                         "com.orgmemory.core.knowledge.retrieval.DefaultAuthorizationResourceDirectory",
                         "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
+                        "com.orgmemory.core.knowledge.graph.GraphEvidenceAnswerabilityQuery",
                         "com.orgmemory.core.knowledge.graph.GraphIndexJobQueue",
                         "com.orgmemory.core.knowledge.graph.GraphIndexLifecycleService",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerService",
@@ -1080,9 +1083,30 @@ class ModulithVerificationTests {
         assertEquals(
                 Set.of(
                         "com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch",
+                        "com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection",
+                        "com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection$Item",
                         "com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence",
                         "com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult",
                         "com.orgmemory.core.knowledge.search.VerifiedKnowledgeGrounding"),
+                exposedTypes);
+    }
+
+    @Test
+    void governedEvidenceIsAnExactExplicitKnowledgeInterface() {
+        var knowledge = modules.getModuleByName("knowledge").orElseThrow();
+        var evidence = knowledge.getNamedInterfaces().getByName("evidence").orElseThrow();
+        var exposedTypes = evidence.asJavaClasses()
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.evidence.GovernedEvidenceQuery",
+                        "com.orgmemory.core.knowledge.evidence.GovernedEvidenceRef",
+                        "com.orgmemory.core.knowledge.evidence.GovernedEvidenceRef$ProcessingState",
+                        "com.orgmemory.core.knowledge.evidence.GovernedFileUpload",
+                        "com.orgmemory.core.knowledge.evidence.GovernedFileUploadCommand",
+                        "com.orgmemory.core.knowledge.evidence.GovernedFileUploadResult"),
                 exposedTypes);
     }
 
@@ -1092,6 +1116,7 @@ class ModulithVerificationTests {
                 "com.orgmemory.core.assetregistry.prompt.PromptExecutionService",
                 "com.orgmemory.core.assistant.AssistantAssetToolService",
                 "com.orgmemory.core.assistant.AssistantCitation",
+                "com.orgmemory.core.assistant.AssistantEvidenceService",
                 "com.orgmemory.core.assistant.AssistantPromptFactory",
                 "com.orgmemory.core.assistant.AssistantService");
         var dependencies = modules.stream()
@@ -1113,6 +1138,8 @@ class ModulithVerificationTests {
         assertEquals(
                 Set.of(
                         "com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch",
+                        "com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection",
+                        "com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection$Item",
                         "com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence",
                         "com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult",
                         "com.orgmemory.core.knowledge.search.VerifiedKnowledgeGrounding"),

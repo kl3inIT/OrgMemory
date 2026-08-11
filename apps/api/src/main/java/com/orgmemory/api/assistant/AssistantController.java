@@ -1,5 +1,6 @@
 package com.orgmemory.api.assistant;
 
+import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assistant.AssistantAnswerFeedbackView;
 import com.orgmemory.core.assistant.AssistantAnswerSentiment;
@@ -8,6 +9,10 @@ import com.orgmemory.core.assistant.AssistantCitation;
 import com.orgmemory.core.assistant.AssistantConversationMessageView;
 import com.orgmemory.core.assistant.AssistantConversationService;
 import com.orgmemory.core.assistant.AssistantConversationSummary;
+import com.orgmemory.core.assistant.AssistantEvidenceTurnClaim;
+import com.orgmemory.core.assistant.AssistantEvidenceBindingView;
+import com.orgmemory.core.assistant.AssistantEvidenceService;
+import com.orgmemory.core.assistant.AssistantEvidenceUploadService;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
 import com.orgmemory.core.assistant.AssistantTurnRef;
@@ -17,12 +22,15 @@ import com.orgmemory.core.ai.AssistantModelRouteAuthority;
 import com.orgmemory.core.ai.AssistantModelSelectionRef;
 import com.orgmemory.core.knowledge.retrieval.CitationEvidenceReference;
 import com.orgmemory.core.knowledge.retrieval.CitationEvidenceService;
+import com.orgmemory.core.knowledge.search.KnowledgeEvidenceSelection;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.permission.KnowledgeClassification;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -43,8 +51,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 import tools.jackson.databind.ObjectMapper;
 
@@ -75,6 +85,8 @@ class AssistantController {
     private final AssistantModelAuthorityService modelAuthority;
     private final CitationEvidenceService citationEvidence;
     private final AssistantRetrievalScheduler retrievalScheduler;
+    private final AssistantEvidenceUploadService evidenceUploads;
+    private final AssistantEvidenceService evidence;
     private final ObjectMapper json;
 
     AssistantController(
@@ -85,6 +97,8 @@ class AssistantController {
             AssistantModelAuthorityService modelAuthority,
             CitationEvidenceService citationEvidence,
             AssistantRetrievalScheduler retrievalScheduler,
+            AssistantEvidenceUploadService evidenceUploads,
+            AssistantEvidenceService evidence,
             ObjectMapper json) {
         this.assistant = assistant;
         this.conversations = conversations;
@@ -93,7 +107,64 @@ class AssistantController {
         this.modelAuthority = modelAuthority;
         this.citationEvidence = citationEvidence;
         this.retrievalScheduler = retrievalScheduler;
+        this.evidenceUploads = evidenceUploads;
+        this.evidence = evidence;
         this.json = json;
+    }
+
+    @PostMapping(path = "/evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+            operationId = "uploadAssistantEvidence",
+            summary = "Upload one governed file and bind it to an Assistant conversation")
+    AssistantEvidenceBindingView uploadEvidence(
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(required = false) UUID conversationId,
+            @RequestParam UUID knowledgeSpaceId,
+            @RequestParam(defaultValue = "CONFIDENTIAL")
+                    KnowledgeClassification classification,
+            Authentication authentication) {
+        CurrentActor actor = actors.current(authentication);
+        try (var content = file.getInputStream()) {
+            return evidenceUploads.upload(
+                    actor,
+                    conversationId,
+                    knowledgeSpaceId,
+                    classification,
+                    file.getOriginalFilename(),
+                    file.getSize(),
+                    content);
+        } catch (IOException failure) {
+            throw new ApiRequestException(
+                    "The uploaded Assistant file could not be read",
+                    failure);
+        }
+    }
+
+    @GetMapping("/conversations/{conversationId}/evidence/{bindingId}")
+    @Operation(
+            operationId = "getAssistantEvidence",
+            summary = "Read the active-engine preparation state of one owned binding")
+    AssistantEvidenceBindingView evidence(
+            @PathVariable UUID conversationId,
+            @PathVariable UUID bindingId,
+            Authentication authentication) {
+        return evidence.get(
+                actors.current(authentication),
+                conversationId,
+                bindingId);
+    }
+
+    @GetMapping("/conversations/{conversationId}/evidence")
+    @Operation(
+            operationId = "listAssistantEvidence",
+            summary = "List governed file bindings for one owned conversation")
+    List<AssistantEvidenceBindingView> evidence(
+            @PathVariable UUID conversationId,
+            Authentication authentication) {
+        return evidence.list(
+                actors.current(authentication),
+                conversationId);
     }
 
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -108,11 +179,24 @@ class AssistantController {
                 request.modelActivationId());
         AssistantModelSelectionRef modelSelection = modelAuthority.selectionRef(
                 routeAuthority);
-        AssistantTurnRef turnRef = conversations.beginTurn(
-                actor,
-                request.conversationId(),
-                request.message(),
-                modelSelection);
+        List<UUID> requestedEvidence = request.evidenceBindingIds() == null
+                ? List.of()
+                : request.evidenceBindingIds();
+        AssistantEvidenceTurnClaim turnClaim = requestedEvidence.isEmpty()
+                ? new AssistantEvidenceTurnClaim(
+                        conversations.beginTurn(
+                                actor,
+                                request.conversationId(),
+                                request.message(),
+                                modelSelection),
+                        KnowledgeEvidenceSelection.unrestricted())
+                : conversations.beginTurnWithEvidence(
+                        actor,
+                        request.conversationId(),
+                        request.message(),
+                        modelSelection,
+                        requestedEvidence);
+        AssistantTurnRef turnRef = turnClaim.turn();
         UUID conversationId = turnRef.conversationId();
         UUID assistantMessageId = UUID.randomUUID();
         Flux<AssistantStreamPart> parts = Flux.defer(() -> {
@@ -131,7 +215,8 @@ class AssistantController {
                                     requestId,
                                     conversationId.toString(),
                                     routeAuthority,
-                                    turnStartedAtNanos))
+                                    turnStartedAtNanos,
+                                    turnClaim.selection()))
                             .flatMapMany(turn -> completedTurnParts(
                                     actor,
                                     turnRef,

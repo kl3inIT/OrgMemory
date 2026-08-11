@@ -280,6 +280,13 @@ final class OpenSearchStagedIndex {
         filters.add(OpenSearchStoreSupport.anyTerms(
                 OpenSearchProjectionCodec.ASSET_ID,
                 scope.authorizedAssetIds().stream().map(UUID::toString).toList()));
+        if (scope.exactEvidenceRestricted()) {
+            filters.add(OpenSearchStoreSupport.anyTerms(
+                    OpenSearchProjectionCodec.REVISION_ID,
+                    scope.selectedSourceRevisionIds().stream()
+                            .map(UUID::toString)
+                            .toList()));
+        }
         filters.addAll(additionalFilters);
         return Query.of(query -> query.bool(bool -> bool.filter(filters)));
     }

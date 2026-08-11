@@ -89,6 +89,10 @@ public final class PostgresGraphStore implements GraphStore {
             WHERE contribution.batch_id = :batchId
               AND contribution.organization_id = :organizationId
               AND contribution.knowledge_asset_id IN (:authorizedAssetIds)
+              AND (
+                  :exactEvidenceRestricted = FALSE
+                  OR contribution.source_revision_id IN (:selectedSourceRevisionIds)
+              )
             """;
 
     private static final String VISIBLE_RELATION_CONTRIBUTIONS = """
@@ -97,6 +101,10 @@ public final class PostgresGraphStore implements GraphStore {
             WHERE contribution.batch_id = :batchId
               AND contribution.organization_id = :organizationId
               AND contribution.knowledge_asset_id IN (:authorizedAssetIds)
+              AND (
+                  :exactEvidenceRestricted = FALSE
+                  OR contribution.source_revision_id IN (:selectedSourceRevisionIds)
+              )
               AND EXISTS (
                   SELECT 1
                   FROM projection_graph_relations relation
@@ -110,6 +118,11 @@ public final class PostgresGraphStore implements GraphStore {
                           AND source_contribution.organization_id = :organizationId
                           AND source_contribution.knowledge_asset_id
                               IN (:authorizedAssetIds)
+                          AND (
+                              :exactEvidenceRestricted = FALSE
+                              OR source_contribution.source_revision_id
+                                  IN (:selectedSourceRevisionIds)
+                          )
                     )
                     AND EXISTS (
                         SELECT 1
@@ -119,6 +132,11 @@ public final class PostgresGraphStore implements GraphStore {
                           AND target_contribution.organization_id = :organizationId
                           AND target_contribution.knowledge_asset_id
                               IN (:authorizedAssetIds)
+                          AND (
+                              :exactEvidenceRestricted = FALSE
+                              OR target_contribution.source_revision_id
+                                  IN (:selectedSourceRevisionIds)
+                          )
                     )
               )
             """;
@@ -384,6 +402,10 @@ public final class PostgresGraphStore implements GraphStore {
                       AND contribution.organization_id = :organizationId
                       AND contribution.knowledge_asset_id
                           IN (:authorizedAssetIds)
+                      AND (
+                          :exactEvidenceRestricted = FALSE
+                          OR contribution.source_revision_id IN (:selectedSourceRevisionIds)
+                      )
                 ),
                 visible_relation_ids AS MATERIALIZED (
                     SELECT DISTINCT contribution.relation_id
@@ -398,6 +420,10 @@ public final class PostgresGraphStore implements GraphStore {
                       AND contribution.organization_id = :organizationId
                       AND contribution.knowledge_asset_id
                           IN (:authorizedAssetIds)
+                      AND (
+                          :exactEvidenceRestricted = FALSE
+                          OR contribution.source_revision_id IN (:selectedSourceRevisionIds)
+                      )
                 )
                 SELECT relation.*
                 FROM candidate_relations relation
@@ -464,6 +490,10 @@ public final class PostgresGraphStore implements GraphStore {
                       AND contribution.organization_id = :organizationId
                       AND contribution.knowledge_asset_id
                           IN (:authorizedAssetIds)
+                      AND (
+                          :exactEvidenceRestricted = FALSE
+                          OR contribution.source_revision_id IN (:selectedSourceRevisionIds)
+                      )
                 ),
                 visible_relation_contributions AS MATERIALIZED (
                     SELECT contribution.*
@@ -478,6 +508,10 @@ public final class PostgresGraphStore implements GraphStore {
                       AND contribution.organization_id = :organizationId
                       AND contribution.knowledge_asset_id
                           IN (:authorizedAssetIds)
+                      AND (
+                          :exactEvidenceRestricted = FALSE
+                          OR contribution.source_revision_id IN (:selectedSourceRevisionIds)
+                      )
                 )
                 SELECT contribution.*, relation.source_entity_id,
                        relation.target_entity_id, relation.orientation
@@ -608,6 +642,10 @@ public final class PostgresGraphStore implements GraphStore {
                         WHERE contribution.batch_id = :batchId
                           AND contribution.organization_id = :organizationId
                           AND contribution.knowledge_asset_id IN (:authorizedAssetIds)
+                          AND (
+                              :exactEvidenceRestricted = FALSE
+                              OR contribution.source_revision_id IN (:selectedSourceRevisionIds)
+                          )
                           AND EXISTS (
                               SELECT 1
                               FROM projection_graph_entity_contributions source_contribution
@@ -616,6 +654,11 @@ public final class PostgresGraphStore implements GraphStore {
                                 AND source_contribution.organization_id = :organizationId
                                 AND source_contribution.knowledge_asset_id
                                     IN (:authorizedAssetIds)
+                                AND (
+                                    :exactEvidenceRestricted = FALSE
+                                    OR source_contribution.source_revision_id
+                                        IN (:selectedSourceRevisionIds)
+                                )
                           )
                           AND EXISTS (
                               SELECT 1
@@ -625,6 +668,11 @@ public final class PostgresGraphStore implements GraphStore {
                                 AND target_contribution.organization_id = :organizationId
                                 AND target_contribution.knowledge_asset_id
                                     IN (:authorizedAssetIds)
+                                AND (
+                                    :exactEvidenceRestricted = FALSE
+                                    OR target_contribution.source_revision_id
+                                        IN (:selectedSourceRevisionIds)
+                                )
                           )
                     ), endpoints AS (
                         SELECT relation.source_entity_id AS entity_id, relation.relation_id
@@ -683,6 +731,10 @@ public final class PostgresGraphStore implements GraphStore {
                           AND contribution.organization_id = :organizationId
                           AND contribution.knowledge_asset_id
                               IN (:authorizedAssetIds)
+                          AND (
+                              :exactEvidenceRestricted = FALSE
+                              OR contribution.source_revision_id IN (:selectedSourceRevisionIds)
+                          )
                     ),
                     visible_relation_contributions AS MATERIALIZED (
                         SELECT contribution.*
@@ -697,6 +749,10 @@ public final class PostgresGraphStore implements GraphStore {
                           AND contribution.organization_id = :organizationId
                           AND contribution.knowledge_asset_id
                               IN (:authorizedAssetIds)
+                          AND (
+                              :exactEvidenceRestricted = FALSE
+                              OR contribution.source_revision_id IN (:selectedSourceRevisionIds)
+                          )
                     )
                     SELECT relation_id, sum(weight) AS weight
                     FROM visible_relation_contributions

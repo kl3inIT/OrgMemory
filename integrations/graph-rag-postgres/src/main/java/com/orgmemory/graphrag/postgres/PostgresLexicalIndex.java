@@ -165,6 +165,10 @@ public final class PostgresLexicalIndex implements LexicalIndex {
                     WHERE document.batch_id = :batchId
                       AND document.organization_id = :organizationId
                       AND document.knowledge_asset_id IN (:authorizedAssetIds)
+                      AND (
+                          :exactEvidenceRestricted = FALSE
+                          OR document.source_revision_id IN (:selectedSourceRevisionIds)
+                      )
                       AND document.search_vector
                           @@ plainto_tsquery('simple', :query)
                 )

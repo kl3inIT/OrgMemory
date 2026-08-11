@@ -4,6 +4,7 @@ import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assistant.AssistantAssetToolService;
 import com.orgmemory.core.assistant.AssistantAgentModelPort;
 import com.orgmemory.core.assistant.AssistantAssetTraceRecorder;
+import com.orgmemory.core.assistant.AssistantEvidenceAnswerabilityPort;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.observability.AssistantStageEventSink;
 import com.orgmemory.core.assistant.observability.AssistantTurnEvent;
@@ -14,6 +15,7 @@ import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionO
 import com.orgmemory.core.assetregistry.promptcontract.PromptAssistantOperations;
 import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.graph.GraphEvidenceAnswerabilityQuery;
 import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
@@ -68,6 +70,29 @@ class AssistantConfiguration {
                 throw new IllegalStateException(
                         "Assistant retrieval engine GRAPH_RAG requires an EmbeddingModel and the GraphRAG query runtime");
             });
+        };
+    }
+
+    @Bean
+    AssistantEvidenceAnswerabilityPort assistantEvidenceAnswerability(
+            AssistantProperties properties,
+            ObjectProvider<GraphEvidenceAnswerabilityQuery> graphAnswerability) {
+        return switch (properties.retrievalEngine()) {
+            case CANONICAL_HYBRID -> source ->
+                    AssistantEvidenceAnswerabilityPort.Answerability.ready();
+            case GRAPH_RAG -> source -> {
+                var graph = graphAnswerability.getIfAvailable(() -> {
+                    throw new IllegalStateException(
+                            "Assistant retrieval engine GRAPH_RAG requires graph evidence readiness");
+                });
+                var answerability = graph.evaluate(source);
+                return switch (answerability.state()) {
+                    case INDEXING -> AssistantEvidenceAnswerabilityPort.Answerability.indexing();
+                    case READY -> AssistantEvidenceAnswerabilityPort.Answerability.ready();
+                    case FAILED -> AssistantEvidenceAnswerabilityPort.Answerability.failed(
+                            answerability.failureCode());
+                };
+            };
         };
     }
 

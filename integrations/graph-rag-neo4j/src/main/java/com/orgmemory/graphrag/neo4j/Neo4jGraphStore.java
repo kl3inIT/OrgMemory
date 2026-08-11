@@ -36,6 +36,10 @@ public final class Neo4jGraphStore implements GraphStore {
             AND contribution.collection = $collection
             AND contribution.generation = $generation
             AND contribution.knowledgeAssetId IN $authorizedAssetIds
+            AND (
+                NOT $exactEvidenceRestricted
+                OR contribution.sourceRevisionId IN $selectedSourceRevisionIds
+            )
             """;
 
     private static final String VISIBLE_RELATION_CONTRIBUTION = """
@@ -45,6 +49,10 @@ public final class Neo4jGraphStore implements GraphStore {
             AND contribution.collection = $collection
             AND contribution.generation = $generation
             AND contribution.knowledgeAssetId IN $authorizedAssetIds
+            AND (
+                NOT $exactEvidenceRestricted
+                OR contribution.sourceRevisionId IN $selectedSourceRevisionIds
+            )
             """;
 
     private static final String VISIBLE_RELATION = """
@@ -59,6 +67,11 @@ public final class Neo4jGraphStore implements GraphStore {
                   AND relationContribution.collection = $collection
                   AND relationContribution.generation = $generation
                   AND relationContribution.knowledgeAssetId IN $authorizedAssetIds
+                  AND (
+                      NOT $exactEvidenceRestricted
+                      OR relationContribution.sourceRevisionId
+                          IN $selectedSourceRevisionIds
+                  )
             }
             AND EXISTS {
                 MATCH (sourceContribution:OrgMemoryGraphEntityContribution)
@@ -69,6 +82,11 @@ public final class Neo4jGraphStore implements GraphStore {
                   AND sourceContribution.collection = $collection
                   AND sourceContribution.generation = $generation
                   AND sourceContribution.knowledgeAssetId IN $authorizedAssetIds
+                  AND (
+                      NOT $exactEvidenceRestricted
+                      OR sourceContribution.sourceRevisionId
+                          IN $selectedSourceRevisionIds
+                  )
             }
             AND EXISTS {
                 MATCH (targetContribution:OrgMemoryGraphEntityContribution)
@@ -79,6 +97,11 @@ public final class Neo4jGraphStore implements GraphStore {
                   AND targetContribution.collection = $collection
                   AND targetContribution.generation = $generation
                   AND targetContribution.knowledgeAssetId IN $authorizedAssetIds
+                  AND (
+                      NOT $exactEvidenceRestricted
+                      OR targetContribution.sourceRevisionId
+                          IN $selectedSourceRevisionIds
+                  )
             }
             """;
 

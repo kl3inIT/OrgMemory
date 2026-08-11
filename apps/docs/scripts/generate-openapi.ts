@@ -215,7 +215,7 @@ const files = await generateFilesOnly({
       audience: ['developer'],
       status: 'public',
       sourceRefs: ['contracts/openapi.json'],
-      lastReviewed: '2026-07-29',
+      lastReviewed: title === 'Assistant' ? '2026-08-10' : '2026-07-29',
     };
   },
 });

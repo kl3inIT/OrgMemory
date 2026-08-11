@@ -1634,6 +1634,80 @@
         }
       }
     },
+    "/api/assistant/evidence": {
+      "post": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Upload one governed file and bind it to an Assistant conversation",
+        "operationId": "uploadAssistantEvidence",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "knowledgeSpaceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "classification",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "CONFIDENTIAL",
+              "enum": [
+                "PUBLIC",
+                "INTERNAL",
+                "CONFIDENTIAL",
+                "RESTRICTED"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantEvidenceBindingView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/assistant/chat": {
       "post": {
         "tags": [
@@ -4448,6 +4522,82 @@
                   "items": {
                     "$ref": "#/components/schemas/AssistantConversationMessageView"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assistant/conversations/{conversationId}/evidence": {
+      "get": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "List governed file bindings for one owned conversation",
+        "operationId": "listAssistantEvidence",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssistantEvidenceBindingView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assistant/conversations/{conversationId}/evidence/{bindingId}": {
+      "get": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Read the active-engine preparation state of one owned binding",
+        "operationId": "getAssistantEvidence",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "bindingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantEvidenceBindingView"
                 }
               }
             }
@@ -7726,12 +7876,60 @@
           }
         }
       },
+      "AssistantEvidenceBindingView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "conversationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceObjectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceRevisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "knowledgeAssetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PROCESSING",
+              "INDEXING",
+              "READY",
+              "FAILED",
+              "UNAVAILABLE"
+            ]
+          },
+          "failureCode": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "AssistantChatRequest": {
         "type": "object",
         "properties": {
           "message": {
             "type": "string",
-            "maxLength": 1000,
+            "maxLength": 8000,
             "minLength": 0
           },
           "limit": {
@@ -7745,6 +7943,15 @@
           "modelActivationId": {
             "type": "string",
             "format": "uuid"
+          },
+          "evidenceBindingIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 3,
+            "minItems": 0
           }
         },
         "required": [

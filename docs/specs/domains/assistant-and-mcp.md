@@ -2,6 +2,13 @@
 
 Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `core/src/main/java/com/orgmemory/core/ai`,
+`core/src/main/java/com/orgmemory/core/knowledge/evidence`,
+`core/src/main/java/com/orgmemory/core/knowledge/search`,
+`core/src/main/java/com/orgmemory/core/knowledge/retrieval`,
+`components/graph-rag-core/src/main/java`,
+`integrations/graph-rag-postgres/src/main/java`,
+`integrations/graph-rag-opensearch/src/main/java`,
+`integrations/graph-rag-neo4j/src/main/java`,
 `core/src/main/java/com/orgmemory/core/assetregistry/skill`,
 `integrations/ai-model-gateways`,
 `apps/api/src/main/java/com/orgmemory/api/assistant`,
@@ -10,7 +17,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/components/ai-elements/model-selector.tsx`, and
 `apps/web/src/components/ai-elements/prompt-input.tsx`.
 
-Reconciled: `2026-08-06-assistant-prompt-input-alignment (b83d45d9)`.
+Reconciled: `2026-08-10-assistant-file-evidence (781c1aaa)`.
 
 ## Current Behavior
 
@@ -57,6 +64,51 @@ is read through an authenticated backend endpoint instead of exposing
 object-storage URLs. Every open performs one fresh canonical authorization and
 integrity check; missing, changed, and denied citations are wire-equivalent
 opaque `404` responses.
+
+The composer can publish at most three files as durable governed Knowledge for
+one pending turn. The actor chooses a currently writable Knowledge Space and a
+classification; the Assistant upload use case validates any supplied owned
+conversation before side effects, then delegates the bytes to the canonical
+Source upload port. Source Ledger remains the owner of format admission,
+per-format limits, object storage, immutable Source/revision identity, and the
+asynchronous ingestion job. Assistant stores only an organization-, actor-, and
+conversation-scoped binding to that exact Source revision. It has no parser
+caller, transient attachment store, provider file handle, bind-existing-Source
+endpoint, OCR lane, image admission, or request-thread parsing path. The browser
+states that upload publishes to the selected Space audience; an actor with no
+`can_create_asset` Space cannot open the attachment flow.
+
+Binding presentation is derived rather than independently mutable. Source
+processing produces `PROCESSING`, terminal parser states produce `FAILED`, and
+retirement, revision drift, missing evidence, or revoked access produce
+`UNAVAILABLE`. A canonical-engine binding becomes `READY` with its current READY
+chunks. Under the default GraphRAG engine it remains `INDEXING` until the exact
+Asset version's current graph profile job succeeded and its projection
+generation is published. Ownership and tenant probes remain opaque not-found.
+Before any state-specific Source metadata is returned for a published Asset,
+the Assistant rechecks current `can_view`; denial becomes generic `UNAVAILABLE`
+without the Asset identity, title, filename, or failure code. Before an Asset
+exists there is no relationship resource to check, so only the actor-owned
+binding exposes its uploader's processing metadata.
+
+A turn carrying bindings persists their distinct ordered IDs beside the same
+USER message and turn identity in one transaction. Claim time rechecks
+organization, conversation, creator, exact Source/revision, current read
+authorization, lifecycle, integrity, and active-engine answerability. The
+resulting `KnowledgeEvidenceSelection` is an internal second ceiling after actor
+authorization: canonical retrieval intersects it before scoring, GraphRAG uses
+the complete selected Asset/Source/revision identity before seed ranking,
+candidate limits, and expansion, and both reapply that exact identity during
+closure and citation checks. The exact identity also partitions retrieval
+caches. No non-selected organizational Knowledge or another revision of a
+selected Asset may enter a binding turn, and every selected file must contribute
+usable final evidence before generation. The browser retains the exact ordered
+selection on failure or abort and clears it only after a successful turn, so a
+retry cannot silently resolve to a newer revision.
+An empty actor authorization scope and a non-empty scope eliminated by the
+turn's evidence selection have distinct audit reasons. Persisted turn evidence
+uses a restrictive binding foreign key, so a referenced binding cannot be
+deleted and erase the immutable turn ceiling.
 
 Every turn is observed on its own surface, `orgmemory.assistant.turn`, rather
 than through `GraphRagEventSink`: generation runs above an engine-neutral
@@ -259,10 +311,14 @@ invariant. Its local Prompt Input surface supplies reusable header, body,
 footer, tooltip-aware action-button, side-effect-free action-menu, and
 status-aware submit primitives. Enter submits, Shift+Enter inserts a newline,
 IME composition does not submit, and the in-flight submit control stops the
-current turn. The mounted composer remains text-only: file, screenshot, speech,
-and referenced-source actions are not exposed. The composer keeps at most 4,000
-characters per actor and conversation in browser `sessionStorage`, including a
-separate new-conversation
+current turn. The mounted composer accepts at most 8,000 characters and can
+attach up to three files only through the governed Space-publication flow;
+provider-native file handles, screenshots, speech, and referenced-source
+actions are not exposed. Selected-file status is a polite live region. The
+browser keeps polling non-terminal evidence through temporary status-request
+failures, displays the retry state, and blocks submit until every status is
+fresh and `READY`. The composer keeps at most 8,000 characters per actor and
+conversation in browser `sessionStorage`, including a separate new-conversation
 draft. Submit, actor change, conversation deletion, and logout clear the
 applicable draft state. Drafts are neither server state nor telemetry. Retrying
 a completed answer resubmits its immediately preceding user message as a new
@@ -327,3 +383,4 @@ than filtered per actor. General chat-turn idempotency remains unimplemented.
 - [0006](../../decisions/0006-ai-tasks-route-through-provider-adapters.md)
 - [0008](../../decisions/0008-worker-owns-ingestion-and-derived-indexes.md)
 - [0032](../../decisions/0032-conversation-model-selection-is-bound-to-admin-route-authority.md)
+- [0038](../../decisions/0038-use-governed-source-bindings-for-assistant-files.md)

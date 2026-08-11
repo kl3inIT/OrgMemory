@@ -2,20 +2,32 @@
 
 Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `core/src/test/java/com/orgmemory/core/ai`,
+`core/src/test/java/com/orgmemory/core/knowledge/graph`,
+`core/src/test/java/com/orgmemory/core/knowledge/retrieval`,
+`components/graph-rag-core/src/test`,
+`components/graph-rag-testkit/src/test`,
+`integrations/graph-rag-postgres/src/test`,
 `integrations/ai-model-gateways/src/test`,
+`apps/api/src/test/java/com/orgmemory/api/OpenApiContractTests.java`,
 `apps/api/src/test/java/com/orgmemory/api/assistant`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`,
 `apps/web/src/components/ai-elements/prompt-input.test.tsx`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-06-assistant-prompt-input-alignment (b83d45d9)`.
+Reconciled: `2026-08-10-assistant-file-evidence (781c1aaa)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
 | API context boots without provider key | `OrgMemoryApiContextLoadTests` | covered |
 | Assistant sends only permission-verified evidence to the model | `AssistantServiceTests#streamsOnlyPermissionVerifiedEvidenceToTheModel` | covered |
 | Assistant consumes only the parent `knowledge::search` contract and never imports Retrieval implementation | `ModulithVerificationTests#topLevelSearchConsumersUseOnlyTheParentSearchInterface`, `#assistantAndAssetRegistryDoNotDependOnRetrievalImplementation` | covered |
+| Assistant upload validates an existing conversation before side effects, delegates bytes to the general governed Source port, and creates only an exact Source/revision binding | `AssistantEvidenceUploadServiceTests`, `AssistantEvidenceServiceTests#claimsOnlyTheExactReadyRevisionAndPersistsTheTurnSelection` | covered |
+| Cross-organization and other-conversation binding probes remain opaque; published-Asset metadata is hidden before every state branch after revocation; actor-owned pre-Asset processing metadata remains available | `AssistantEvidenceServiceTests#revokedAccessHidesMetadataBeforeEveryPersistedSourceState`, `#preAssetProcessingMetadataRemainsVisibleOnlyThroughTheActorOwnedBinding`, `GraphEvidenceAnswerabilityQueryTests#sourceReadyStillIndexesUntilTheExactGraphGenerationIsPublished` | covered |
+| A selected turn is limited to three distinct ordered bindings, persists each binding's ordinal and USER-message/turn association in request order, and refuses generation unless every selected file yields usable evidence | `AssistantChatRequestValidationTests#limitsOneTurnToThreeEvidenceBindings`, `AssistantEvidenceServiceTests#claimsOnlyTheExactReadyRevisionAndPersistsTheTurnSelection`, `AssistantConversationServiceTests`, `AssistantServiceTests#refusesGenerationWhenAnySelectedFileHasNoUsableEvidence` | covered |
+| Canonical and GraphRAG retrieval apply the complete selected identity before ranking, candidate limits, and graph traversal; another revision of the same Asset cannot enter the candidate set; exact identity partitions caches; both engines retain final fail-closed checks and distinguish a selection-eliminated authorization scope in audit | `SecureKnowledgeRetrievalStoreTests#exactEvidenceIdentityIsAppliedBeforeLexicalRankingAndLimit`, `CanonicalHybridKnowledgeSearchTests#selectedEvidenceNarrowsCandidatesBeforeScoringAndRejectsExactRevisionDrift`, `GraphRagKnowledgeRetrievalServiceTests#selectedEvidenceIsTheScopeUsedByGraphSeedAndExpansion`, `LightRagQueryRuntimeConformanceTests#exactEvidenceScopeExcludesAnotherRevisionOfTheSameAssetBeforeRanking`, `CacheKeyContractTests#queryKeyPartitionsExactEvidenceRevisionsWithinOneAsset`, `PostgresAuthorizedGraphSqlTests#graphVisibilityRestrictsSelectedEvidenceBeforeTraversal`, `CanonicalHybridKnowledgeSearchTests#selectedEvidenceOutsideTheAuthorizedScopeHasADistinctAuditReason`, `GraphRagKnowledgeRetrievalServiceTests#selectedEvidenceOutsideTheAuthorizedScopeHasADistinctAuditReason` | covered |
+| Product OpenAPI exposes upload/list/get only and no bind-existing-Source evidence route | `OpenApiContractTests#assistantEvidenceContractHasNoBindExistingSourceEndpoint`, `#theCommittedProductContractDescribesTheLiveProductApi` | covered |
+| Composer discloses durable Space publication, disables attachment with no writable Space, announces human-readable status, polls through temporary status failures, sends ordered IDs, retains them across a failed retry, and clears only on success | `assistant-evidence.test.ts`, `assistant-pipeline.spec.ts#uploads governed evidence and submits its ordered binding with the turn`, `#keeps polling and explains a temporary evidence status failure`, `#keeps the exact governed binding across a failed turn retry`, `#keeps governed attachment closed when no upload Space is authorized` | covered |
 | Empty authorized retrieval returns bounded same-language user-perspective wording plus one escalation sentence, with no model call or citations | `AssistantServiceTests#answersInVietnameseWithoutCallingTheModelWhenNoAccessibleEvidenceExists`, `#answersInEnglishWithoutCallingTheModelWhenNoAccessibleEvidenceExists` | covered |
 | Canonical and already-verified LightRAG prompts share permission-safe no-answer, adjacent-information, exact-citation, and direct-voice rules while preserving injection boundaries | `AssistantPromptFactoryTests#encodesPermissionSafeNoAnswerAndExactCitationBehavior`, `AssistantServiceTests#usesTheAlreadyVerifiedLightRagPromptWithoutRebuildingIt` | covered |
 | Evidence-scope disclosure renders below Assistant answers but not user messages | `assistant-answer.test.tsx` | covered |
@@ -67,7 +79,7 @@ Reconciled: `2026-08-06-assistant-prompt-input-alignment (b83d45d9)`.
 | Feedback ownership and deletion are database-enforced across the message tenant/actor tuple | `AssistantAnswerFeedbackMigrationTests` | covered |
 | Concurrent feedback set/set and set/delete mutations serialize on the owned assistant message | `AssistantAnswerFeedbackConcurrencyIntegrationTests` against PostgreSQL | covered |
 | Starter prompts come from the server rather than a browser constant | `AssistantControllerStreamingTests#publishesClosedServerOwnedStarters`, `assistant-pipeline.spec.ts#loads server-owned starters and restores a session-scoped draft with focus` | covered |
-| Drafts are actor/conversation scoped, capped, restored in-session, and cleared through their lifecycle | `assistant-draft-storage.test.ts`, `assistant-pipeline.spec.ts#loads server-owned starters and restores a session-scoped draft with focus` | covered |
+| Messages and actor/conversation-scoped drafts accept at most 8,000 characters; drafts are restored in-session and cleared through their lifecycle | `AssistantConversationServiceTests#acceptsEightThousandCharactersInAnOrdinaryTurn`, `#acceptsEightThousandCharactersInAnEvidenceBoundTurn`, `#rejectsMoreThanEightThousandCharactersBeforeAnyTurnStateIsWritten`, `assistant-draft-storage.test.ts`, `assistant-pipeline.spec.ts#loads server-owned starters and restores a session-scoped draft with focus` | covered |
 | Prompt Input preserves text submission, Shift+Enter and IME composition, stop semantics, header composition, tooltip metadata, and side-effect-free action-menu composition | `prompt-input.test.tsx`; `assistant-pipeline.spec.ts` governed-model and stop scenarios | covered |
 | Completed-answer retry starts exactly one fresh turn without consuming the current composer draft | `assistant-pipeline.spec.ts#retries a completed answer as one fresh turn and preserves the composer draft` | covered |
 | Composer focus and leave-bottom scroll recovery remain keyboard/browser reachable | `assistant-pipeline.spec.ts` focus and scroll-recovery scenarios | covered |

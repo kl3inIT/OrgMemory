@@ -13,6 +13,7 @@
             "authorization",
             "knowledge.acl",
             "knowledge.asset",
+            "knowledge::evidence",
             "knowledge.retrieval",
             "knowledge.sourceledger",
             "knowledge.space",

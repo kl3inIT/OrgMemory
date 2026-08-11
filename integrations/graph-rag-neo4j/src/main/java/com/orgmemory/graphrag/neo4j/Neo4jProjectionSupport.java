@@ -191,6 +191,13 @@ final class Neo4jProjectionSupport {
                         .sorted()
                         .map(UUID::toString)
                         .toList());
+        parameters.put("exactEvidenceRestricted", scope.exactEvidenceRestricted());
+        parameters.put(
+                "selectedSourceRevisionIds",
+                scope.selectedSourceRevisionIds().stream()
+                        .sorted()
+                        .map(UUID::toString)
+                        .toList());
         return Map.copyOf(parameters);
     }
 

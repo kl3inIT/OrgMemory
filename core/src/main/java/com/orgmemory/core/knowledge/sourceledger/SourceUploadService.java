@@ -40,6 +40,12 @@ public class SourceUploadService {
     }
 
     public SourceSummary upload(CreateUploadSourceCommand command, InputStream content) {
+        return uploadWithIdentity(command, content).summary();
+    }
+
+    SourceUploadResult uploadWithIdentity(
+            CreateUploadSourceCommand command,
+            InputStream content) {
         validate(command, content);
         CurrentActor actor = command.actor();
         SourceKnowledgeSpaceRef targetSpace = knowledgeSpaces.requireUploadTarget(

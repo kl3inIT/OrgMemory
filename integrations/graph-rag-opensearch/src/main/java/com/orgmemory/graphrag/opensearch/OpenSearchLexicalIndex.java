@@ -142,21 +142,30 @@ public final class OpenSearchLexicalIndex implements LexicalIndex {
                                 .must(must -> must.match(match -> match
                                         .field("search_fields.value")
                                         .query(FieldValue.of(request.query()))))))));
-        Query visibility = Query.of(query -> query.bool(bool -> bool
-                .filter(OpenSearchStagedIndex.term(
+        List<Query> visibilityFilters = new ArrayList<>(List.of(
+                OpenSearchStagedIndex.term(
                         OpenSearchProjectionCodec.ORGANIZATION_ID,
-                        scope.organizationId().toString()))
-                .filter(OpenSearchStagedIndex.term(
+                        scope.organizationId().toString()),
+                OpenSearchStagedIndex.term(
                         OpenSearchProjectionCodec.BATCH_ID,
-                        snapshot.batchId().toString()))
-                .filter(OpenSearchStagedIndex.term(
+                        snapshot.batchId().toString()),
+                OpenSearchStagedIndex.term(
                         OpenSearchProjectionCodec.GENERATION,
-                        snapshot.generation()))
-                .filter(OpenSearchStoreSupport.anyTerms(
+                        snapshot.generation()),
+                OpenSearchStoreSupport.anyTerms(
                         OpenSearchProjectionCodec.ASSET_ID,
                         scope.authorizedAssetIds().stream()
                                 .map(UUID::toString)
-                                .toList()))
+                                .toList())));
+        if (scope.exactEvidenceRestricted()) {
+            visibilityFilters.add(OpenSearchStoreSupport.anyTerms(
+                    OpenSearchProjectionCodec.REVISION_ID,
+                    scope.selectedSourceRevisionIds().stream()
+                            .map(UUID::toString)
+                            .toList()));
+        }
+        Query visibility = Query.of(query -> query.bool(bool -> bool
+                .filter(visibilityFilters)
                 .must(textQuery)));
         String pitId = null;
         try {

@@ -147,6 +147,13 @@ class SecureKnowledgeRetrievalStore {
             WHERE kc.organization_id = :organizationId
               AND kc.knowledge_asset_id IN (:authorizedAssetIds)
               AND (
+                  :exactEvidenceRestricted = FALSE
+                  OR (
+                      kc.source_object_id IN (:selectedSourceObjectIds)
+                      AND kc.source_revision_id IN (:selectedSourceRevisionIds)
+                  )
+              )
+              AND (
                   ks.audience_mode = 'ORGANIZATION'
                   OR (
                       ks.audience_mode = 'DEPARTMENT'
@@ -352,6 +359,9 @@ class SecureKnowledgeRetrievalStore {
         return new MapSqlParameterSource()
                 .addValue("organizationId", scope.organizationId())
                 .addValue("authorizedAssetIds", scope.authorizedAssetIds())
+                .addValue("exactEvidenceRestricted", scope.exactEvidenceRestricted())
+                .addValue("selectedSourceObjectIds", scope.selectedSourceObjectIdsOrSentinel())
+                .addValue("selectedSourceRevisionIds", scope.selectedSourceRevisionIdsOrSentinel())
                 .addValue("authorizationModelId", scope.authorizationModelId())
                 .addValue("actorUserKey", scope.actorUserId().toString())
                 .addValue("actorUserId", scope.actorUserId(), Types.OTHER)
@@ -396,10 +406,54 @@ class SecureKnowledgeRetrievalStore {
             boolean actorExecutive,
             List<UUID> authorizedAssetIds,
             String authorizationModelId,
-            Instant evaluatedAt) {
+            Instant evaluatedAt,
+            List<UUID> selectedSourceObjectIds,
+            List<UUID> selectedSourceRevisionIds) {
+
+        RetrievalScope(
+                UUID organizationId,
+                UUID actorUserId,
+                UUID actorDepartmentId,
+                boolean actorExecutive,
+                List<UUID> authorizedAssetIds,
+                String authorizationModelId,
+                Instant evaluatedAt) {
+            this(
+                    organizationId,
+                    actorUserId,
+                    actorDepartmentId,
+                    actorExecutive,
+                    authorizedAssetIds,
+                    authorizationModelId,
+                    evaluatedAt,
+                    List.of(),
+                    List.of());
+        }
 
         public RetrievalScope {
             authorizedAssetIds = List.copyOf(authorizedAssetIds);
+            selectedSourceObjectIds = List.copyOf(selectedSourceObjectIds);
+            selectedSourceRevisionIds = List.copyOf(selectedSourceRevisionIds);
+            if (selectedSourceObjectIds.isEmpty() != selectedSourceRevisionIds.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "selected Source object and revision scopes must both be empty or populated");
+            }
+        }
+
+        boolean exactEvidenceRestricted() {
+            return !selectedSourceRevisionIds.isEmpty();
+        }
+
+        private List<UUID> selectedSourceObjectIdsOrSentinel() {
+            return exactEvidenceRestricted()
+                    ? selectedSourceObjectIds
+                    : List.of(new UUID(0L, 0L));
+        }
+
+        private List<UUID> selectedSourceRevisionIdsOrSentinel() {
+            return exactEvidenceRestricted()
+                    ? selectedSourceRevisionIds
+                    : List.of(new UUID(0L, 0L));
         }
     }
 }

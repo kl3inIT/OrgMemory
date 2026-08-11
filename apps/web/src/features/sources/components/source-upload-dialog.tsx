@@ -1,5 +1,5 @@
 import { LoaderCircle, Upload } from "lucide-react"
-import { useState, type FormEvent } from "react"
+import { useState, type FormEvent, type ReactElement, type ReactNode } from "react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -36,6 +36,8 @@ export function SourceUploadDialog({
   spacesError,
   onRetrySpaces,
   onUpload,
+  trigger,
+  description,
 }: {
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -45,6 +47,8 @@ export function SourceUploadDialog({
   spacesError: boolean
   onRetrySpaces: () => void
   onUpload: (input: UploadSourceInput) => Promise<void>
+  trigger?: ReactElement | false
+  description?: ReactNode
 }) {
   const [internalOpen, setInternalOpen] = useState(false)
   const open = controlledOpen ?? internalOpen
@@ -102,19 +106,27 @@ export function SourceUploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Upload aria-hidden="true" />
-          Upload document
-        </Button>
-      </DialogTrigger>
+      {trigger === false ? null : (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button>
+              <Upload aria-hidden="true" />
+              Upload document
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent>
         <form className="space-y-5" onSubmit={submit}>
           <DialogHeader>
             <DialogTitle>Upload a document</DialogTitle>
             <DialogDescription>
-              Office, OpenDocument, PDF, HTML, CSV, Markdown, or text files up to their displayed
-              format limit.
+              {description ?? (
+                <>
+                  Office, OpenDocument, PDF, HTML, CSV, Markdown, or text files up to their
+                  displayed format limit.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
 

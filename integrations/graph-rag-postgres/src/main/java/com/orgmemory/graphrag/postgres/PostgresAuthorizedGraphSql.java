@@ -211,6 +211,10 @@ final class PostgresAuthorizedGraphSql {
                         asset.organization_id
                 WHERE chunk.organization_id = :organizationId
                   AND chunk.knowledge_asset_id IN (:authorizedAssetIds)
+                  AND (
+                      :exactEvidenceRestricted = FALSE
+                      OR chunk.source_revision_id IN (:selectedSourceRevisionIds)
+                  )
                   AND chunk.active
                   AND asset_version.orgmemory_gate = 'ALLOW'
                   AND NOT EXISTS (
@@ -363,6 +367,12 @@ final class PostgresAuthorizedGraphSql {
         return new MapSqlParameterSource()
                 .addValue("organizationId", scope.organizationId())
                 .addValue("authorizedAssetIds", scope.authorizedAssetIds())
+                .addValue("exactEvidenceRestricted", scope.exactEvidenceRestricted())
+                .addValue(
+                        "selectedSourceRevisionIds",
+                        scope.exactEvidenceRestricted()
+                                ? scope.selectedSourceRevisionIds()
+                                : java.util.Set.of(new java.util.UUID(0L, 0L)))
                 .addValue(
                         "authorizationModelId",
                         scope.authorizationModelId())

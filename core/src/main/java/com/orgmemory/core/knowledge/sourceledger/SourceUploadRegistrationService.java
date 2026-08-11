@@ -36,7 +36,7 @@ public class SourceUploadRegistrationService {
     }
 
     @Transactional
-    SourceSummary register(
+    SourceUploadResult register(
             UUID sourceId,
             UUID revisionId,
             UUID blobId,
@@ -67,12 +67,15 @@ public class SourceUploadRegistrationService {
                 : provenance.departmentNames(
                                 actor.organizationId(), java.util.List.of(targetSpace.departmentId()))
                         .get(targetSpace.departmentId());
-        return SourceQueryService.summary(
-                source,
-                revision,
-                null,
-                targetSpace,
-                owningDepartmentName,
-                actor.name());
+        return new SourceUploadResult(
+                SourceQueryService.summary(
+                        source,
+                        revision,
+                        null,
+                        targetSpace,
+                        owningDepartmentName,
+                        actor.name()),
+                revision.getId(),
+                targetSpace.id());
     }
 }

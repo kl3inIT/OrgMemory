@@ -23,13 +23,43 @@ public record AuthorizedEvidenceScope(
         Set<UUID> authorizedAssetIds,
         String authorizationModelId,
         long aclGeneration,
-        Instant evaluatedAt) {
+        Instant evaluatedAt,
+        Set<EvidenceIdentity> selectedEvidence) {
+
+    public AuthorizedEvidenceScope(
+            UUID organizationId,
+            UUID actorUserId,
+            UUID actorDepartmentId,
+            boolean actorExecutive,
+            Set<UUID> authorizedAssetIds,
+            String authorizationModelId,
+            long aclGeneration,
+            Instant evaluatedAt) {
+        this(
+                organizationId,
+                actorUserId,
+                actorDepartmentId,
+                actorExecutive,
+                authorizedAssetIds,
+                authorizationModelId,
+                aclGeneration,
+                evaluatedAt,
+                Set.of());
+    }
 
     public AuthorizedEvidenceScope {
         Objects.requireNonNull(organizationId, "organizationId");
         Objects.requireNonNull(actorUserId, "actorUserId");
         authorizedAssetIds =
                 Set.copyOf(Objects.requireNonNull(authorizedAssetIds, "authorizedAssetIds"));
+        selectedEvidence =
+                Set.copyOf(Objects.requireNonNull(selectedEvidence, "selectedEvidence"));
+        if (!authorizedAssetIds.containsAll(selectedEvidence.stream()
+                .map(EvidenceIdentity::knowledgeAssetId)
+                .toList())) {
+            throw new IllegalArgumentException(
+                    "selected evidence must remain within the authorized asset scope");
+        }
         authorizationModelId =
                 Objects.requireNonNull(authorizationModelId, "authorizationModelId").strip();
         if (authorizationModelId.isEmpty()) {
@@ -44,6 +74,26 @@ public record AuthorizedEvidenceScope(
     public boolean includes(UUID candidateOrganizationId, UUID candidateAssetId) {
         return organizationId.equals(candidateOrganizationId)
                 && authorizedAssetIds.contains(candidateAssetId);
+    }
+
+    public boolean includesEvidence(
+            UUID candidateOrganizationId,
+            UUID candidateAssetId,
+            UUID candidateSourceRevisionId) {
+        return includes(candidateOrganizationId, candidateAssetId)
+                && (selectedEvidence.isEmpty() || selectedEvidence.stream().anyMatch(identity ->
+                        identity.knowledgeAssetId().equals(candidateAssetId)
+                                && identity.sourceRevisionId().equals(candidateSourceRevisionId)));
+    }
+
+    public Set<UUID> selectedSourceRevisionIds() {
+        return selectedEvidence.stream()
+                .map(EvidenceIdentity::sourceRevisionId)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    public boolean exactEvidenceRestricted() {
+        return !selectedEvidence.isEmpty();
     }
 
     /**
@@ -65,7 +115,29 @@ public record AuthorizedEvidenceScope(
                 .sorted()
                 .map(UUID::toString)
                 .forEach(assetId -> update(digest, assetId));
+        selectedEvidence.stream()
+                .sorted(java.util.Comparator
+                        .comparing(EvidenceIdentity::knowledgeAssetId)
+                        .thenComparing(EvidenceIdentity::sourceObjectId)
+                        .thenComparing(EvidenceIdentity::sourceRevisionId))
+                .forEach(identity -> {
+                    update(digest, identity.knowledgeAssetId().toString());
+                    update(digest, identity.sourceObjectId().toString());
+                    update(digest, identity.sourceRevisionId().toString());
+                });
         return HexFormat.of().formatHex(digest.digest());
+    }
+
+    public record EvidenceIdentity(
+            UUID knowledgeAssetId,
+            UUID sourceObjectId,
+            UUID sourceRevisionId) {
+
+        public EvidenceIdentity {
+            Objects.requireNonNull(knowledgeAssetId, "knowledgeAssetId");
+            Objects.requireNonNull(sourceObjectId, "sourceObjectId");
+            Objects.requireNonNull(sourceRevisionId, "sourceRevisionId");
+        }
     }
 
     private static MessageDigest sha256() {

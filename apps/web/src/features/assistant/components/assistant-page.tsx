@@ -1,17 +1,20 @@
 import { useChat } from "@ai-sdk/react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type SourceUrlUIPart, type UIMessage } from "ai"
 import {
   Bot,
   Check,
   ChevronsUpDown,
   Copy,
+  FileText,
   LoaderCircle,
+  Paperclip,
   RotateCcw,
   ThumbsDown,
   ThumbsUp,
+  X,
 } from "lucide-react"
-import { Fragment, type ReactNode, type RefObject } from "react"
+import { Fragment, lazy, Suspense, type ReactNode, type RefObject } from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -43,6 +46,7 @@ import {
   PromptInputBody,
   PromptInputButton,
   PromptInputFooter,
+  PromptInputHeader,
   type PromptInputMessage,
   PromptInputSubmit,
   PromptInputTextarea,
@@ -53,6 +57,13 @@ import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion"
 import { Button } from "@/components/ui/button"
 import { createAssistantTransport } from "@/features/assistant/api/chat-transport"
 import { ASSISTANT_MESSAGE_MAX_CHARACTERS } from "@/features/assistant/assistant-message-constraints"
+import {
+  assistantEvidenceReady,
+  assistantEvidenceShouldPoll,
+  assistantEvidenceStatusLabel,
+  assistantEvidenceUploadDisabledReason,
+  MAX_ASSISTANT_EVIDENCE_FILES,
+} from "@/features/assistant/assistant-evidence"
 import {
   activityLabel,
   hasVisibleAssistantOutput,
@@ -67,27 +78,38 @@ import {
   AssistantSourcesPanel,
 } from "@/features/assistant/components/assistant-sources-panel"
 import { GovernedDocumentViewer } from "@/features/sources/components/governed-document-viewer"
+import type { UploadSourceInput } from "@/features/sources/components/source-upload-dialog"
 import { useAssistantDraft } from "@/features/assistant/hooks/use-assistant-draft"
 import { scopeActorQueryKey } from "@/features/session/actor-cache-key"
 import { copyWithToast } from "@/lib/copy"
 import {
   deleteAssistantAnswerFeedbackMutation,
   getAssistantConversationHistoryOptions,
+  getAssistantEvidenceOptions,
   getAssistantMessageCitationsOptions,
   getAssistantModelOptionsOptions,
   listAssistantStartersOptions,
   listAssistantConversationsQueryKey,
+  listKnowledgeSpaceUploadTargetsOptions,
   selectAssistantConversationModelMutation,
   setAssistantAnswerFeedbackMutation,
+  uploadAssistantEvidenceMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type {
   AssistantConversationMessageView,
   AssistantConversationSummary,
+  AssistantEvidenceBindingView,
   AssistantCitationResponse,
   AssistantModelOptionResponse,
 } from "@/lib/hey-api"
+import { apiErrorMessage } from "@/lib/api-error"
 
 type AnswerSentiment = "HELPFUL" | "NOT_HELPFUL"
+
+const SourceUploadDialog = lazy(async () => {
+  const module = await import("@/features/sources/components/source-upload-dialog")
+  return { default: module.SourceUploadDialog }
+})
 
 function textFor(message: UIMessage) {
   return message.parts
@@ -357,6 +379,9 @@ function AssistantModelPicker({
   const selected =
     options.find((option) => option.id === selectedId) ??
     options.find((option) => option.defaultChoice)
+  const selectedName = selected?.defaultChoice
+    ? selected.modelId ?? selected.displayName
+    : selected?.displayName ?? selected?.modelId
   const groups = Object.entries(
     options.reduce<Record<string, AssistantModelOptionResponse[]>>((current, option) => {
       const gateway = option.gatewayLabel ?? "Organization models"
@@ -372,7 +397,7 @@ function AssistantModelPicker({
           type="button"
           size="sm"
           disabled={disabled || loading || options.length === 0}
-          aria-label={`Choose model${selected?.displayName ? `, current model ${selected.displayName}` : ""}`}
+          aria-label={`Choose model${selectedName ? `, current model ${selectedName}` : ""}`}
           className="max-w-48 rounded-full px-2.5 text-content-secondary hover:text-content-primary"
         >
           {selected?.provider && selected.provider !== "custom" ? (
@@ -381,7 +406,7 @@ function AssistantModelPicker({
             <Bot className="size-4" aria-hidden="true" />
           )}
           <span className="truncate">
-            {loading ? "Loading models…" : selected?.displayName ?? "Organization default"}
+            {loading ? "Loading models…" : selectedName ?? "No model available"}
           </span>
           <ChevronsUpDown className="size-3.5 opacity-60" aria-hidden="true" />
         </PromptInputButton>
@@ -411,7 +436,9 @@ function AssistantModelPicker({
                     )}
                     <span className="min-w-0 flex-1">
                       <ModelSelectorName className="block font-medium">
-                        {model.displayName ?? model.modelId}
+                        {model.defaultChoice
+                          ? model.modelId ?? model.displayName
+                          : model.displayName ?? model.modelId}
                       </ModelSelectorName>
                       <span className="block truncate text-xs text-muted-foreground">
                         {model.defaultChoice ? "Organization default" : model.modelId}
@@ -449,7 +476,10 @@ export function AssistantPage({
   const actorKeyRef = useRef(actorKey)
   const conversationIdRef = useRef(conversationId)
   const modelActivationIdRef = useRef<string | undefined>(undefined)
+  const evidenceBindingIdsRef = useRef<string[]>([])
   const [selectedModelActivationId, setSelectedModelActivationId] = useState<string>()
+  const [evidenceBindings, setEvidenceBindings] = useState<AssistantEvidenceBindingView[]>([])
+  const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false)
   const locallyCreatedConversationRef = useRef<string | undefined>(undefined)
   const nextTitleRef = useRef("New conversation")
   const onConversationIdChangeRef = useRef(onConversationIdChange)
@@ -461,6 +491,7 @@ export function AssistantPage({
       createAssistantTransport({
         conversationId: () => conversationIdRef.current,
         modelActivationId: () => modelActivationIdRef.current,
+        evidenceBindingIds: () => evidenceBindingIdsRef.current,
         onConversationId: (nextConversationId) => {
           if (!conversationIdRef.current) {
             locallyCreatedConversationRef.current = nextConversationId
@@ -558,6 +589,10 @@ export function AssistantPage({
           setFinishedWithoutAnswer(true)
         }, 0)
       }
+      if (!isAbort && !isError) {
+        evidenceBindingIdsRef.current = []
+        setEvidenceBindings([])
+      }
       const invalidations = [
         queryClient.invalidateQueries({
           queryKey: conversationListQueryKey,
@@ -617,6 +652,37 @@ export function AssistantPage({
     ...modelOptionsDefinition,
     queryKey: scopeActorQueryKey(modelOptionsDefinition.queryKey, actorKey),
   })
+  const uploadTargets = useQuery({
+    ...listKnowledgeSpaceUploadTargetsOptions(),
+    queryKey: scopeActorQueryKey(
+      listKnowledgeSpaceUploadTargetsOptions().queryKey,
+      actorKey,
+    ),
+  })
+  const evidenceStatusQueries = useQueries({
+    queries: evidenceBindings.map((binding) => {
+      const options = getAssistantEvidenceOptions({
+        path: {
+          conversationId: binding.conversationId ?? "00000000-0000-0000-0000-000000000000",
+          bindingId: binding.id ?? "00000000-0000-0000-0000-000000000000",
+        },
+      })
+      return {
+        ...options,
+        queryKey: scopeActorQueryKey(options.queryKey, actorKey),
+        enabled: Boolean(binding.conversationId && binding.id),
+        refetchInterval: (query: { state: { data?: AssistantEvidenceBindingView } }) =>
+          assistantEvidenceShouldPoll(query.state.data?.status) ? 1_500 : false,
+      }
+    }),
+  })
+  const currentEvidenceBindings = evidenceBindings.map(
+    (binding, index) => evidenceStatusQueries[index]?.data ?? binding,
+  )
+  const evidenceReady =
+    !evidenceStatusQueries.some((query) => query.isError) &&
+    assistantEvidenceReady(currentEvidenceBindings)
+  const uploadEvidence = useMutation(uploadAssistantEvidenceMutation())
   const selectModel = useMutation({
     ...selectAssistantConversationModelMutation(),
     onError: () => {
@@ -655,6 +721,8 @@ export function AssistantPage({
     modelActivationIdRef.current = undefined
     locallyCreatedConversationRef.current = undefined
     setSelectedModelActivationId(undefined)
+    evidenceBindingIdsRef.current = []
+    setEvidenceBindings([])
     setSourcePanel(null)
     setPreviewSource(null)
     setFeedbackByMessage({})
@@ -671,6 +739,12 @@ export function AssistantPage({
     setSelectedModelActivationId(selected)
     modelActivationIdRef.current = selected
   }, [modelOptions.data])
+
+  useEffect(() => {
+    evidenceBindingIdsRef.current = evidenceBindings.flatMap((binding) =>
+      binding.id ? [binding.id] : [],
+    )
+  }, [evidenceBindings])
 
   useEffect(() => {
     if (
@@ -699,6 +773,14 @@ export function AssistantPage({
     )
   }, [conversationId, history.data, setMessages])
   const busy = status === "submitted" || status === "streaming"
+  const evidenceUploadDisabledReason = assistantEvidenceUploadDisabledReason({
+    busy,
+    uploading: uploadEvidence.isPending,
+    targetsLoading: uploadTargets.isPending,
+    targetsError: uploadTargets.isError,
+    targetCount: uploadTargets.data?.length ?? 0,
+    selectedCount: evidenceBindings.length,
+  })
   const latestMessage = messages.at(-1)
   const currentAssistant = latestMessage?.role === "assistant" ? latestMessage : undefined
   const currentAssistantVisible = currentAssistant
@@ -740,12 +822,65 @@ export function AssistantPage({
     [],
   )
 
+  async function addEvidence(input: UploadSourceInput) {
+    if (evidenceBindingIdsRef.current.length >= MAX_ASSISTANT_EVIDENCE_FILES) {
+      throw new Error("A turn can include at most three files.")
+    }
+    let binding: AssistantEvidenceBindingView
+    try {
+      binding = await uploadEvidence.mutateAsync({
+        body: { file: input.file },
+        query: {
+          conversationId: conversationIdRef.current,
+          classification: input.classification,
+          knowledgeSpaceId: input.knowledgeSpaceId,
+        },
+      })
+    } catch (error) {
+      throw new Error(apiErrorMessage(error, "The file could not be uploaded."))
+    }
+    if (!binding.id || !binding.conversationId) {
+      throw new Error("The upload did not return an Assistant evidence identity.")
+    }
+    if (!conversationIdRef.current) {
+      locallyCreatedConversationRef.current = binding.conversationId
+      conversationIdRef.current = binding.conversationId
+      queryClient.setQueryData<AssistantConversationSummary[]>(
+        conversationListQueryKey,
+        (current = []) => [
+          {
+            id: binding.conversationId,
+            title: binding.fileName ?? "New conversation",
+            lastActivityAt: new Date().toISOString(),
+            messageCount: 0,
+          },
+          ...current.filter((item) => item.id !== binding.conversationId),
+        ],
+      )
+      onConversationIdChangeRef.current(binding.conversationId)
+    }
+    setEvidenceBindings((current) =>
+      [...current, binding].slice(0, MAX_ASSISTANT_EVIDENCE_FILES),
+    )
+    toast.success("File uploaded. Governed ingestion has started.")
+  }
+
+  function removeEvidence(bindingId: string) {
+    setEvidenceBindings((current) =>
+      current.filter((binding) => binding.id !== bindingId),
+    )
+  }
+
   function send(rawMessage: string, clearComposer = true) {
     const message = rawMessage.trim()
     if (message.length > ASSISTANT_MESSAGE_MAX_CHARACTERS) {
       toast.error(
         `Messages can be at most ${ASSISTANT_MESSAGE_MAX_CHARACTERS.toLocaleString("en-US")} characters.`,
       )
+      return
+    }
+    if (evidenceBindings.length > 0 && !evidenceReady) {
+      toast.error("Wait until every selected file is ready.")
       return
     }
     if (
@@ -810,6 +945,44 @@ export function AssistantPage({
       onSubmit={submit}
       className="w-full [&_[data-slot=input-group]]:rounded-3xl [&_[data-slot=input-group]]:border-border-subtle [&_[data-slot=input-group]]:bg-assistant-composer [&_[data-slot=input-group]]:shadow-sm [&_[data-slot=input-group]]:ring-0"
     >
+      {currentEvidenceBindings.length > 0 ? (
+        <PromptInputHeader
+          aria-label="Selected governed files"
+          role="status"
+          aria-live="polite"
+          aria-atomic="false"
+        >
+          {currentEvidenceBindings.map((binding, index) => (
+            <span
+              key={binding.id}
+              className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border-subtle bg-surface-subtle px-2.5 py-1 text-xs text-content-secondary"
+            >
+              {binding.status === "PROCESSING" || binding.status === "INDEXING" ? (
+                <LoaderCircle className="size-3.5 shrink-0 animate-spin" aria-hidden="true" />
+              ) : (
+                <FileText className="size-3.5 shrink-0" aria-hidden="true" />
+              )}
+              <span className="max-w-48 truncate">{binding.fileName ?? "Governed file"}</span>
+              <span className="text-content-muted">
+                {evidenceStatusQueries[index]?.isError
+                  ? "Status unavailable — retrying"
+                  : assistantEvidenceStatusLabel(binding.status)}
+              </span>
+              {binding.id ? (
+                <button
+                  type="button"
+                  className="rounded-full p-0.5 hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={`Remove ${binding.fileName ?? "file"}`}
+                  disabled={busy}
+                  onClick={() => removeEvidence(binding.id!)}
+                >
+                  <X className="size-3" aria-hidden="true" />
+                </button>
+              ) : null}
+            </span>
+          ))}
+        </PromptInputHeader>
+      ) : null}
       <PromptInputBody>
         <PromptInputTextarea
           value={text}
@@ -821,12 +994,40 @@ export function AssistantPage({
           placeholder="Ask OrgMemory…"
           autoFocus
           maxLength={ASSISTANT_MESSAGE_MAX_CHARACTERS}
-          aria-describedby="assistant-message-length"
           className="min-h-12"
         />
       </PromptInputBody>
       <PromptInputFooter>
         <PromptInputTools>
+          <PromptInputButton
+            type="button"
+            tooltip={evidenceUploadDisabledReason ?? "Attach governed file"}
+            disabled={Boolean(evidenceUploadDisabledReason)}
+            aria-label="Attach governed file"
+            onClick={() => setEvidenceDialogOpen(true)}
+          >
+            {uploadEvidence.isPending ? (
+              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Paperclip className="size-4" aria-hidden="true" />
+            )}
+          </PromptInputButton>
+          {evidenceDialogOpen ? (
+            <Suspense fallback={null}>
+              <SourceUploadDialog
+                open
+                onOpenChange={setEvidenceDialogOpen}
+                pending={uploadEvidence.isPending}
+                spaces={uploadTargets.data ?? []}
+                spacesPending={uploadTargets.isPending}
+                spacesError={uploadTargets.isError}
+                onRetrySpaces={() => uploadTargets.refetch()}
+                onUpload={addEvidence}
+                description="This publishes the file as durable governed Knowledge to the selected Space audience. It remains available under that Space's lifecycle after this conversation."
+                trigger={false}
+              />
+            </Suspense>
+          ) : null}
           <AssistantModelPicker
             options={modelOptions.data?.options ?? []}
             selectedId={selectedModelActivationId}
@@ -834,18 +1035,17 @@ export function AssistantPage({
             loading={modelOptions.isPending}
             onSelect={chooseModel}
           />
-          <span
-            id="assistant-message-length"
-            className="text-metadata tabular-nums text-content-muted"
-          >
-            {text.length.toLocaleString("en-US")} /{" "}
-            {ASSISTANT_MESSAGE_MAX_CHARACTERS.toLocaleString("en-US")} characters
-          </span>
         </PromptInputTools>
         <PromptInputSubmit
           status={status}
           onStop={stop}
-          disabled={!busy && (!text.trim() || modelOptions.isPending || selectModel.isPending)}
+          disabled={
+            !busy &&
+            (!text.trim() ||
+              modelOptions.isPending ||
+              selectModel.isPending ||
+              (evidenceBindings.length > 0 && !evidenceReady))
+          }
           className="rounded-full"
         />
       </PromptInputFooter>

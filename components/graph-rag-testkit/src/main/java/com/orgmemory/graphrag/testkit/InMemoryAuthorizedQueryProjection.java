@@ -289,9 +289,10 @@ public final class InMemoryAuthorizedQueryProjection
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,
             EntityContribution contribution) {
-        return scope.includes(
+        return scope.includesEvidence(
                         contribution.provenance().organizationId(),
-                        contribution.provenance().knowledgeAssetId())
+                        contribution.provenance().knowledgeAssetId(),
+                        contribution.provenance().sourceRevisionId())
                 && contribution.provenance().projectionGeneration() == snapshot.generation();
     }
 
@@ -299,9 +300,10 @@ public final class InMemoryAuthorizedQueryProjection
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,
             RelationContribution contribution) {
-        return scope.includes(
+        return scope.includesEvidence(
                         contribution.provenance().organizationId(),
-                        contribution.provenance().knowledgeAssetId())
+                        contribution.provenance().knowledgeAssetId(),
+                        contribution.provenance().sourceRevisionId())
                 && contribution.provenance().projectionGeneration() == snapshot.generation();
     }
 
@@ -309,9 +311,10 @@ public final class InMemoryAuthorizedQueryProjection
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,
             Chunk chunk) {
-        return scope.includes(
+        return scope.includesEvidence(
                         chunk.evidence().organizationId(),
-                        chunk.evidence().knowledgeAssetId())
+                        chunk.evidence().knowledgeAssetId(),
+                        chunk.evidence().sourceRevisionId())
                 && snapshot.namespace().organizationId().equals(
                         chunk.evidence().organizationId())
                 && chunk.projectionGeneration() == snapshot.generation();
