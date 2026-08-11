@@ -174,7 +174,13 @@ final class PostgresProjectionSupport {
         return new MapSqlParameterSource()
                 .addValue("batchId", snapshot.batchId())
                 .addValue("organizationId", scope.organizationId())
-                .addValue("authorizedAssetIds", scope.authorizedAssetIds());
+                .addValue("authorizedAssetIds", scope.authorizedAssetIds())
+                .addValue("exactEvidenceRestricted", scope.exactEvidenceRestricted())
+                .addValue(
+                        "selectedSourceRevisionIds",
+                        scope.exactEvidenceRestricted()
+                                ? scope.selectedSourceRevisionIds()
+                                : java.util.Set.of(new UUID(0L, 0L)));
     }
 
     static boolean noAuthorizedAssets(AuthorizedEvidenceScope scope) {

@@ -160,7 +160,15 @@ class DefaultCanonicalHybridKnowledgeSearch
                 evidenceScope.actorExecutive(),
                 authorizedAssetIds.stream().sorted().toList(),
                 evidenceScope.authorizationModelId(),
-                evidenceScope.evaluatedAt());
+                evidenceScope.evaluatedAt(),
+                selection.items().stream()
+                        .map(KnowledgeEvidenceSelection.Item::sourceObjectId)
+                        .sorted()
+                        .toList(),
+                selection.items().stream()
+                        .map(KnowledgeEvidenceSelection.Item::sourceRevisionId)
+                        .sorted()
+                        .toList());
         int candidateLimit = Math.multiplyExact(limit, properties.candidateMultiplier());
         List<SecureRetrievalCandidate> lexical = store.lexical(scope, normalizedQuery, candidateLimit);
         Optional<QueryEmbedding> queryEmbedding = embeddings.embed(actor.organizationId(), normalizedQuery);

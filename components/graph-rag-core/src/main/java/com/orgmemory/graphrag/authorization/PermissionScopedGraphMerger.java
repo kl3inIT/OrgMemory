@@ -96,9 +96,10 @@ public final class PermissionScopedGraphMerger {
     private static boolean visible(
             AuthorizedEvidenceScope scope,
             EvidenceProvenance provenance) {
-        return scope.includes(
+        return scope.includesEvidence(
                 provenance.organizationId(),
-                provenance.knowledgeAssetId());
+                provenance.knowledgeAssetId(),
+                provenance.sourceRevisionId());
     }
 
     private static String projectionFingerprint(

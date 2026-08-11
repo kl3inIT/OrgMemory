@@ -160,6 +160,10 @@ public final class PostgresVectorIndex implements VectorIndex {
                 WHERE batch_id = :batchId
                   AND organization_id = :organizationId
                   AND knowledge_asset_id IN (:authorizedAssetIds)
+                  AND (
+                      :exactEvidenceRestricted = FALSE
+                      OR source_revision_id IN (:selectedSourceRevisionIds)
+                  )
                   AND record_id IN (:ids)
                 ORDER BY record_id
                 """,
@@ -220,6 +224,10 @@ public final class PostgresVectorIndex implements VectorIndex {
                     WHERE batch_id = :batchId
                       AND organization_id = :organizationId
                       AND knowledge_asset_id IN (:authorizedAssetIds)
+                      AND (
+                          :exactEvidenceRestricted = FALSE
+                          OR source_revision_id IN (:selectedSourceRevisionIds)
+                      )
                       AND embedding_profile_id = :embeddingProfileId
                       AND vector_kind IN (:kinds)
                       AND dimensions = :dimensions

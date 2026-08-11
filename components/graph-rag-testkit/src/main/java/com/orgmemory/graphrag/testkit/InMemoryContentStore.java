@@ -62,9 +62,10 @@ public final class InMemoryContentStore implements ContentStore {
         BatchState state = readableState(scope, snapshot);
         ContentRecord record = state.records().get(Objects.requireNonNull(id, "id"));
         return Optional.ofNullable(record)
-                .filter(candidate -> scope.includes(
+                .filter(candidate -> scope.includesEvidence(
                         candidate.evidence().organizationId(),
-                        candidate.evidence().knowledgeAssetId()));
+                        candidate.evidence().knowledgeAssetId(),
+                        candidate.evidence().sourceRevisionId()));
     }
 
     @Override

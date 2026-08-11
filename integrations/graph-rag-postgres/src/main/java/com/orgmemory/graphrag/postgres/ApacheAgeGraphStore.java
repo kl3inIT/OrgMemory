@@ -149,6 +149,7 @@ public final class ApacheAgeGraphStore implements GraphStore {
                                 snapshot,
                                 entityIds,
                                 scope.authorizedAssetIds(),
+                                scope.selectedSourceRevisionIds(),
                                 null,
                                 limit)
                         .relations());
@@ -168,6 +169,7 @@ public final class ApacheAgeGraphStore implements GraphStore {
                         snapshot,
                         entityIds,
                         scope.authorizedAssetIds(),
+                        scope.selectedSourceRevisionIds(),
                         afterRelationId,
                         pageSize));
     }

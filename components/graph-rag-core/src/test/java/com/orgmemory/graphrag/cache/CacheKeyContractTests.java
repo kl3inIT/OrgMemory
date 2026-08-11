@@ -116,6 +116,23 @@ class CacheKeyContractTests {
     }
 
     @Test
+    void queryKeyPartitionsExactEvidenceRevisionsWithinOneAsset() {
+        UUID sourceObjectId = UUID.randomUUID();
+        AuthorizedEvidenceScope first = selectedScope(
+                sourceObjectId,
+                UUID.randomUUID());
+        AuthorizedEvidenceScope second = selectedScope(
+                sourceObjectId,
+                UUID.randomUUID());
+
+        assertNotEquals(
+                RetrievalResultCacheKeys.query(
+                        first, snapshot(1), semantics(false), "route-v1"),
+                RetrievalResultCacheKeys.query(
+                        second, snapshot(1), semantics(false), "route-v1"));
+    }
+
+    @Test
     void exactCacheHashesRejectNonCanonicalDigests() {
         assertThrows(
                 IllegalArgumentException.class,
@@ -186,6 +203,24 @@ class CacheKeyContractTests {
                 "model-v1",
                 aclGeneration,
                 NOW);
+    }
+
+    private static AuthorizedEvidenceScope selectedScope(
+            UUID sourceObjectId,
+            UUID sourceRevisionId) {
+        return new AuthorizedEvidenceScope(
+                ORGANIZATION_ID,
+                ACTOR_ID,
+                null,
+                false,
+                Set.of(ASSET_ID),
+                "model-v1",
+                7,
+                NOW,
+                Set.of(new AuthorizedEvidenceScope.EvidenceIdentity(
+                        ASSET_ID,
+                        sourceObjectId,
+                        sourceRevisionId)));
     }
 
     private static ProjectionSnapshot snapshot(long generation) {

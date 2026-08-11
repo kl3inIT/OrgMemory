@@ -183,6 +183,12 @@ class CanonicalHybridKnowledgeSearchTests {
                         selection));
 
         assertEquals(List.of(assetId), store.lastScope.authorizedAssetIds());
+        assertEquals(
+                List.of(selected.sourceObjectId()),
+                store.lastScope.selectedSourceObjectIds());
+        assertEquals(
+                List.of(selected.sourceRevisionId()),
+                store.lastScope.selectedSourceRevisionIds());
 
         store.lexical = List.of(candidate(UUID.randomUUID(), assetId));
         assertThrows(

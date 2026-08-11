@@ -103,10 +103,11 @@ class GraphRagKnowledgeRetrievalServiceTests {
         LightRagPreparedQuery prepared = preparedQueryPlan();
         when(engine.prepare(any())).thenReturn(prepared);
         when(engine.executePrepared(any(), any(), any())).thenReturn(noResults());
+        UUID selectedSourceObjectId = UUID.randomUUID();
         var selection = KnowledgeEvidenceSelection.restricted(List.of(
                 new KnowledgeEvidenceSelection.Item(
                         UUID.randomUUID(),
-                        UUID.randomUUID(),
+                        selectedSourceObjectId,
                         REVISION_ID,
                         ASSET_ID)));
 
@@ -126,7 +127,13 @@ class GraphRagKnowledgeRetrievalServiceTests {
                         selection);
 
         verify(engine).executePrepared(
-                argThat(request -> request.scope().authorizedAssetIds().equals(Set.of(ASSET_ID))),
+                argThat(request -> request.scope().authorizedAssetIds().equals(Set.of(ASSET_ID))
+                        && request.scope().selectedEvidence().equals(Set.of(
+                                new com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope
+                                        .EvidenceIdentity(
+                                                ASSET_ID,
+                                                selectedSourceObjectId,
+                                                REVISION_ID)))),
                 any(),
                 any());
     }

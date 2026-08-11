@@ -506,6 +506,37 @@ class LightRagQueryRuntimeConformanceTests {
     }
 
     @Test
+    void exactEvidenceScopeExcludesAnotherRevisionOfTheSameAssetBeforeRanking() {
+        UUID selectedRevisionId = id(VECTOR_CHUNK_ID + "-revision");
+        AuthorizedEvidenceScope selectedScope = new AuthorizedEvidenceScope(
+                ORGANIZATION_ID,
+                ACTOR_ID,
+                null,
+                false,
+                Set.of(ALLOWED_ASSET_ID),
+                "model-v1",
+                4,
+                Instant.parse("2026-07-24T00:00:00Z"),
+                Set.of(new AuthorizedEvidenceScope.EvidenceIdentity(
+                        ALLOWED_ASSET_ID,
+                        id("selected-source-object"),
+                        selectedRevisionId)));
+
+        LightRagQueryResult result = engine.execute(request(
+                selectedScope,
+                LightRagQueryMode.NAIVE,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                null));
+
+        assertFalse(result.references().isEmpty());
+        assertTrue(result.references().stream().allMatch(reference ->
+                reference.evidence().sourceRevisionId().equals(selectedRevisionId)));
+    }
+
+    @Test
     void rerankThresholdAppliesAfterRerankingAndProviderFailureFailsOpen() {
         reranker.scores = Map.of(
                 VECTOR_CHUNK_ID, 0.2,
@@ -757,8 +788,26 @@ class LightRagQueryRuntimeConformanceTests {
             boolean includeHeadings,
             boolean streaming,
             KeywordPlan trustedKeywords) {
-        return new LightRagQueryRequest(
+        return request(
                 scope(),
+                mode,
+                outputMode,
+                rerankEnabled,
+                includeHeadings,
+                streaming,
+                trustedKeywords);
+    }
+
+    private LightRagQueryRequest request(
+            AuthorizedEvidenceScope evidenceScope,
+            LightRagQueryMode mode,
+            QueryOutputMode outputMode,
+            boolean rerankEnabled,
+            boolean includeHeadings,
+            boolean streaming,
+            KeywordPlan trustedKeywords) {
+        return new LightRagQueryRequest(
+                evidenceScope,
                 snapshot(),
                 "What is the probation policy?",
                 new LightRagQueryRequest.Options(

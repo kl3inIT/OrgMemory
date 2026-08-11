@@ -19,4 +19,13 @@ class PostgresAuthorizedGraphSqlTests {
                 sql.contains("current_snapshot.valid_until >"),
                 "ADR 0015 treats expiry as health evidence, not an authorization gate");
     }
+
+    @Test
+    void graphVisibilityRestrictsSelectedEvidenceBeforeTraversal() {
+        String sql = PostgresAuthorizedGraphSql.VISIBLE_KNOWLEDGE_CHUNKS;
+
+        assertTrue(sql.contains(":exactEvidenceRestricted = FALSE"));
+        assertTrue(sql.contains(
+                "chunk.source_revision_id IN (:selectedSourceRevisionIds)"));
+    }
 }

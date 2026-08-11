@@ -435,7 +435,8 @@ class DefaultGraphRagKnowledgeRetrievalService
                         profile,
                         query,
                         queryOptions,
-                        operationId);
+                        operationId,
+                        selection);
         List<LightRagGrounding> spaceGroundings = published.groundings();
         if (spaceGroundings.isEmpty()) {
             audit.record(searchAuthorization.command(
@@ -613,7 +614,8 @@ class DefaultGraphRagKnowledgeRetrievalService
             EmbeddingProfileRef profile,
             String query,
             LightRagQueryRequest.Options options,
-            UUID operationId) {
+            UUID operationId,
+            KnowledgeEvidenceSelection selection) {
         if (scope.knowledgeSpaceIds().size()
                 > policy.maximumKnowledgeSpaces()) {
             throw new KnowledgeRetrievalUnavailableException(
@@ -622,7 +624,7 @@ class DefaultGraphRagKnowledgeRetrievalService
         List<LightRagQueryRequest> requests = new ArrayList<>();
         for (UUID knowledgeSpaceId :
                 scope.knowledgeSpaceIds().stream().sorted().toList()) {
-            var evidenceScope = scope.forKnowledgeSpace(knowledgeSpaceId);
+            var evidenceScope = scope.forKnowledgeSpace(knowledgeSpaceId, selection);
             ProjectionNamespace namespace = namespace(
                     scope.organizationId(),
                     knowledgeSpaceId);

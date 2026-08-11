@@ -166,6 +166,10 @@ public final class PostgresContentStore implements ContentStore {
                 WHERE batch_id = :batchId
                   AND organization_id = :organizationId
                   AND knowledge_asset_id IN (:authorizedAssetIds)
+                  AND (
+                      :exactEvidenceRestricted = FALSE
+                      OR source_revision_id IN (:selectedSourceRevisionIds)
+                  )
                   AND record_id IN (:ids)
                 ORDER BY record_id
                 """,

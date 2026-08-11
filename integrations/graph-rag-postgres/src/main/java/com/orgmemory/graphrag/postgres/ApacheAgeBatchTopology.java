@@ -222,10 +222,12 @@ final class ApacheAgeBatchTopology {
             ProjectionSnapshot snapshot,
             Collection<UUID> entityIds,
             Collection<UUID> authorizedAssetIds,
+            Collection<UUID> selectedSourceRevisionIds,
             UUID afterRelationId,
             int pageSize) {
         List<UUID> ids = canonicalIds(entityIds);
         List<UUID> assets = canonicalIds(authorizedAssetIds);
+        List<UUID> revisions = canonicalIds(selectedSourceRevisionIds);
         requirePageSize(pageSize);
         if (ids.isEmpty() || assets.isEmpty()) {
             return new IncidentRelationPage(List.of(), null);
@@ -234,6 +236,9 @@ final class ApacheAgeBatchTopology {
                 ? ""
                 : "AND relation.relation_id > "
                         + cypherString(afterRelationId.toString());
+        String exactEvidencePredicate = revisions.isEmpty()
+                ? ""
+                : "AND relation.source_revision_id IN " + cypherStrings(revisions);
         String cypher = """
                 MATCH (source:base)-[relation:DIRECTED]->(target:base)
                 WHERE relation.batch_id = %s
@@ -241,6 +246,7 @@ final class ApacheAgeBatchTopology {
                   AND target.batch_id = %s
                   AND (source.entity_id IN %s OR target.entity_id IN %s)
                   AND relation.knowledge_asset_id IN %s
+                  %s
                   %s
                 RETURN DISTINCT relation.relation_id AS relation_id,
                        source.entity_id AS source_entity_id,
@@ -255,6 +261,7 @@ final class ApacheAgeBatchTopology {
                 cypherStrings(ids),
                 cypherStrings(ids),
                 cypherStrings(assets),
+                exactEvidencePredicate,
                 cursorPredicate,
                 pageSize + 1);
         String graphName = graphName(snapshot.namespace().organizationId());
@@ -365,6 +372,7 @@ final class ApacheAgeBatchTopology {
                     SELECT contribution.contribution_id,
                            contribution.relation_id,
                            contribution.knowledge_asset_id,
+                           contribution.source_revision_id,
                            relation.source_entity_id,
                            relation.target_entity_id,
                            relation.orientation
@@ -381,6 +389,7 @@ final class ApacheAgeBatchTopology {
                             resultSet.getObject("contribution_id", UUID.class),
                             resultSet.getObject("relation_id", UUID.class),
                             resultSet.getObject("knowledge_asset_id", UUID.class),
+                            resultSet.getObject("source_revision_id", UUID.class),
                             resultSet.getObject("source_entity_id", UUID.class),
                             resultSet.getObject("target_entity_id", UUID.class),
                             RelationOrientation.valueOf(
@@ -511,6 +520,7 @@ final class ApacheAgeBatchTopology {
                 }]->(target)
                 SET edge.relation_id = %s,
                     edge.knowledge_asset_id = %s,
+                    edge.source_revision_id = %s,
                     edge.orientation = %s
                 RETURN edge
                 """.formatted(
@@ -522,6 +532,7 @@ final class ApacheAgeBatchTopology {
                 cypherString(relation.contributionId().toString()),
                 cypherString(relation.relationId().toString()),
                 cypherString(relation.knowledgeAssetId().toString()),
+                cypherString(relation.sourceRevisionId().toString()),
                 cypherString(relation.orientation().name())),
                 "edge ag_catalog.agtype");
     }
@@ -703,6 +714,7 @@ final class ApacheAgeBatchTopology {
             UUID contributionId,
             UUID relationId,
             UUID knowledgeAssetId,
+            UUID sourceRevisionId,
             UUID sourceEntityId,
             UUID targetEntityId,
             RelationOrientation orientation) {}
