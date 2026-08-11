@@ -4,6 +4,9 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `core/src/test/java/com/orgmemory/core/ai`,
 `core/src/test/java/com/orgmemory/core/knowledge/graph`,
 `core/src/test/java/com/orgmemory/core/knowledge/retrieval`,
+`components/graph-rag-core/src/test`,
+`components/graph-rag-testkit/src/test`,
+`integrations/graph-rag-postgres/src/test`,
 `integrations/ai-model-gateways/src/test`,
 `apps/api/src/test/java/com/orgmemory/api/OpenApiContractTests.java`,
 `apps/api/src/test/java/com/orgmemory/api/assistant`,
@@ -12,7 +15,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/components/ai-elements/prompt-input.test.tsx`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-10-assistant-file-evidence (c49902a2)`.
+Reconciled: `2026-08-10-assistant-file-evidence (781c1aaa)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -22,7 +25,7 @@ Reconciled: `2026-08-10-assistant-file-evidence (c49902a2)`.
 | Assistant upload validates an existing conversation before side effects, delegates bytes to the general governed Source port, and creates only an exact Source/revision binding | `AssistantEvidenceUploadServiceTests`, `AssistantEvidenceServiceTests#claimsOnlyTheExactReadyRevisionAndPersistsTheTurnSelection` | covered |
 | Cross-organization and other-conversation binding probes remain opaque; published-Asset metadata is hidden before every state branch after revocation; actor-owned pre-Asset processing metadata remains available | `AssistantEvidenceServiceTests#revokedAccessHidesMetadataBeforeEveryPersistedSourceState`, `#preAssetProcessingMetadataRemainsVisibleOnlyThroughTheActorOwnedBinding`, `GraphEvidenceAnswerabilityQueryTests#sourceReadyStillIndexesUntilTheExactGraphGenerationIsPublished` | covered |
 | A selected turn is limited to three distinct ordered bindings, persists each binding's ordinal and USER-message/turn association in request order, and refuses generation unless every selected file yields usable evidence | `AssistantChatRequestValidationTests#limitsOneTurnToThreeEvidenceBindings`, `AssistantEvidenceServiceTests#claimsOnlyTheExactReadyRevisionAndPersistsTheTurnSelection`, `AssistantConversationServiceTests`, `AssistantServiceTests#refusesGenerationWhenAnySelectedFileHasNoUsableEvidence` | covered |
-| Canonical retrieval rejects exact revision drift before scoring/context; GraphRAG keeps the selected Asset set through seed and expansion; both distinguish a selection-eliminated authorization scope in audit | `CanonicalHybridKnowledgeSearchTests#selectedEvidenceNarrowsCandidatesBeforeScoringAndRejectsExactRevisionDrift`, `#selectedEvidenceOutsideTheAuthorizedScopeHasADistinctAuditReason`, `GraphRagKnowledgeRetrievalServiceTests#selectedEvidenceIsTheScopeUsedByGraphSeedAndExpansion`, `#selectedEvidenceOutsideTheAuthorizedScopeHasADistinctAuditReason` | covered |
+| Canonical and GraphRAG retrieval apply the complete selected identity before ranking, candidate limits, and graph traversal; another revision of the same Asset cannot enter the candidate set; exact identity partitions caches; both engines retain final fail-closed checks and distinguish a selection-eliminated authorization scope in audit | `SecureKnowledgeRetrievalStoreTests#exactEvidenceIdentityIsAppliedBeforeLexicalRankingAndLimit`, `CanonicalHybridKnowledgeSearchTests#selectedEvidenceNarrowsCandidatesBeforeScoringAndRejectsExactRevisionDrift`, `GraphRagKnowledgeRetrievalServiceTests#selectedEvidenceIsTheScopeUsedByGraphSeedAndExpansion`, `LightRagQueryRuntimeConformanceTests#exactEvidenceScopeExcludesAnotherRevisionOfTheSameAssetBeforeRanking`, `CacheKeyContractTests#queryKeyPartitionsExactEvidenceRevisionsWithinOneAsset`, `PostgresAuthorizedGraphSqlTests#graphVisibilityRestrictsSelectedEvidenceBeforeTraversal`, `CanonicalHybridKnowledgeSearchTests#selectedEvidenceOutsideTheAuthorizedScopeHasADistinctAuditReason`, `GraphRagKnowledgeRetrievalServiceTests#selectedEvidenceOutsideTheAuthorizedScopeHasADistinctAuditReason` | covered |
 | Product OpenAPI exposes upload/list/get only and no bind-existing-Source evidence route | `OpenApiContractTests#assistantEvidenceContractHasNoBindExistingSourceEndpoint`, `#theCommittedProductContractDescribesTheLiveProductApi` | covered |
 | Composer discloses durable Space publication, disables attachment with no writable Space, announces human-readable status, polls through temporary status failures, sends ordered IDs, retains them across a failed retry, and clears only on success | `assistant-evidence.test.ts`, `assistant-pipeline.spec.ts#uploads governed evidence and submits its ordered binding with the turn`, `#keeps polling and explains a temporary evidence status failure`, `#keeps the exact governed binding across a failed turn retry`, `#keeps governed attachment closed when no upload Space is authorized` | covered |
 | Empty authorized retrieval returns bounded same-language user-perspective wording plus one escalation sentence, with no model call or citations | `AssistantServiceTests#answersInVietnameseWithoutCallingTheModelWhenNoAccessibleEvidenceExists`, `#answersInEnglishWithoutCallingTheModelWhenNoAccessibleEvidenceExists` | covered |

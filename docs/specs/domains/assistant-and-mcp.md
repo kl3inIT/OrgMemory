@@ -5,6 +5,10 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `core/src/main/java/com/orgmemory/core/knowledge/evidence`,
 `core/src/main/java/com/orgmemory/core/knowledge/search`,
 `core/src/main/java/com/orgmemory/core/knowledge/retrieval`,
+`components/graph-rag-core/src/main/java`,
+`integrations/graph-rag-postgres/src/main/java`,
+`integrations/graph-rag-opensearch/src/main/java`,
+`integrations/graph-rag-neo4j/src/main/java`,
 `core/src/main/java/com/orgmemory/core/assetregistry/skill`,
 `integrations/ai-model-gateways`,
 `apps/api/src/main/java/com/orgmemory/api/assistant`,
@@ -13,7 +17,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/components/ai-elements/model-selector.tsx`, and
 `apps/web/src/components/ai-elements/prompt-input.tsx`.
 
-Reconciled: `2026-08-10-assistant-file-evidence (c49902a2)`.
+Reconciled: `2026-08-10-assistant-file-evidence (781c1aaa)`.
 
 ## Current Behavior
 
@@ -93,9 +97,11 @@ organization, conversation, creator, exact Source/revision, current read
 authorization, lifecycle, integrity, and active-engine answerability. The
 resulting `KnowledgeEvidenceSelection` is an internal second ceiling after actor
 authorization: canonical retrieval intersects it before scoring, GraphRAG uses
-it for seed and expansion scope, and both reapply exact Asset/Source/revision
-identity during closure and citation checks. No non-selected organizational
-Knowledge may enter a binding turn, and every selected file must contribute
+the complete selected Asset/Source/revision identity before seed ranking,
+candidate limits, and expansion, and both reapply that exact identity during
+closure and citation checks. The exact identity also partitions retrieval
+caches. No non-selected organizational Knowledge or another revision of a
+selected Asset may enter a binding turn, and every selected file must contribute
 usable final evidence before generation. The browser retains the exact ordered
 selection on failure or abort and clears it only after a successful turn, so a
 retry cannot silently resolve to a newer revision.
