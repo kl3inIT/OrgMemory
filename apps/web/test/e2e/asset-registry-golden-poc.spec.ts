@@ -180,6 +180,7 @@ test("Prompt authoring creates one private Draft and evaluates the exact direct 
   await page.getByRole("button", { name: "Save working copy" }).click()
   await expect.poll(() => harness.updateBodies).toHaveLength(1)
   expect(harness.updateBodies[0]).toMatchObject({ expectedLockVersion: 0 })
+  await expect(page.getByText("Prompt working copy saved")).toBeVisible()
 
   await page.getByLabel("Version").fill("1.0.0")
   await page.getByRole("button", { name: "Publish release" }).click()
