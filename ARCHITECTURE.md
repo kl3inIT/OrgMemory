@@ -343,6 +343,21 @@ Source, revision, and Asset identity, and every selected Source must contribute
 usable final evidence before generation. Upload remains the ordinary durable
 Source pipeline; the API never parses or embeds the multipart bytes.
 
+Assistant private-file turns use a separate actor-private aggregate, storage
+prefix, chunk projection, retrieval query, and ordered turn binding. Upload is
+limited to three selected files per turn, 25 MB per file, and the parser-backed
+document allowlist; images and declared archives are not admitted. The API
+registers immutable object metadata and a fixed non-renewing 30-day expiry,
+while Worker remains the only parser caller and reuses the same pinned
+`structured-block-v1` document-processing engine as governed ingestion. Private
+retrieval requires the exact actor, organization, file, processing generation,
+active embedding profile, READY state, and unexpired TTL, and it never enters
+the shared Knowledge retrieval/cache path. A turn cannot mix private files with
+governed Source bindings. Delete or expiry denies use first, removes the private
+chunk projection transactionally, then retries object deletion idempotently;
+the file tombstone and citation identity remain so old answers can render an
+inert unavailable marker without retaining extracted content.
+
 ACL evidence is sealed and append-only. ACL rotation appends a new generation
 and compare-and-set advances the current head. The current head has a 24-hour
 freshness requirement; the ingestion snapshot remains a historical ceiling.
@@ -580,11 +595,15 @@ be disabled. `scripts/capture-retrieval-observations.ps1` supplies the managed
 dev connections through loopback tunnels without writing exported secrets.
 
 Assistant citations use API-owned opaque URLs. Completed answers atomically
-persist only ordered citation-to-chunk mappings, and replay hydrates currently
-visible citation affordances separately from the actor-owned transcript. The
+persist ordered citation identity and evidence kind, and replay hydrates
+currently visible citation affordances separately from the actor-owned
+transcript. Private citation identity additionally pins the actor-private file
+and processing generation. The
 API rechecks the canonical evidence boundary for a bounded audited excerpt and
 again before streaming original bytes from object storage; it exposes no MinIO
-key or presigned storage URL. The web client shows the excerpt first, uses a
+key or presigned storage URL. Private citation hydration repeats the exact
+owner, TTL, lifecycle, and generation check; expired or deleted evidence keeps
+only a non-clickable marker. The web client shows the excerpt first, uses a
 closed server presentation kind, renders Markdown through a restricted profile,
 and opens authenticated PDF, image, and text responses as short-lived browser
 blobs. Office and unknown formats remain download-only.

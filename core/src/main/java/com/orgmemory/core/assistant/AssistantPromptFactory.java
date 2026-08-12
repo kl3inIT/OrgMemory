@@ -38,7 +38,27 @@ final class AssistantPromptFactory {
         if (evidence == null || evidence.isEmpty()) {
             throw new IllegalArgumentException("verified evidence is required");
         }
-        return render(question, evidence, actor);
+        return render(
+                question,
+                evidence.stream().map(AssistantCitationEvidence::knowledge).toList(),
+                evidence,
+                actor);
+    }
+
+    static PreparedPrompt createPrivate(
+            String question,
+            List<AssistantCitationEvidence> evidence,
+            CurrentActor actor) {
+        if (question == null || question.isBlank()) {
+            throw new IllegalArgumentException("question is required");
+        }
+        if (evidence == null || evidence.isEmpty()) {
+            throw new IllegalArgumentException("verified evidence is required");
+        }
+        if (evidence.stream().anyMatch(item -> item.kind() != AssistantCitationEvidence.Kind.ASSISTANT_FILE)) {
+            throw new IllegalArgumentException("private prompt accepts private evidence only");
+        }
+        return render(question, evidence, null, actor);
     }
 
     static ChatGenerationRequest addUserContext(
@@ -55,19 +75,22 @@ final class AssistantPromptFactory {
 
     private static PreparedPrompt render(
             String question,
-            List<RetrievedKnowledgeEvidence> evidence,
+            List<AssistantCitationEvidence> evidence,
+            List<RetrievedKnowledgeEvidence> knowledgeEvidence,
             CurrentActor actor) {
         StringBuilder value = new StringBuilder("<evidence_set>\n");
         List<AssistantCitation> citations =
                 new ArrayList<>();
         int remaining = MAX_EVIDENCE_CHARACTERS;
         for (int index = 0; index < evidence.size() && remaining > 0; index++) {
-            RetrievedKnowledgeEvidence source = evidence.get(index);
+            AssistantCitationEvidence source = evidence.get(index);
             String content = truncate(
                     source.content(),
                     Math.min(MAX_EXCERPT_CHARACTERS, remaining));
             int sourceNumber = citations.size() + 1;
-            citations.add(new AssistantCitation(sourceNumber, source));
+            citations.add(knowledgeEvidence == null
+                    ? new AssistantCitation(sourceNumber, source)
+                    : new AssistantCitation(sourceNumber, knowledgeEvidence.get(index)));
             value.append("  <evidence source_number=\"")
                     .append(sourceNumber)
                     .append("\">\n")

@@ -63,6 +63,28 @@ class AssistantChatRequestValidationTests {
     }
 
     @Test
+    void limitsOneTurnToThreePrivateFiles() {
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var violations = factory.getValidator().validate(new AssistantChatRequest(
+                    "Compare these files",
+                    null,
+                    null,
+                    null,
+                    List.of(),
+                    List.of(
+                            UUID.randomUUID(),
+                            UUID.randomUUID(),
+                            UUID.randomUUID(),
+                            UUID.randomUUID())));
+
+            assertEquals(1, violations.size());
+            assertEquals(
+                    "assistantFileIds",
+                    violations.iterator().next().getPropertyPath().toString());
+        }
+    }
+
+    @Test
     void rejectsAnOversizedMessageBeforeOpeningTheStreamOrCreatingATurn() throws Exception {
         var assistant = mock(AssistantService.class);
         var conversations = mock(AssistantConversationService.class);

@@ -6,11 +6,13 @@ export function createAssistantTransport({
   conversationId,
   modelActivationId,
   evidenceBindingIds,
+  assistantFileIds,
   onConversationId,
 }: {
   conversationId: () => string | undefined
   modelActivationId: () => string | undefined
   evidenceBindingIds: () => string[]
+  assistantFileIds: () => string[]
   onConversationId: (conversationId: string) => void
 }) {
   return new DefaultChatTransport({
@@ -36,6 +38,7 @@ export function createAssistantTransport({
           conversationId: conversationId(),
           modelActivationId: modelActivationId(),
           evidenceBindingIds: evidenceBindingIds(),
+          assistantFileIds: assistantFileIds(),
         },
       }
     },

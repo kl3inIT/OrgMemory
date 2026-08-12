@@ -10,13 +10,23 @@ record AssistantChatRequest(
         Integer limit,
         UUID conversationId,
         UUID modelActivationId,
-        @Size(max = 3) List<UUID> evidenceBindingIds) {
+        @Size(max = 3) List<UUID> evidenceBindingIds,
+        @Size(max = 3) List<UUID> assistantFileIds) {
 
     AssistantChatRequest(
             String message,
             Integer limit,
             UUID conversationId,
             UUID modelActivationId) {
-        this(message, limit, conversationId, modelActivationId, List.of());
+        this(message, limit, conversationId, modelActivationId, List.of(), List.of());
+    }
+
+    AssistantChatRequest(
+            String message,
+            Integer limit,
+            UUID conversationId,
+            UUID modelActivationId,
+            List<UUID> evidenceBindingIds) {
+        this(message, limit, conversationId, modelActivationId, evidenceBindingIds, List.of());
     }
 }

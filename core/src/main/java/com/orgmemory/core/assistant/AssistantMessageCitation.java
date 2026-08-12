@@ -26,6 +26,16 @@ class AssistantMessageCitation extends BaseEntity {
     @Column(name = "chunk_id", nullable = false, updatable = false)
     private UUID chunkId;
 
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "evidence_kind", nullable = false, updatable = false)
+    private AssistantCitationEvidence.Kind evidenceKind;
+
+    @Column(name = "assistant_file_id", updatable = false)
+    private UUID assistantFileId;
+
+    @Column(name = "processing_generation", updatable = false)
+    private Long processingGeneration;
+
     protected AssistantMessageCitation() {
     }
 
@@ -35,7 +45,10 @@ class AssistantMessageCitation extends BaseEntity {
             UUID organizationId,
             UUID actorUserId,
             int citationNumber,
-            UUID chunkId) {
+            AssistantCitationEvidence.Kind evidenceKind,
+            UUID chunkId,
+            UUID assistantFileId,
+            Long processingGeneration) {
         super(Objects.requireNonNull(id, "id"));
         this.messageId = Objects.requireNonNull(messageId, "messageId");
         this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
@@ -44,10 +57,25 @@ class AssistantMessageCitation extends BaseEntity {
             throw new IllegalArgumentException("citationNumber must be between 1 and 100");
         }
         this.citationNumber = citationNumber;
+        this.evidenceKind = Objects.requireNonNull(evidenceKind, "evidenceKind");
         this.chunkId = Objects.requireNonNull(chunkId, "chunkId");
+        this.assistantFileId = assistantFileId;
+        this.processingGeneration = processingGeneration;
+    }
+
+    AssistantMessageCitation(
+            UUID id,
+            UUID messageId,
+            UUID organizationId,
+            UUID actorUserId,
+            int citationNumber,
+            UUID chunkId) {
+        this(id, messageId, organizationId, actorUserId, citationNumber,
+                AssistantCitationEvidence.Kind.KNOWLEDGE, chunkId, null, null);
     }
 
     AssistantCitationReference view() {
-        return new AssistantCitationReference(citationNumber, chunkId);
+        return new AssistantCitationReference(
+                citationNumber, evidenceKind, chunkId, assistantFileId, processingGeneration);
     }
 }

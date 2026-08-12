@@ -6,6 +6,7 @@ import com.orgmemory.core.assistant.AssistantAnswerFeedbackView;
 import com.orgmemory.core.assistant.AssistantAnswerSentiment;
 import com.orgmemory.core.assistant.AssistantAgentActivity;
 import com.orgmemory.core.assistant.AssistantCitation;
+import com.orgmemory.core.assistant.AssistantCitationEvidence;
 import com.orgmemory.core.assistant.AssistantConversationMessageView;
 import com.orgmemory.core.assistant.AssistantConversationService;
 import com.orgmemory.core.assistant.AssistantConversationSummary;
@@ -13,6 +14,12 @@ import com.orgmemory.core.assistant.AssistantEvidenceTurnClaim;
 import com.orgmemory.core.assistant.AssistantEvidenceBindingView;
 import com.orgmemory.core.assistant.AssistantEvidenceService;
 import com.orgmemory.core.assistant.AssistantEvidenceUploadService;
+import com.orgmemory.core.assistant.AssistantFileContent;
+import com.orgmemory.core.assistant.AssistantFilePage;
+import com.orgmemory.core.assistant.AssistantFileService;
+import com.orgmemory.core.assistant.AssistantFileView;
+import com.orgmemory.core.assistant.AssistantPrivateFileSearch;
+import com.orgmemory.core.assistant.AssistantPrivateFileSelection;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
 import com.orgmemory.core.assistant.AssistantTurnRef;
@@ -38,6 +45,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
@@ -55,6 +64,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import reactor.core.publisher.Flux;
 import tools.jackson.databind.ObjectMapper;
 
@@ -87,7 +97,37 @@ class AssistantController {
     private final AssistantRetrievalScheduler retrievalScheduler;
     private final AssistantEvidenceUploadService evidenceUploads;
     private final AssistantEvidenceService evidence;
+    private final AssistantFileService assistantFiles;
+    private final AssistantPrivateFileSearch privateFileSearch;
     private final ObjectMapper json;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    AssistantController(
+            AssistantService assistant,
+            AssistantConversationService conversations,
+            CurrentActorProvider actors,
+            AssistantProperties properties,
+            AssistantModelAuthorityService modelAuthority,
+            CitationEvidenceService citationEvidence,
+            AssistantRetrievalScheduler retrievalScheduler,
+            AssistantEvidenceUploadService evidenceUploads,
+            AssistantEvidenceService evidence,
+            AssistantFileService assistantFiles,
+            AssistantPrivateFileSearch privateFileSearch,
+            ObjectMapper json) {
+        this.assistant = assistant;
+        this.conversations = conversations;
+        this.actors = actors;
+        this.properties = properties;
+        this.modelAuthority = modelAuthority;
+        this.citationEvidence = citationEvidence;
+        this.retrievalScheduler = retrievalScheduler;
+        this.evidenceUploads = evidenceUploads;
+        this.evidence = evidence;
+        this.assistantFiles = assistantFiles;
+        this.privateFileSearch = privateFileSearch;
+        this.json = json;
+    }
 
     AssistantController(
             AssistantService assistant,
@@ -100,16 +140,97 @@ class AssistantController {
             AssistantEvidenceUploadService evidenceUploads,
             AssistantEvidenceService evidence,
             ObjectMapper json) {
-        this.assistant = assistant;
-        this.conversations = conversations;
-        this.actors = actors;
-        this.properties = properties;
-        this.modelAuthority = modelAuthority;
-        this.citationEvidence = citationEvidence;
-        this.retrievalScheduler = retrievalScheduler;
-        this.evidenceUploads = evidenceUploads;
-        this.evidence = evidence;
-        this.json = json;
+        this(
+                assistant, conversations, actors, properties, modelAuthority,
+                citationEvidence, retrievalScheduler, evidenceUploads, evidence,
+                null, null, json);
+    }
+
+    @PostMapping(path = "/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(operationId = "uploadAssistantFile", summary = "Upload one actor-private Assistant file")
+    AssistantFileView uploadFile(
+            @RequestPart("file") MultipartFile file,
+            Authentication authentication) {
+        try (var content = file.getInputStream()) {
+            return assistantFiles.upload(
+                    actors.current(authentication),
+                    file.getOriginalFilename(),
+                    file.getSize(),
+                    content);
+        } catch (IOException failure) {
+            throw new ApiRequestException("The uploaded Assistant file could not be read", failure);
+        }
+    }
+
+    @GetMapping("/files")
+    @Operation(operationId = "listRecentAssistantFiles", summary = "List the current actor's recent private files")
+    AssistantFilePage recentFiles(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int limit,
+            Authentication authentication) {
+        return assistantFiles.recent(actors.current(authentication), page, limit);
+    }
+
+    @GetMapping("/files/{fileId}")
+    @Operation(operationId = "getAssistantFile", summary = "Read one owned private file's processing state")
+    AssistantFileView file(
+            @PathVariable UUID fileId,
+            Authentication authentication) {
+        return assistantFiles.get(actors.current(authentication), fileId);
+    }
+
+    @DeleteMapping("/files/{fileId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "deleteAssistantFile", summary = "Deny and schedule cleanup of one owned private file")
+    void deleteFile(
+            @PathVariable UUID fileId,
+            Authentication authentication) {
+        assistantFiles.delete(actors.current(authentication), fileId);
+    }
+
+    @GetMapping("/files/{fileId}/content")
+    @Operation(operationId = "readAssistantFileContent", summary = "Stream one freshly owner-authorized private file")
+    ResponseEntity<StreamingResponseBody> fileContent(
+            @PathVariable UUID fileId,
+            Authentication authentication) {
+        AssistantFileContent file = assistantFiles.open(actors.current(authentication), fileId);
+        StreamingResponseBody body = output -> {
+            try (file) {
+                file.stream().transferTo(output);
+            }
+        };
+        ContentDisposition disposition = (file.inlinePreviewAllowed()
+                        ? ContentDisposition.inline()
+                        : ContentDisposition.attachment())
+                .filename(file.fileName(), java.nio.charset.StandardCharsets.UTF_8)
+                .build();
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(file.mediaType()))
+                .contentLength(file.contentLength())
+                .cacheControl(CacheControl.noStore())
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .header("X-Content-Type-Options", "nosniff")
+                .header("Content-Security-Policy", "sandbox; default-src 'none'")
+                .body(body);
+    }
+
+    @GetMapping("/files/{fileId}/chunks/{chunkId}")
+    @Operation(operationId = "readAssistantFileExcerpt", summary = "Read one freshly owner-authorized private citation excerpt")
+    ResponseEntity<AssistantPrivateFileExcerptResponse> fileExcerpt(
+            @PathVariable UUID fileId,
+            @PathVariable UUID chunkId,
+            @RequestParam long generation,
+            Authentication authentication) {
+        var citation = privateFileSearch.findCitation(
+                        actors.current(authentication), fileId, generation, chunkId)
+                .orElseThrow(AssistantFileService::notFound);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(new AssistantPrivateFileExcerptResponse(
+                        citation.title(), citation.heading(), citation.startPage(),
+                        citation.endPage(), citation.content()));
     }
 
     @PostMapping(path = "/evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -182,23 +303,45 @@ class AssistantController {
         List<UUID> requestedEvidence = request.evidenceBindingIds() == null
                 ? List.of()
                 : request.evidenceBindingIds();
-        AssistantEvidenceTurnClaim turnClaim = requestedEvidence.isEmpty()
-                ? new AssistantEvidenceTurnClaim(
-                        conversations.beginTurn(
-                                actor,
-                                request.conversationId(),
-                                request.message(),
-                                modelSelection),
-                        KnowledgeEvidenceSelection.unrestricted())
-                : conversations.beginTurnWithEvidence(
-                        actor,
-                        request.conversationId(),
-                        request.message(),
-                        modelSelection,
-                        requestedEvidence);
-        AssistantTurnRef turnRef = turnClaim.turn();
+        List<UUID> requestedPrivateFiles = request.assistantFileIds() == null
+                ? List.of()
+                : request.assistantFileIds();
+        if (!requestedEvidence.isEmpty() && !requestedPrivateFiles.isEmpty()) {
+            throw new ApiRequestException(
+                    "A turn cannot mix governed Knowledge and private Assistant files");
+        }
+        AssistantTurnRef turnRef;
+        KnowledgeEvidenceSelection knowledgeSelection = KnowledgeEvidenceSelection.unrestricted();
+        AssistantPrivateFileSelection privateSelection = new AssistantPrivateFileSelection(List.of());
+        if (!requestedPrivateFiles.isEmpty()) {
+            var claim = conversations.beginTurnWithPrivateFiles(
+                    actor,
+                    request.conversationId(),
+                    request.message(),
+                    modelSelection,
+                    requestedPrivateFiles);
+            turnRef = claim.turn();
+            privateSelection = claim.selection();
+        } else if (!requestedEvidence.isEmpty()) {
+            AssistantEvidenceTurnClaim claim = conversations.beginTurnWithEvidence(
+                    actor,
+                    request.conversationId(),
+                    request.message(),
+                    modelSelection,
+                    requestedEvidence);
+            turnRef = claim.turn();
+            knowledgeSelection = claim.selection();
+        } else {
+            turnRef = conversations.beginTurn(
+                    actor,
+                    request.conversationId(),
+                    request.message(),
+                    modelSelection);
+        }
         UUID conversationId = turnRef.conversationId();
         UUID assistantMessageId = UUID.randomUUID();
+        KnowledgeEvidenceSelection finalKnowledgeSelection = knowledgeSelection;
+        AssistantPrivateFileSelection finalPrivateSelection = privateSelection;
         Flux<AssistantStreamPart> parts = Flux.defer(() -> {
             long turnStartedAtNanos = System.nanoTime();
             return Flux.concat(
@@ -208,15 +351,25 @@ class AssistantController {
                                     AssistantStreamPart.Activity.Phase.RETRIEVAL,
                                     AssistantStreamPart.Activity.State.ACTIVE,
                                     null)),
-                    retrievalScheduler.schedule(() -> assistant.startTurn(
-                                    actor,
-                                    request.message(),
-                                    request.limit(),
-                                    requestId,
-                                    conversationId.toString(),
-                                    routeAuthority,
-                                    turnStartedAtNanos,
-                                    turnClaim.selection()))
+                    retrievalScheduler.schedule(() -> finalPrivateSelection.restricted()
+                                    ? assistant.startTurnWithPrivateFiles(
+                                            actor,
+                                            request.message(),
+                                            request.limit(),
+                                            requestId,
+                                            conversationId.toString(),
+                                            routeAuthority,
+                                            turnStartedAtNanos,
+                                            finalPrivateSelection)
+                                    : assistant.startTurn(
+                                            actor,
+                                            request.message(),
+                                            request.limit(),
+                                            requestId,
+                                            conversationId.toString(),
+                                            routeAuthority,
+                                            turnStartedAtNanos,
+                                            finalKnowledgeSelection))
                             .flatMapMany(turn -> completedTurnParts(
                                     actor,
                                     turnRef,
@@ -244,6 +397,13 @@ class AssistantController {
 
     record AnswerFeedbackRequest(@NotNull AssistantAnswerSentiment sentiment) {
     }
+
+    record AssistantPrivateFileExcerptResponse(
+            String title,
+            String heading,
+            Integer startPage,
+            Integer endPage,
+            String content) {}
 
     record AssistantStarterPrompt(String id, String label, String prompt) {
     }
@@ -282,6 +442,7 @@ class AssistantController {
             String heading,
             Integer startPage,
             Integer endPage,
+            boolean available,
             String excerptUrl,
             String contentUrl) {
     }
@@ -394,6 +555,8 @@ class AssistantController {
         Map<UUID, CitationEvidenceReference> visible = citationEvidence.hydrate(
                         actor,
                         stored.stream()
+                                .filter(reference -> reference.kind()
+                                        == AssistantCitationEvidence.Kind.KNOWLEDGE)
                                 .map(com.orgmemory.core.assistant.AssistantCitationReference::chunkId)
                                 .distinct()
                                 .toList(),
@@ -404,6 +567,40 @@ class AssistantController {
                         Function.identity()));
         List<AssistantCitationResponse> response = stored.stream()
                 .map(reference -> {
+                    if (reference.kind() == AssistantCitationEvidence.Kind.ASSISTANT_FILE) {
+                        return privateFileSearch.findCitation(
+                                        actor,
+                                        reference.assistantFileId(),
+                                        reference.processingGeneration(),
+                                        reference.chunkId())
+                                .map(privateCitation -> {
+                                    String chunkId = privateCitation.chunkId().toString();
+                                    String fileId = privateCitation.fileId().toString();
+                                    return new AssistantCitationResponse(
+                                            reference.citationNumber(),
+                                            "urn:orgmemory:assistant-file-citation:"
+                                                    + reference.citationNumber() + ":" + chunkId,
+                                            privateCitation.title(),
+                                            privateCitation.heading(),
+                                            privateCitation.startPage(),
+                                            privateCitation.endPage(),
+                                            true,
+                                            "/api/assistant/files/" + fileId + "/chunks/" + chunkId
+                                                    + "?generation=" + privateCitation.processingGeneration(),
+                                            "/api/assistant/files/" + fileId + "/content");
+                                })
+                                .orElseGet(() -> new AssistantCitationResponse(
+                                        reference.citationNumber(),
+                                        "urn:orgmemory:assistant-file-citation:"
+                                                + reference.citationNumber() + ":" + reference.chunkId(),
+                                        "Private file no longer available",
+                                        null,
+                                        null,
+                                        null,
+                                        false,
+                                        null,
+                                        null));
+                    }
                     CitationEvidenceReference evidence = visible.get(reference.chunkId());
                     if (evidence == null) {
                         return null;
@@ -419,6 +616,7 @@ class AssistantController {
                             evidence.heading(),
                             evidence.startPage(),
                             evidence.endPage(),
+                            true,
                             "/api/citations/" + chunkId + "/excerpt",
                             "/api/citations/" + chunkId + "/content");
                 })
@@ -519,17 +717,20 @@ class AssistantController {
     }
 
     private static AssistantStreamPart sourcePart(AssistantCitation citation) {
-        var evidence = citation.evidence();
-        String sourceId = "urn:orgmemory:citation:"
-                + citation.number()
-                + ":"
-                + evidence.chunkId();
+        var evidence = citation.citationEvidence();
+        boolean privateFile = evidence.kind() == AssistantCitationEvidence.Kind.ASSISTANT_FILE;
+        String sourceId = (privateFile
+                        ? "urn:orgmemory:assistant-file-citation:"
+                        : "urn:orgmemory:citation:")
+                + citation.number() + ":" + evidence.chunkId();
         String title = evidence.startPage() == null
                 ? evidence.title()
                 : evidence.title() + " · page " + evidence.startPage();
         return new AssistantStreamPart.SourceUrl(
                 sourceId,
-                "/api/citations/" + evidence.chunkId() + "/content",
+                privateFile
+                        ? "/api/assistant/files/" + evidence.assistantFileId() + "/content"
+                        : "/api/citations/" + evidence.chunkId() + "/content",
                 title,
                 citation.number());
     }

@@ -20,10 +20,13 @@ import com.orgmemory.core.ai.AssistantModelSelectionRef;
 import com.orgmemory.core.assistant.AssistantAnswerFeedbackView;
 import com.orgmemory.core.assistant.AssistantAnswerSentiment;
 import com.orgmemory.core.assistant.AssistantCitation;
+import com.orgmemory.core.assistant.AssistantCitationEvidence;
 import com.orgmemory.core.assistant.AssistantCitationReference;
 import com.orgmemory.core.assistant.AssistantConversationService;
 import com.orgmemory.core.assistant.AssistantEvidenceService;
 import com.orgmemory.core.assistant.AssistantEvidenceUploadService;
+import com.orgmemory.core.assistant.AssistantFileService;
+import com.orgmemory.core.assistant.AssistantPrivateFileSearch;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
 import com.orgmemory.core.assistant.AssistantTurnRef;
@@ -212,9 +215,60 @@ class AssistantControllerStreamingTests {
         assertEquals("no-store", response.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL));
         assertEquals("nosniff", response.getHeaders().getFirst("X-Content-Type-Options"));
         assertEquals("Employee Handbook", response.getBody().getFirst().title());
+        assertTrue(response.getBody().getFirst().available());
         assertEquals(
                 "/api/citations/" + chunkId + "/excerpt",
                 response.getBody().getFirst().excerptUrl());
+    }
+
+    @Test
+    void preservesAnInertCitationMarkerWhenAPrivateFileIsNoLongerAvailable() {
+        AssistantConversationService conversations = mock(AssistantConversationService.class);
+        AssistantPrivateFileSearch privateFiles = mock(AssistantPrivateFileSearch.class);
+        CurrentActorProvider actors = mock(CurrentActorProvider.class);
+        Authentication authentication = mock(Authentication.class);
+        CurrentActor actor = new CurrentActor(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "Laura",
+                "laura@example.test");
+        UUID messageId = UUID.randomUUID();
+        UUID fileId = UUID.randomUUID();
+        UUID chunkId = UUID.randomUUID();
+        long generation = 2;
+        when(actors.current(authentication)).thenReturn(actor);
+        when(conversations.citationReferences(actor, messageId))
+                .thenReturn(List.of(new AssistantCitationReference(
+                        1,
+                        AssistantCitationEvidence.Kind.ASSISTANT_FILE,
+                        chunkId,
+                        fileId,
+                        generation)));
+        when(privateFiles.findCitation(actor, fileId, generation, chunkId))
+                .thenReturn(java.util.Optional.empty());
+        AssistantController controller = new AssistantController(
+                mock(AssistantService.class),
+                conversations,
+                actors,
+                mock(AssistantProperties.class),
+                mock(AssistantModelAuthorityService.class),
+                mock(CitationEvidenceService.class),
+                mock(AssistantRetrievalScheduler.class),
+                mock(AssistantEvidenceUploadService.class),
+                mock(AssistantEvidenceService.class),
+                mock(AssistantFileService.class),
+                privateFiles,
+                mock(ObjectMapper.class));
+
+        var response = controller.citations(messageId, authentication);
+
+        var citation = response.getBody().getFirst();
+        assertEquals(1, citation.citationNumber());
+        assertEquals("Private file no longer available", citation.title());
+        assertTrue(!citation.available());
+        assertEquals(null, citation.excerptUrl());
+        assertEquals(null, citation.contentUrl());
     }
 
     @Test

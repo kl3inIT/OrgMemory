@@ -6,6 +6,7 @@ import com.orgmemory.core.assistant.AssistantAgentModelPort;
 import com.orgmemory.core.assistant.AssistantAssetTraceRecorder;
 import com.orgmemory.core.assistant.AssistantEvidenceAnswerabilityPort;
 import com.orgmemory.core.assistant.AssistantService;
+import com.orgmemory.core.assistant.AssistantPrivateFileSearch;
 import com.orgmemory.core.assistant.observability.AssistantStageEventSink;
 import com.orgmemory.core.assistant.observability.AssistantTurnEvent;
 import com.orgmemory.core.assistant.observability.AssistantTurnMeterObservationHandler;
@@ -99,6 +100,7 @@ class AssistantConfiguration {
     @Bean
     AssistantService assistantService(
             PermissionAwareKnowledgeSearch retrieval,
+            AssistantPrivateFileSearch privateFileRetrieval,
             ChatModelPort chat,
             AssistantAgentModelPort agent,
             ObservationRegistry observations,
@@ -106,6 +108,7 @@ class AssistantConfiguration {
             AssistantStageEventSink stages) {
         return new AssistantService(
                 retrieval,
+                privateFileRetrieval,
                 chat,
                 agent,
                 observations,

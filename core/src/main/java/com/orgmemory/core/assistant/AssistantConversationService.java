@@ -26,7 +26,26 @@ public class AssistantConversationService implements AssistantTranscriptContext 
     private final AssistantMessageCitationRepository citations;
     private final AssistantAnswerFeedbackRepository answerFeedback;
     private final AssistantEvidenceService evidence;
+    private final AssistantFileTurnService privateFiles;
     private final Clock clock;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    AssistantConversationService(
+            AssistantConversationRepository conversations,
+            AssistantConversationMessageRepository messages,
+            AssistantMessageCitationRepository citations,
+            AssistantAnswerFeedbackRepository answerFeedback,
+            AssistantEvidenceService evidence,
+            AssistantFileTurnService privateFiles,
+            Clock clock) {
+        this.conversations = conversations;
+        this.messages = messages;
+        this.citations = citations;
+        this.answerFeedback = answerFeedback;
+        this.evidence = evidence;
+        this.privateFiles = privateFiles;
+        this.clock = clock;
+    }
 
     AssistantConversationService(
             AssistantConversationRepository conversations,
@@ -35,12 +54,7 @@ public class AssistantConversationService implements AssistantTranscriptContext 
             AssistantAnswerFeedbackRepository answerFeedback,
             AssistantEvidenceService evidence,
             Clock clock) {
-        this.conversations = conversations;
-        this.messages = messages;
-        this.citations = citations;
-        this.answerFeedback = answerFeedback;
-        this.evidence = evidence;
-        this.clock = clock;
+        this(conversations, messages, citations, answerFeedback, evidence, null, clock);
     }
 
     @Transactional
@@ -115,6 +129,49 @@ public class AssistantConversationService implements AssistantTranscriptContext 
         return new AssistantEvidenceTurnClaim(
                 new AssistantTurnRef(conversation.getId(), turnId),
                 evidenceSelection);
+    }
+
+    @Transactional
+    public AssistantPrivateFileTurnClaim beginTurnWithPrivateFiles(
+            CurrentActor actor,
+            UUID requestedId,
+            String userMessage,
+            AssistantModelSelectionRef modelSelection,
+            List<UUID> assistantFileIds) {
+        if (privateFiles == null) {
+            throw new IllegalStateException("private file turn service is unavailable");
+        }
+        String validUserMessage = requireUserMessage(userMessage);
+        Instant now = clock.instant();
+        AssistantConversation conversation;
+        if (requestedId == null) {
+            conversation = conversations.save(new AssistantConversation(
+                    UUID.randomUUID(), actor.organizationId(), actor.userId(),
+                    firstTitle(validUserMessage), now));
+        } else {
+            conversation = requireOwnedForUpdate(actor, requestedId);
+            conversation.touch(now);
+        }
+        conversation.selectModel(modelSelection);
+        UUID turnId = UUID.randomUUID();
+        UUID userMessageId = UUID.randomUUID();
+        messages.saveAndFlush(new AssistantConversationMessage(
+                userMessageId,
+                conversation.getId(),
+                turnId,
+                actor.organizationId(),
+                actor.userId(),
+                AssistantConversationRole.USER,
+                validUserMessage,
+                now));
+        AssistantPrivateFileSelection selection = privateFiles.claim(
+                actor,
+                conversation.getId(),
+                turnId,
+                userMessageId,
+                assistantFileIds);
+        return new AssistantPrivateFileTurnClaim(
+                new AssistantTurnRef(conversation.getId(), turnId), selection);
     }
 
     @Override
@@ -209,7 +266,10 @@ public class AssistantConversationService implements AssistantTranscriptContext 
                         actor.organizationId(),
                         actor.userId(),
                         citation.number(),
-                        citation.evidence().chunkId()))
+                        citation.citationEvidence().kind(),
+                        citation.citationEvidence().chunkId(),
+                        citation.citationEvidence().assistantFileId(),
+                        citation.citationEvidence().processingGeneration()))
                 .toList());
         conversation.touch(now);
     }

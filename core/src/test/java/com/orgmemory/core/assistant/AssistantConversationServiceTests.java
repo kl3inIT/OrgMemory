@@ -92,6 +92,33 @@ class AssistantConversationServiceTests {
     }
 
     @Test
+    void snapshotsOwnedPrivateFilesOnTheUserTurn() {
+        AssistantFileTurnService privateFiles = mock(AssistantFileTurnService.class);
+        AssistantConversationService privateService = new AssistantConversationService(
+                conversations,
+                messages,
+                citations,
+                answerFeedback,
+                evidence,
+                privateFiles,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        List<UUID> requested = List.of(UUID.randomUUID(), UUID.randomUUID());
+        AssistantPrivateFileSelection selection = new AssistantPrivateFileSelection(List.of(
+                new AssistantPrivateFileSelection.Item(requested.get(0), 1),
+                new AssistantPrivateFileSelection.Item(requested.get(1), 1)));
+        when(privateFiles.claim(eq(actor), any(), any(), any(), eq(requested)))
+                .thenReturn(selection);
+
+        AssistantPrivateFileTurnClaim claim = privateService.beginTurnWithPrivateFiles(
+                actor, null, "Compare these files", null, requested);
+
+        assertEquals(selection, claim.selection());
+        verify(messages).saveAndFlush(any(AssistantConversationMessage.class));
+        verify(privateFiles).claim(
+                eq(actor), eq(claim.turn().conversationId()), any(), any(), eq(requested));
+    }
+
+    @Test
     void writesBothHalvesOfOneTurnUnderTheIdentityBeginTurnAllocated() {
         AssistantTurnRef turn = service.beginTurn(actor, null, "How long is probation?");
         when(conversations.findForUpdateByIdAndOrganizationIdAndActorUserId(
@@ -295,6 +322,8 @@ class AssistantConversationServiceTests {
                 .thenReturn(Optional.of(ownedConversation(conversationId)));
         RetrievedKnowledgeEvidence evidence = mock(RetrievedKnowledgeEvidence.class);
         when(evidence.chunkId()).thenReturn(chunkId);
+        when(evidence.title()).thenReturn("Policy");
+        when(evidence.content()).thenReturn("approved evidence");
 
         service.completeTurn(
                 actor,
