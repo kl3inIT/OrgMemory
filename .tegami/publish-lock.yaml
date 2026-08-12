@@ -1,9 +1,9 @@
 core:changelogs:
-  - content: "---\nsubject: Keep completed releases idle on later commits\npackages:\n  orgmemory:\n    type: patch\n---\n\n## Operations\n\nAfter a product release is fully published, a later green-main change with no\nrelease entry now remains an explicit release no-op instead of retrying the old\nrelease against newer repository content. Pending releases still resume and\ncontinue to block newer version work until recovery.\n"
-    filename: 2026-08-12-complete-lock-release-noop.md
+  - content: "---\nsubject: Skip release mutation for an idle phase\npackages:\n  orgmemory:\n    type: patch\n---\n\n## Operations\n\nA completed release with no newer entry now stops after phase detection. The\nrelease workflow no longer invokes versioning or publication for that idle\nstate, while pending recovery and new version work retain their exact existing\ngates.\n"
+    filename: 2026-08-12-skip-idle-release-mutation.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-12-complete-lock-release-noop.md
+      - 2026-08-12-skip-idle-release-mutation.md
     id: product:orgmemory
     updated: true
