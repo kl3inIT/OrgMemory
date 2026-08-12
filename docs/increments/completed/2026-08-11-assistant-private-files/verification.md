@@ -28,7 +28,25 @@
 - Local dev dependencies, API migration, and `/api/health` — passed on the
   isolated worktree stack.
 
-## Open gates
+## Delivery proof
+
+- PR #353 merged as `af7ed3acfa27477c851681e62042938cd01de1c6`
+  after latest-head CI run `31561250272` passed; CodeRabbit was rate-limited,
+  reported no findings, and the documented green-CI fallback was used.
+- Green-main CI run `31561630011`, production image run `31561998985`, and
+  production deployment run `31562289377` passed for exact source commit
+  `af7ed3acfa27477c851681e62042938cd01de1c6`.
+- Tegami Version Packages PR #354 merged as
+  `e7febec673c0769f973018c78cb9e5517cd49d0d`. Release run `31562799544`
+  published `v0.4.0` at that exact tag target with the immutable
+  `artifacts.json`; idempotent rerun `31562927295` passed.
+- Docs image run `31562799536` and docs deployment run `31562905206` passed for
+  the release commit. Live checks returned HTTP 200 from the product and docs
+  health endpoints, and the deployed changelog exposed v0.4.0.
+- The isolated feature worktree and local feature branch were removed after
+  exact-SHA deployment and live runtime proof.
+
+## Residual constraints
 
 - The owner approved the production-build attachment candidate on 2026-08-12.
   The sanitized screenshot used the real built UI with authenticated API
@@ -39,8 +57,6 @@
   schema (`organizations` is absent and `app_users.role` no longer exists).
   Local runtime verification used one schema-correct synthetic identity only;
   fixing the unrelated fixture is outside this increment.
-- IDE inspection is unavailable in this agent environment. Gradle compilation,
-  full tests, frontend static gates, and browser automation are the available
-  evidence.
-- PR, CI, review, merge, release, exact-SHA deployment, production runtime, and
-  checkout cleanup remain pending owner UI approval.
+- IDE inspection remained unavailable; the accepted Gradle, frontend static,
+  browser, latest-head CI, deployment, and live runtime evidence supersedes that
+  tooling gap for this delivered increment.
