@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
@@ -10,6 +11,10 @@ import {
 
 const sha = "a".repeat(40);
 const policyCli = fileURLToPath(new URL("./release-workflow-policy.mjs", import.meta.url));
+const releaseWorkflow = readFileSync(
+  fileURLToPath(new URL("../.github/workflows/release.yml", import.meta.url)),
+  "utf8",
+);
 const trusted = {
   conclusion: "success",
   event: "push",
@@ -82,4 +87,20 @@ test("phase CLI preserves recovery exit codes", () => {
   const success = run("success");
   assert.equal(success.status, 0);
   assert.equal(success.stdout.trim(), "mode=version");
+});
+
+test("idle release phases cannot reach artifact resolution or mutation", () => {
+  assert.match(
+    releaseWorkflow,
+    /- name: Resolve immutable artifact evidence for a pending version\n\s+if: .*steps\.phase\.outputs\.mode == 'version'/,
+  );
+  for (const step of [
+    "Revalidate current main immediately before mutation",
+    "Version or publish product release",
+  ]) {
+    assert.match(
+      releaseWorkflow,
+      new RegExp(`- name: ${step}\\n\\s+if: .*steps\\.phase\\.outputs\\.mode != 'idle'`),
+    );
+  }
 });
