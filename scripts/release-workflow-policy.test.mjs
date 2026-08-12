@@ -46,7 +46,18 @@ test("pending failed locks block newer entries", () => {
     decideReleasePhase({ hasEntries: true, hasLock: true, lockStatus: "success" }),
     "version",
   );
-  assert.equal(decideReleasePhase({ hasEntries: false, hasLock: true }), "publish");
+  assert.equal(
+    decideReleasePhase({ hasEntries: false, hasLock: true, lockStatus: "pending" }),
+    "publish",
+  );
+  assert.equal(
+    decideReleasePhase({ hasEntries: false, hasLock: true, lockStatus: "success" }),
+    "idle",
+  );
+  assert.throws(
+    () => decideReleasePhase({ hasEntries: false, hasLock: true, lockStatus: "unknown" }),
+    /Unable to prove/,
+  );
   assert.equal(decideReleasePhase({ hasEntries: false, hasLock: false }), "idle");
   assert.equal(decideReleasePhase({ hasEntries: true, hasLock: false }), "version");
   assert.throws(
