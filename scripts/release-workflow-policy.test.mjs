@@ -100,7 +100,12 @@ test("idle release phases cannot reach artifact resolution or mutation", () => {
   ]) {
     assert.match(
       releaseWorkflow,
-      new RegExp(`- name: ${step}\\n\\s+if: .*steps\\.phase\\.outputs\\.mode != 'idle'`),
+      new RegExp(
+        `- name: ${step}\\n\\s+if: >-\\n` +
+          `\\s+steps\\.trust\\.outputs\\.current == 'true' &&\\n` +
+          `\\s+\\(steps\\.phase\\.outputs\\.mode == 'version' \\|\\| ` +
+          `steps\\.phase\\.outputs\\.mode == 'publish'\\)`,
+      ),
     );
   }
 });
