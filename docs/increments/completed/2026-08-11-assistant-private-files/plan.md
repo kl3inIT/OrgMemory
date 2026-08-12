@@ -2,10 +2,10 @@
 
 ## Status
 
-Active design. The independent one-round Fable 5 challenge returned `REVISE`
-and selected reusable retention-bounded private files. The project owner waived
-malware/DLP for this increment after direct verification that pinned Onyx does
-not put either gate in its user-file upload path.
+Shipped in OrgMemory v0.4.0. The independent one-round Fable 5 challenge
+returned `REVISE` and selected reusable retention-bounded private files. The
+project owner waived malware/DLP for this increment after direct verification
+that pinned Onyx does not put either gate in its user-file upload path.
 
 ## 1. Challenge the boundary
 
@@ -56,7 +56,7 @@ not put either gate in its user-file upload path.
   full-context gates; capture an immutable UI candidate for owner approval.
   Automated gates are green. The project owner approved the production-build
   Assistant attachment candidate on 2026-08-12; authentication UI was unchanged.
-- [ ] Complete the PR/CI/review/merge/deploy loop and remove this worktree only
+- [x] Complete the PR/CI/review/merge/deploy loop and remove this worktree only
   after exact-SHA production proof.
 
 ## Scope limits
