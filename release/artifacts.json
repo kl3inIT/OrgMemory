@@ -1,57 +1,57 @@
 {
   "schemaVersion": 1,
-  "releaseSourceSha": "3246ed97854360c2e9ea7db3f06869e840a7fe23",
+  "releaseSourceSha": "af7ed3acfa27477c851681e62042938cd01de1c6",
   "product": {
-    "decisionRunId": 31456977781,
-    "manifestRunId": 31453619926,
-    "commitSha": "2df3fcf305b22a7cbcbc38551ca32d225d08de7d",
+    "decisionRunId": 31561998985,
+    "manifestRunId": 31561998985,
+    "commitSha": "af7ed3acfa27477c851681e62042938cd01de1c6",
     "images": [
       {
         "component": "api",
-        "reference": "ghcr.io/kl3init/orgmemory-api:sha-2df3fcf305b22a7cbcbc38551ca32d225d08de7d",
-        "digest": "sha256:e2d0d3b0fb8d16121ecc10bcef2bf0e355f4642ab732d3381396dfb194cd91c9",
-        "sourceSha": "2df3fcf305b22a7cbcbc38551ca32d225d08de7d"
+        "reference": "ghcr.io/kl3init/orgmemory-api:sha-af7ed3acfa27477c851681e62042938cd01de1c6",
+        "digest": "sha256:99ebe506681a63ab61ea5d7bd3a0b676efa1d729d1053546e6d21e62d8c39b1e",
+        "sourceSha": "af7ed3acfa27477c851681e62042938cd01de1c6"
       },
       {
         "component": "worker",
-        "reference": "ghcr.io/kl3init/orgmemory-worker:sha-2df3fcf305b22a7cbcbc38551ca32d225d08de7d",
-        "digest": "sha256:3911da471a3a78babf85f804f979aa89a9bfc11bdd8e36a45c94f99c0044df4e",
-        "sourceSha": "2df3fcf305b22a7cbcbc38551ca32d225d08de7d"
+        "reference": "ghcr.io/kl3init/orgmemory-worker:sha-af7ed3acfa27477c851681e62042938cd01de1c6",
+        "digest": "sha256:4544fee6ce20511153e4e5a9cb09056749b4e9e1ea18be6d499b9afb8e122e8c",
+        "sourceSha": "af7ed3acfa27477c851681e62042938cd01de1c6"
       },
       {
         "component": "mcp",
-        "reference": "ghcr.io/kl3init/orgmemory-mcp:sha-2df3fcf305b22a7cbcbc38551ca32d225d08de7d",
+        "reference": "ghcr.io/kl3init/orgmemory-mcp:sha-af7ed3acfa27477c851681e62042938cd01de1c6",
         "digest": "sha256:b639e0e538d2bfdf31499438b1fe4c06562b9140262ee68a6a3c68f7285aacd8",
         "sourceSha": "15ae13d9ea5e8bd46d33b1c8dac0ba4d0e14643e"
       },
       {
         "component": "web",
-        "reference": "ghcr.io/kl3init/orgmemory-web:sha-2df3fcf305b22a7cbcbc38551ca32d225d08de7d",
-        "digest": "sha256:ba9fa5dffaadf7a3b6e55cbaa9a6dc4f2a00f2f0ff724600af71ebb5d038ef23",
-        "sourceSha": "2df3fcf305b22a7cbcbc38551ca32d225d08de7d"
+        "reference": "ghcr.io/kl3init/orgmemory-web:sha-af7ed3acfa27477c851681e62042938cd01de1c6",
+        "digest": "sha256:85d585da6104b077ccdf4d99051b1a779e9f8f737ce7fadd038a9802e40622bc",
+        "sourceSha": "af7ed3acfa27477c851681e62042938cd01de1c6"
       },
       {
         "component": "keycloak",
-        "reference": "ghcr.io/kl3init/orgmemory-keycloak:sha-2df3fcf305b22a7cbcbc38551ca32d225d08de7d",
+        "reference": "ghcr.io/kl3init/orgmemory-keycloak:sha-af7ed3acfa27477c851681e62042938cd01de1c6",
         "digest": "sha256:809021d6c85c4508ecd6a67d1edd74c50f5559c2b7db7d67161682e86d2804c7",
         "sourceSha": "15ae13d9ea5e8bd46d33b1c8dac0ba4d0e14643e"
       },
       {
         "component": "postgres-rag",
-        "reference": "ghcr.io/kl3init/orgmemory-postgres-rag:sha-2df3fcf305b22a7cbcbc38551ca32d225d08de7d",
+        "reference": "ghcr.io/kl3init/orgmemory-postgres-rag:sha-af7ed3acfa27477c851681e62042938cd01de1c6",
         "digest": "sha256:c40a4cae96af1ff6591ea797682d89e434b6649b603a55751ba128d34de40328",
         "sourceSha": "15ae13d9ea5e8bd46d33b1c8dac0ba4d0e14643e"
       }
     ]
   },
   "docs": {
-    "decisionRunId": 31456977790,
-    "manifestRunId": 31453619910,
-    "commitSha": "2df3fcf305b22a7cbcbc38551ca32d225d08de7d",
+    "decisionRunId": 31561998969,
+    "manifestRunId": 31561998969,
+    "commitSha": "af7ed3acfa27477c851681e62042938cd01de1c6",
     "image": {
-      "reference": "ghcr.io/kl3init/orgmemory-docs:sha-2df3fcf305b22a7cbcbc38551ca32d225d08de7d",
-      "digest": "sha256:786a97bfe4a83761fc88e4cbe82c58a28da6ece7f66d906f7d06a01233019317",
-      "sourceSha": "2df3fcf305b22a7cbcbc38551ca32d225d08de7d"
+      "reference": "ghcr.io/kl3init/orgmemory-docs:sha-af7ed3acfa27477c851681e62042938cd01de1c6",
+      "digest": "sha256:56153fb5f12d67598a8c8ee5ef16d439770fde0592e1fc6ba72d1ae4377f7411",
+      "sourceSha": "af7ed3acfa27477c851681e62042938cd01de1c6"
     }
   }
 }
