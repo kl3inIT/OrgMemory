@@ -57,6 +57,10 @@ the pull-request description; it is a review convention, not a bypass label.
    creates `v<version>`, creates the GitHub Release, attaches
    `artifacts.json`, and verifies the remote tag target and Release.
 
+Once that publish lock is complete, a later green-main commit with no pending
+release entries is an explicit release no-op. A pending lock still resumes its
+exact release, and a pending lock blocks newer entries until recovery.
+
 Release-only commits do not rebuild or deploy images. Their manifest carries
 forward the already verified component digests and source SHAs. Deployment
 continues to consume image manifests, not semantic tags.

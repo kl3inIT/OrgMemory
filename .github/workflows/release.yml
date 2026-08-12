@@ -145,7 +145,7 @@ jobs:
           if [[ -f .tegami/publish-lock.yaml ]]; then
             has_lock=true
           fi
-          if [[ "$has_entries" == "true" && "$has_lock" == "true" ]]; then
+          if [[ "$has_lock" == "true" ]]; then
             set +e
             pnpm exec tsx scripts/check-publish-lock.mts
             lock_status=$?
