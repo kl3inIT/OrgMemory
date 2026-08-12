@@ -182,6 +182,16 @@ describe("Prompt Template browser contract", () => {
     expect(
       buildPromptAssetDraft({
         ...baseForm,
+        evaluationCases: [
+          { ...evaluationCase, name: "", values: { ticket_text: "1" } },
+          { ...evaluationCase, key: "case-2", name: " ", values: { ticket_text: "2" } },
+        ],
+      }),
+    ).toEqual({ ok: false, message: "Name every test case." })
+
+    expect(
+      buildPromptAssetDraft({
+        ...baseForm,
         variables: [integerVariable],
         evaluationCases: [evaluationCase],
       }),
@@ -265,5 +275,47 @@ describe("Prompt Template browser contract", () => {
         { role: "USER", content: "{{ticket_text}}" },
       ],
     })
+  })
+
+  it("round-trips the editable text Draft contract and rejects malformed payloads", () => {
+    const built = buildPromptAssetDraft({
+      ...baseForm,
+      grounding: "OPTIONAL",
+      knowledgeRequirements: "support runbook",
+      outputContract: '{"type":"object"}',
+      evaluationCases: [
+        {
+          key: "password-reset",
+          name: "Password reset",
+          values: { ticket_text: "Synthetic password reset" },
+          expectedContains: "access",
+          forbiddenContains: "secret",
+          sensitiveFixtureAcknowledged: true,
+        },
+      ],
+    })
+
+    expect(built.ok).toBe(true)
+    if (!built.ok) return
+    const parsed = parsePromptDraft(built.request.draft.payload, built.request.draft)
+    expect(parsed.kind).toBe("text")
+    if (parsed.kind !== "text") return
+    expect(parsed.value).toMatchObject({
+      title: baseForm.title,
+      summary: baseForm.summary,
+      grounding: "OPTIONAL",
+      knowledgeRequirements: "support runbook",
+      outputContract: '{\n  "type": "object"\n}',
+      variables: [expect.objectContaining({ name: "ticket_text", sensitive: true })],
+      evaluationCases: [
+        expect.objectContaining({
+          name: "Password reset",
+          values: { ticket_text: "Synthetic password reset" },
+          expectedContains: "access",
+          forbiddenContains: "secret",
+        }),
+      ],
+    })
+    expect(parsePromptDraft("{not-json")).toEqual({ kind: "invalid" })
   })
 })

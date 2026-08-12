@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Rocket, Save } from "lucide-react"
-import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useMemo, useState, type FormEvent } from "react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -26,11 +26,13 @@ import {
 export function PromptDraftWorkspace({
   asset,
   actions,
+  canPublish,
   onChanged,
   onPublished,
 }: {
   asset: AssetView
   actions?: AssetGovernanceActions
+  canPublish: boolean
   onChanged: () => Promise<unknown>
   onPublished: () => void
 }) {
@@ -38,7 +40,6 @@ export function PromptDraftWorkspace({
   const parsed = useMemo(() => parsePromptDraft(draft.payload, draft), [draft])
   const spaces = useQuery(listKnowledgeSpaceUploadTargetsOptions())
   const canEdit = Boolean(actions?.canEdit)
-  const canPublish = Boolean(actions?.canPublishDirect)
   const [value, setValue] = useState<PromptTemplateFormValue>(() =>
     parsed.kind === "text" ? withPlacement(parsed.value, asset) : fallback(asset, draft),
   )
@@ -46,10 +47,6 @@ export function PromptDraftWorkspace({
   const [versionLabel, setVersionLabel] = useState("")
   const update = useMutation(updateAssetDraftMutation())
   const publish = useMutation(publishAssetDraftMutation())
-
-  useEffect(() => {
-    if (parsed.kind === "text") setValue(withPlacement(parsed.value, asset))
-  }, [asset, parsed])
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -81,6 +78,7 @@ export function PromptDraftWorkspace({
   }
 
   async function publishRelease() {
+    setError(undefined)
     try {
       await publish.mutateAsync({
         path: { assetId: asset.id! },
@@ -170,9 +168,11 @@ export function PromptDraftWorkspace({
       onChange={setValue}
       onSubmit={save}
       submitLabel={update.isPending ? "Saving working copy" : "Save working copy"}
-      submitting={update.isPending || !canEdit}
-      error={error ?? (!canEdit ? "You can view this working copy but cannot edit it." : undefined)}
+      submitting={update.isPending}
+      disabled={!canEdit}
+      error={error ?? (spaces.isError ? "Creation targets could not be loaded." : !canEdit ? "You can view this working copy but cannot edit it." : undefined)}
       spaces={spaces.data}
+      spacesLoading={spaces.isPending}
       placementLocked
       asideAction={publishCard ? <div className="space-y-2"><div className="flex items-center gap-2 text-xs text-content-muted"><Save className="size-3.5" aria-hidden="true" />Publish always uses the last successful save.</div>{publishCard}</div> : null}
     />

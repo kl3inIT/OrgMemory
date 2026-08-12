@@ -9,7 +9,13 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react"
-import { type FormEvent, type ReactNode } from "react"
+import {
+  cloneElement,
+  isValidElement,
+  type FormEvent,
+  type ReactElement,
+  type ReactNode,
+} from "react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -46,8 +52,10 @@ type PromptTemplateEditorProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   submitLabel: string
   submitting?: boolean
+  disabled?: boolean
   error?: string
   spaces?: KnowledgeSpaceResponse[]
+  spacesLoading?: boolean
   placementLocked?: boolean
   asideAction?: ReactNode
 }
@@ -58,11 +66,14 @@ export function PromptTemplateEditor({
   onSubmit,
   submitLabel,
   submitting = false,
+  disabled = false,
   error,
   spaces = [],
+  spacesLoading = false,
   placementLocked = false,
   asideAction,
 }: PromptTemplateEditorProps) {
+  const editorDisabled = submitting || disabled
   const placeholders = extractPromptPlaceholders(value.textTemplate)
   const unresolved = placeholders.filter(
     (placeholder) => !value.variables.some((variable) => variable.name === placeholder),
@@ -87,10 +98,25 @@ export function PromptTemplateEditor({
   }
 
   function updateVariable(index: number, variable: PromptVariableForm) {
+    const previousName = value.variables[index]?.name
+    const renamed = previousName !== undefined && previousName !== variable.name
     patch({
       variables: value.variables.map((current, currentIndex) =>
         currentIndex === index ? variable : current,
       ),
+      ...(renamed
+        ? {
+            evaluationCases: value.evaluationCases.map((evaluationCase) => {
+              if (!Object.hasOwn(evaluationCase.values, previousName)) return evaluationCase
+              const { [previousName]: migratedValue, ...unchangedValues } =
+                evaluationCase.values
+              return {
+                ...evaluationCase,
+                values: { ...unchangedValues, [variable.name]: migratedValue },
+              }
+            }),
+          }
+        : {}),
     })
   }
 
@@ -128,7 +154,7 @@ export function PromptTemplateEditor({
             value={value.title}
             maxLength={256}
             autoComplete="off"
-            disabled={submitting}
+            disabled={editorDisabled}
             placeholder="Support ticket classifier"
             onChange={(event) => changeTitle(event.currentTarget.value)}
           />
@@ -138,7 +164,7 @@ export function PromptTemplateEditor({
             id="prompt-summary"
             value={value.summary}
             maxLength={1024}
-            disabled={submitting}
+            disabled={editorDisabled}
             placeholder="Classifies incoming support tickets by category and urgency."
             onChange={(event) => patch({ summary: event.currentTarget.value })}
           />
@@ -165,7 +191,7 @@ export function PromptTemplateEditor({
                 maxLength={30_000}
                 rows={17}
                 spellCheck={false}
-                disabled={submitting}
+                disabled={editorDisabled}
                 className="min-h-[25rem] resize-y rounded-none border-0 bg-surface-raised px-6 py-5 font-mono text-sm leading-7 shadow-none focus-visible:ring-0"
                 placeholder={"Classify this support ticket.\n\nTicket:\n{{ticket_text}}\n\nReturn the category and rationale."}
                 onChange={(event) => patch({ textTemplate: event.currentTarget.value })}
@@ -181,7 +207,7 @@ export function PromptTemplateEditor({
                   Typed values are validated before any provider call.
                 </p>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => addVariable()} disabled={submitting || value.variables.length >= 50}>
+              <Button type="button" variant="outline" size="sm" onClick={() => addVariable()} disabled={editorDisabled || value.variables.length >= 50}>
                 <Plus aria-hidden="true" />Add variable
               </Button>
             </div>
@@ -216,7 +242,7 @@ export function PromptTemplateEditor({
                   <VariableRow
                     key={variable.key}
                     variable={variable}
-                    disabled={submitting}
+                    disabled={editorDisabled}
                     onChange={(next) => updateVariable(index, next)}
                     onRemove={() => removeVariable(index)}
                   />
@@ -243,7 +269,7 @@ export function PromptTemplateEditor({
                   id="prompt-objective"
                   value={value.objective}
                   maxLength={2000}
-                  disabled={submitting}
+                  disabled={editorDisabled}
                   placeholder="Classify and route incoming support tickets"
                   onChange={(event) => patch({ objective: event.currentTarget.value })}
                 />
@@ -257,19 +283,19 @@ export function PromptTemplateEditor({
                   id="prompt-audience"
                   value={value.audience}
                   maxLength={1000}
-                  disabled={submitting}
+                  disabled={editorDisabled}
                   placeholder="L1 Support"
                   onChange={(event) => patch({ audience: event.currentTarget.value })}
                 />
               </Field>
               <Field label="Use when" id="prompt-use-when" hint="One condition per line.">
-                <Textarea id="prompt-use-when" value={value.useWhen} rows={4} disabled={submitting} onChange={(event) => patch({ useWhen: event.currentTarget.value })} />
+                <Textarea id="prompt-use-when" value={value.useWhen} rows={4} disabled={editorDisabled} onChange={(event) => patch({ useWhen: event.currentTarget.value })} />
               </Field>
               <Field label="Do not use when" id="prompt-do-not-use" hint="One condition per line.">
-                <Textarea id="prompt-do-not-use" value={value.doNotUseWhen} rows={4} disabled={submitting} onChange={(event) => patch({ doNotUseWhen: event.currentTarget.value })} />
+                <Textarea id="prompt-do-not-use" value={value.doNotUseWhen} rows={4} disabled={editorDisabled} onChange={(event) => patch({ doNotUseWhen: event.currentTarget.value })} />
               </Field>
               <Field label="Known limitations" id="prompt-limitations" hint="Be explicit about cases that need human judgment or another workflow.">
-                <Textarea id="prompt-limitations" value={value.knownLimitations} rows={6} disabled={submitting} onChange={(event) => patch({ knownLimitations: event.currentTarget.value })} />
+                <Textarea id="prompt-limitations" value={value.knownLimitations} rows={6} disabled={editorDisabled} onChange={(event) => patch({ knownLimitations: event.currentTarget.value })} />
               </Field>
             </CollapsibleContent>
           </Collapsible>
@@ -284,7 +310,7 @@ export function PromptTemplateEditor({
             </CollapsibleTrigger>
             <CollapsibleContent className="border-t border-border-subtle p-5">
               <Field label="JSON object" id="prompt-output-contract" hint="Leave empty when the response is free-form text.">
-                <Textarea id="prompt-output-contract" value={value.outputContract} rows={8} spellCheck={false} className="font-mono text-xs" disabled={submitting} placeholder={'{\n  "type": "object"\n}'} onChange={(event) => patch({ outputContract: event.currentTarget.value })} />
+                <Textarea id="prompt-output-contract" value={value.outputContract} rows={8} spellCheck={false} className="font-mono text-xs" disabled={editorDisabled} placeholder={'{\n  "type": "object"\n}'} onChange={(event) => patch({ outputContract: event.currentTarget.value })} />
               </Field>
             </CollapsibleContent>
           </Collapsible>
@@ -294,7 +320,7 @@ export function PromptTemplateEditor({
           <TestCasesPanel
             cases={value.evaluationCases}
             variables={value.variables}
-            disabled={submitting}
+            disabled={editorDisabled}
             onAdd={addEvaluationCase}
             onChange={updateEvaluationCase}
             onMove={moveEvaluationCase}
@@ -309,13 +335,14 @@ export function PromptTemplateEditor({
               </div>
             </CardHeader>
             <CardContent className="space-y-4 p-5">
-              <div className="grid grid-cols-2 rounded-lg border border-control-border p-1" aria-label="Knowledge grounding mode">
+              <div role="group" className="grid grid-cols-2 rounded-lg border border-control-border p-1" aria-label="Knowledge grounding mode">
                 {(["NONE", "OPTIONAL"] as const).map((mode) => (
                   <Button
                     key={mode}
                     type="button"
                     size="sm"
                     variant="ghost"
+                    disabled={editorDisabled}
                     aria-pressed={value.grounding === mode}
                     className={value.grounding === mode ? "bg-surface-selected text-content-primary" : "text-content-secondary"}
                     onClick={() => patch({ grounding: mode })}
@@ -326,7 +353,7 @@ export function PromptTemplateEditor({
               </div>
               {value.grounding === "OPTIONAL" ? (
                 <Field label="Knowledge requirements" id="prompt-knowledge" hint="One natural-language query hint per line. This stores no Space or source id.">
-                  <Textarea id="prompt-knowledge" value={value.knowledgeRequirements} rows={5} disabled={submitting} placeholder="support runbook\nSLA escalation policy" onChange={(event) => patch({ knowledgeRequirements: event.currentTarget.value })} />
+                  <Textarea id="prompt-knowledge" value={value.knowledgeRequirements} rows={5} disabled={editorDisabled} placeholder={"support runbook\nSLA escalation policy"} onChange={(event) => patch({ knowledgeRequirements: event.currentTarget.value })} />
                 </Field>
               ) : null}
               <p className="text-xs leading-5 text-content-muted">
@@ -335,11 +362,11 @@ export function PromptTemplateEditor({
             </CardContent>
           </Card>
 
-          <PlacementPanel value={value} spaces={spaces} locked={placementLocked} disabled={submitting} onChange={patch} />
+          <PlacementPanel value={value} spaces={spaces} loading={spacesLoading} locked={placementLocked} disabled={editorDisabled} onChange={patch} />
 
           {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
 
-          <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+          <Button type="submit" size="lg" className="w-full" disabled={editorDisabled}>
             {submitLabel}
           </Button>
           {asideAction}
@@ -434,7 +461,7 @@ function TestCasesPanel({ cases, variables, disabled, onAdd, onChange, onMove, o
   )
 }
 
-function PlacementPanel({ value, spaces, locked, disabled, onChange }: { value: PromptTemplateFormValue; spaces: KnowledgeSpaceResponse[]; locked: boolean; disabled: boolean; onChange: (value: Partial<PromptTemplateFormValue>) => void }) {
+function PlacementPanel({ value, spaces, loading, locked, disabled, onChange }: { value: PromptTemplateFormValue; spaces: KnowledgeSpaceResponse[]; loading: boolean; locked: boolean; disabled: boolean; onChange: (value: Partial<PromptTemplateFormValue>) => void }) {
   const validSpaces = spaces.filter((space): space is KnowledgeSpaceResponse & { id: string; name: string } => Boolean(space.id && space.name))
   return (
     <Collapsible defaultOpen={!locked} className="rounded-xl border border-border-default bg-surface-raised">
@@ -450,8 +477,8 @@ function PlacementPanel({ value, spaces, locked, disabled, onChange }: { value: 
           <Input id="prompt-slug" value={value.slug} className="font-mono" disabled={disabled || locked} placeholder="support-ticket-classifier" onChange={(event) => onChange({ slug: event.currentTarget.value })} />
         </Field>
         <Field label="Knowledge Space" id="prompt-space" hint="Governance placement only; this is not a grounding target.">
-          {locked ? (
-            <Input id="prompt-space" value={validSpaces.find((space) => space.id === value.knowledgeSpaceId)?.name ?? "Current governed Space"} disabled />
+          {locked || loading ? (
+            <Input id="prompt-space" value={loading ? "Loading creation targets" : validSpaces.find((space) => space.id === value.knowledgeSpaceId)?.name ?? "Current governed Space"} disabled />
           ) : (
             <Select value={value.knowledgeSpaceId} disabled={disabled || validSpaces.length === 0} onValueChange={(knowledgeSpaceId) => onChange({ knowledgeSpaceId })}>
               <SelectTrigger id="prompt-space" className="w-full"><SelectValue placeholder={validSpaces.length ? "Choose a space" : "No creation target"} /></SelectTrigger>
@@ -480,7 +507,16 @@ function CheckField({ id, label, checked, disabled, onCheckedChange }: { id: str
 }
 
 function Field({ label, id, hint, children }: { label: string; id: string; hint?: string; children: ReactNode }) {
-  return <div className="space-y-2"><Label htmlFor={id}>{label}</Label>{children}{hint ? <p className="text-xs leading-5 text-content-muted">{hint}</p> : null}</div>
+  const hintId = `${id}-hint`
+  const describedChild = hint && isValidElement(children)
+    ? cloneElement(children as ReactElement<{ "aria-describedby"?: string }>, {
+        "aria-describedby": [
+          (children.props as { "aria-describedby"?: string })["aria-describedby"],
+          hintId,
+        ].filter(Boolean).join(" "),
+      })
+    : children
+  return <div className="space-y-2"><Label htmlFor={id}>{label}</Label>{describedChild}{hint ? <p id={hintId} className="text-xs leading-5 text-content-muted">{hint}</p> : null}</div>
 }
 
 function newVariable(name: string): PromptVariableForm {

@@ -48,11 +48,14 @@ export function GovernanceDraftWorkspace({
   onChanged: () => Promise<unknown>
   onPublished: () => void
 }) {
+  const canPublish = canPublishDirectly(asset, actions)
   if (asset.type === "PROMPT_TEMPLATE") {
     return (
       <PromptDraftWorkspace
+        key={`${asset.id}-${asset.draft?.lockVersion ?? 0}`}
         asset={asset}
         actions={actions}
+        canPublish={canPublish}
         onChanged={onChanged}
         onPublished={onPublished}
       />
@@ -62,6 +65,7 @@ export function GovernanceDraftWorkspace({
     <GenericDraftWorkspace
       asset={asset}
       actions={actions}
+      canPublish={canPublish}
       onChanged={onChanged}
       onPublished={onPublished}
     />
@@ -71,11 +75,13 @@ export function GovernanceDraftWorkspace({
 function GenericDraftWorkspace({
   asset,
   actions,
+  canPublish,
   onChanged,
   onPublished,
 }: {
   asset: AssetView
   actions?: AssetGovernanceActions
+  canPublish: boolean
   onChanged: () => Promise<unknown>
   onPublished: () => void
 }) {
@@ -91,8 +97,6 @@ function GenericDraftWorkspace({
     },
     onError: () => toast.error("The working copy could not be published"),
   })
-  const canPublish = canPublishDirectly(asset, actions)
-
   return (
     <div className={canPublish ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}>
       <div className="space-y-6">

@@ -1,11 +1,21 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, expect, it, vi } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 
 import { PromptTemplateEditor } from "@/features/assets/components/prompt-template-editor"
 import { createEmptyPromptForm } from "@/features/assets/prompt-template-form"
 
 describe("PromptTemplateEditor", () => {
+  beforeAll(() => {
+    vi.stubGlobal("ResizeObserver", class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    })
+  })
+
+  afterAll(() => vi.unstubAllGlobals())
+
   it("uses the shared Asset identity and separates Prompt usage metadata from access", () => {
     render(
       <PromptTemplateEditor
@@ -17,12 +27,16 @@ describe("PromptTemplateEditor", () => {
     )
 
     expect(screen.getByLabelText("Prompt name")).toBeInTheDocument()
-    expect(screen.getByLabelText("Description")).toBeInTheDocument()
+    expect(screen.getByLabelText("Description")).toHaveAttribute(
+      "aria-describedby",
+      "prompt-summary-hint",
+    )
     expect(screen.queryByLabelText("Summary")).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Audience")).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Objective")).not.toBeInTheDocument()
 
     expect(screen.getByRole("heading", { name: "Usage contract" })).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Knowledge grounding mode" })).toBeInTheDocument()
     expect(screen.getByLabelText("Task objective")).toBeInTheDocument()
     expect(screen.getByLabelText("Intended users")).toBeInTheDocument()
     expect(
@@ -93,6 +107,73 @@ describe("PromptTemplateEditor", () => {
         expect.objectContaining({ name: "ticket_text", type: "STRING", required: true }),
       ],
     })
+  })
+
+  it("migrates persisted test values when a variable is renamed", () => {
+    const onChange = vi.fn()
+    const variable = {
+      key: "ticket-variable",
+      name: "ticket_text",
+      type: "STRING" as const,
+      required: true,
+      sensitive: false,
+      defaultValue: "",
+      pattern: "",
+      allowedValues: "",
+    }
+    const evaluationCase = {
+      key: "case-1",
+      name: "Password reset",
+      values: { ticket_text: "Synthetic request", unaffected: "keep" },
+      expectedContains: "access",
+      forbiddenContains: "",
+      sensitiveFixtureAcknowledged: false,
+    }
+    const value = {
+      ...createEmptyPromptForm(),
+      variables: [variable],
+      evaluationCases: [evaluationCase],
+    }
+
+    render(
+      <PromptTemplateEditor
+        value={value}
+        onChange={onChange}
+        onSubmit={vi.fn()}
+        submitLabel="Save working copy"
+      />,
+    )
+
+    fireEvent.change(screen.getByDisplayValue("ticket_text"), {
+      target: { value: "request_text" },
+    })
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...value,
+      variables: [{ ...variable, name: "request_text" }],
+      evaluationCases: [
+        {
+          ...evaluationCase,
+          values: { request_text: "Synthetic request", unaffected: "keep" },
+        },
+      ],
+    })
+  })
+
+  it("distinguishes target loading and permission disabling from submission", () => {
+    render(
+      <PromptTemplateEditor
+        value={createEmptyPromptForm()}
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        submitLabel="Create private Draft"
+        disabled
+        spacesLoading
+      />,
+    )
+
+    expect(screen.getByLabelText("Knowledge Space")).toHaveValue("Loading creation targets")
+    expect(screen.getByRole("button", { name: "Create private Draft" })).toBeDisabled()
   })
 
   it("reorders persisted test cases explicitly", async () => {

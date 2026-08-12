@@ -71,8 +71,10 @@ export function PromptCreationPage() {
           onSubmit={submit}
           submitLabel={create.isPending ? "Creating Draft" : "Create private Draft"}
           submitting={create.isPending}
+          disabled={spaces.isPending || spaces.isError}
           error={error ?? (spaces.isError ? "Creation targets could not be loaded." : undefined)}
           spaces={spaces.data}
+          spacesLoading={spaces.isPending}
           asideAction={
             <p className="flex items-start gap-2 text-xs leading-5 text-content-muted">
               <Plus className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />

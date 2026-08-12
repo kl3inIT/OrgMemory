@@ -119,6 +119,13 @@ test("Prompt authoring creates one private Draft and evaluates the exact direct 
   await page.getByLabel("Forbidden fragments").fill("secret")
   await page.getByLabel("I confirm these are synthetic, non-secret values").click()
 
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.locator('[data-slot="page-layout"]').evaluate((element) => element.scrollTo(0, 0))
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true)
+  await page.setViewportSize({ width: 1536, height: 1024 })
+
   if (process.env.DESIGN_QA_CAPTURE) {
     await page.locator('[data-slot="page-layout"]').evaluate((element) => element.scrollTo(0, 0))
     await page.screenshot({
@@ -134,9 +141,6 @@ test("Prompt authoring creates one private Draft and evaluates the exact direct 
     })
     await page.setViewportSize({ width: 390, height: 844 })
     await page.locator('[data-slot="page-layout"]').evaluate((element) => element.scrollTo(0, 0))
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    ).toBe(true)
     await page.screenshot({
       path: "../output/design-qa/prompt-asset-authoring-mobile.png",
       fullPage: false,
@@ -188,7 +192,7 @@ test("Prompt authoring creates one private Draft and evaluates the exact direct 
 
   await page.goto(`/assets/${PROMPT_ID}?release=${PROMPT_RELEASE_ID}`)
   await expect(page.getByText("Release tests", { exact: true })).toBeVisible()
-  await expect(page.getByText("1 cases embedded in version 1.0.0.")).toBeVisible()
+  await expect(page.getByText("1 case embedded in version 1.0.0.")).toBeVisible()
   await page.getByRole("button", { name: "Run release tests" }).click()
   await expect(page.getByText("Run tests for version 1.0.0?")).toBeVisible()
   await page.getByRole("button", { name: "Run exact release" }).click()

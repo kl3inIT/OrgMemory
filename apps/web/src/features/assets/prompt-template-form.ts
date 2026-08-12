@@ -211,6 +211,9 @@ export function buildPromptAssetDraft(value: PromptTemplateFormValue): PromptDra
   const evaluationCaseNames = value.evaluationCases.map((evaluationCase) =>
     evaluationCase.name.trim(),
   )
+  if (evaluationCaseNames.some((name) => !name)) {
+    return invalid("Name every test case.")
+  }
   if (new Set(evaluationCaseNames).size !== evaluationCaseNames.length) {
     return invalid("Test case names must be unique.")
   }

@@ -278,7 +278,7 @@ function AssetIdentityHeader({
 function ProfilePanel({ asset, release }: { asset: AssetReleasedView; release: Release }) {
   if (!asset.id || !release.id) return null
   if (asset.type === "PROMPT_TEMPLATE") {
-    return <PromptPanel assetId={asset.id} release={release} />
+    return <PromptPanel key={release.id} assetId={asset.id} release={release} />
   }
   if (asset.type === "WORK_INSTRUCTION") {
     return <WorkInstructionPanel assetId={asset.id} release={release} />
@@ -308,6 +308,7 @@ function PromptPanel({ assetId, release }: { assetId: string; release: Release }
   const result = run.data?.result
 
   if (!payload) return <InvalidPayload />
+  const evaluationCount = payload.evaluationCases?.length ?? 0
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -460,7 +461,7 @@ function PromptPanel({ assetId, release }: { assetId: string; release: Release }
               <div>
                 <CardTitle>Release tests</CardTitle>
                 <p className="mt-1 text-supporting text-content-secondary">
-                  {payload.evaluationCases?.length ?? 0} cases embedded in version {release.versionLabel}.
+                  {evaluationCount} {evaluationCount === 1 ? "case" : "cases"} embedded in version {release.versionLabel}.
                 </p>
               </div>
               <FlaskConical className="size-5 text-content-muted" aria-hidden="true" />
@@ -482,7 +483,7 @@ function PromptPanel({ assetId, release }: { assetId: string; release: Release }
                 <AlertDialogHeader>
                   <AlertDialogTitle>Run tests for version {release.versionLabel}?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This makes {payload.evaluationCases?.length ?? 0} bounded provider calls using
+                    This makes {evaluationCount} bounded provider {evaluationCount === 1 ? "call" : "calls"} using
                     only fixtures embedded in this immutable release. It does not publish or
                     promote anything.
                   </AlertDialogDescription>
@@ -523,8 +524,8 @@ function PromptPanel({ assetId, release }: { assetId: string; release: Release }
                       </div>
                       {testCase.failedAssertions?.length ? (
                         <ul className="mt-2 space-y-1 pl-6 text-xs text-status-danger-content">
-                          {testCase.failedAssertions.map((assertion) => (
-                            <li key={assertion}>{assertion}</li>
+                          {testCase.failedAssertions.map((assertion, assertionIndex) => (
+                            <li key={`${assertionIndex}-${assertion}`}>{assertion}</li>
                           ))}
                         </ul>
                       ) : null}

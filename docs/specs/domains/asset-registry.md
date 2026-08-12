@@ -119,7 +119,11 @@ placement, not a grounding target. Ordered-message Drafts remain read-only in
 the editor and can be published unchanged. Direct publication snapshots the
 last saved Draft as an immutable exact release and does not change sharing.
 Release tests run only from the selected released-detail view after explicit
-confirmation and report aggregate plus case-level results.
+confirmation and report aggregate plus case-level results. The browser exposes
+creation-target loading and failure separately, preserves unsaved editor state
+across refetches of the same Draft lock version, migrates persisted fixture
+values when a variable is renamed, and resets release-local evaluation state
+when the selected exact release changes.
 
 ### Work Instruction
 
