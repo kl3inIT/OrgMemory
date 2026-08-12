@@ -1,5 +1,7 @@
 # Assistant And MCP Spec
 
+Reconciled: `2026-08-11-assistant-private-files (92448337)`.
+
 Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `core/src/main/java/com/orgmemory/core/ai`,
 `core/src/main/java/com/orgmemory/core/knowledge/evidence`,
@@ -18,8 +20,6 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`,
 `apps/web/src/components/ai-elements/model-selector.tsx`, and
 `apps/web/src/components/ai-elements/prompt-input.tsx`.
-
-Reconciled: `92448337`.
 
 ## Current Behavior
 

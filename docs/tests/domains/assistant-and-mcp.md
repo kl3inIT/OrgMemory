@@ -16,7 +16,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/components/ai-elements/prompt-input.test.tsx`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `92448337`.
+Reconciled: `2026-08-11-assistant-private-files (92448337)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
