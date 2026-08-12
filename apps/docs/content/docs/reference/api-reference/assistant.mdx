@@ -47,6 +47,12 @@ _openapi:
       title: Submit feedback against an exact release after explicit confirmation
       url: '#submit-feedback-against-an-exact-release-after-explicit-confirmation'
     - depth: 2
+      title: List the current actor's recent private files
+      url: '#list-the-current-actors-recent-private-files'
+    - depth: 2
+      title: Upload one actor-private Assistant file
+      url: '#upload-one-actor-private-assistant-file'
+    - depth: 2
       title: Upload one governed file and bind it to an Assistant conversation
       url: '#upload-one-governed-file-and-bind-it-to-an-assistant-conversation'
     - depth: 2
@@ -76,6 +82,18 @@ _openapi:
     - depth: 2
       title: Hydrate currently authorized citations for one owned Assistant answer
       url: '#hydrate-currently-authorized-citations-for-one-owned-assistant-answer'
+    - depth: 2
+      title: Read one owned private file's processing state
+      url: '#read-one-owned-private-files-processing-state'
+    - depth: 2
+      title: Deny and schedule cleanup of one owned private file
+      url: '#deny-and-schedule-cleanup-of-one-owned-private-file'
+    - depth: 2
+      title: Stream one freshly owner-authorized private file
+      url: '#stream-one-freshly-owner-authorized-private-file'
+    - depth: 2
+      title: Read one freshly owner-authorized private citation excerpt
+      url: '#read-one-freshly-owner-authorized-private-citation-excerpt'
     - depth: 2
       title: List the current actor's conversations by recent activity
       url: '#list-the-current-actors-conversations-by-recent-activity'
@@ -114,6 +132,10 @@ _openapi:
         id: fork-an-exact-release-after-explicit-draft-creation-confirmation
       - content: Submit feedback against an exact release after explicit confirmation
         id: submit-feedback-against-an-exact-release-after-explicit-confirmation
+      - content: List the current actor's recent private files
+        id: list-the-current-actors-recent-private-files
+      - content: Upload one actor-private Assistant file
+        id: upload-one-actor-private-assistant-file
       - content: Upload one governed file and bind it to an Assistant conversation
         id: upload-one-governed-file-and-bind-it-to-an-assistant-conversation
       - content: Stream an answer from permission-verified knowledge
@@ -134,6 +156,14 @@ _openapi:
         id: list-server-governed-assistant-model-choices-for-the-current-route
       - content: Hydrate currently authorized citations for one owned Assistant answer
         id: hydrate-currently-authorized-citations-for-one-owned-assistant-answer
+      - content: Read one owned private file's processing state
+        id: read-one-owned-private-files-processing-state
+      - content: Deny and schedule cleanup of one owned private file
+        id: deny-and-schedule-cleanup-of-one-owned-private-file
+      - content: Stream one freshly owner-authorized private file
+        id: stream-one-freshly-owner-authorized-private-file
+      - content: Read one freshly owner-authorized private citation excerpt
+        id: read-one-freshly-owner-authorized-private-citation-excerpt
       - content: List the current actor's conversations by recent activity
         id: list-the-current-actors-conversations-by-recent-activity
       - content: Replay a tenant- and actor-scoped full conversation transcript
@@ -154,7 +184,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack/{itemKey}","method":"put"},{"path":"/api/assistant/messages/{messageId}/feedback","method":"delete"},{"path":"/api/assistant/messages/{messageId}/feedback","method":"put"},{"path":"/api/assistant/conversations/{conversationId}/model","method":"put"},{"path":"/api/assistant/tools/knowledge-search","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-run","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-render","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/fork","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/feedback","method":"post"},{"path":"/api/assistant/evidence","method":"post"},{"path":"/api/assistant/chat","method":"post"},{"path":"/api/assistant/conversations/{conversationId}","method":"patch"},{"path":"/api/assistant/conversations/{conversationId}","method":"delete"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/work-instruction","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-form","method":"get"},{"path":"/api/assistant/tools/asset-recommendations","method":"get"},{"path":"/api/assistant/starters","method":"get"},{"path":"/api/assistant/model-options","method":"get"},{"path":"/api/assistant/messages/{messageId}/citations","method":"get"},{"path":"/api/assistant/conversations","method":"get"},{"path":"/api/assistant/conversations/{conversationId}/messages","method":"get"},{"path":"/api/assistant/conversations/{conversationId}/evidence","method":"get"},{"path":"/api/assistant/conversations/{conversationId}/evidence/{bindingId}","method":"get"}]} showTitle showDescription />
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack/{itemKey}","method":"put"},{"path":"/api/assistant/messages/{messageId}/feedback","method":"delete"},{"path":"/api/assistant/messages/{messageId}/feedback","method":"put"},{"path":"/api/assistant/conversations/{conversationId}/model","method":"put"},{"path":"/api/assistant/tools/knowledge-search","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-run","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-render","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/fork","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/feedback","method":"post"},{"path":"/api/assistant/files","method":"get"},{"path":"/api/assistant/files","method":"post"},{"path":"/api/assistant/evidence","method":"post"},{"path":"/api/assistant/chat","method":"post"},{"path":"/api/assistant/conversations/{conversationId}","method":"patch"},{"path":"/api/assistant/conversations/{conversationId}","method":"delete"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/work-instruction","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-form","method":"get"},{"path":"/api/assistant/tools/asset-recommendations","method":"get"},{"path":"/api/assistant/starters","method":"get"},{"path":"/api/assistant/model-options","method":"get"},{"path":"/api/assistant/messages/{messageId}/citations","method":"get"},{"path":"/api/assistant/files/{fileId}","method":"get"},{"path":"/api/assistant/files/{fileId}","method":"delete"},{"path":"/api/assistant/files/{fileId}/content","method":"get"},{"path":"/api/assistant/files/{fileId}/chunks/{chunkId}","method":"get"},{"path":"/api/assistant/conversations","method":"get"},{"path":"/api/assistant/conversations/{conversationId}/messages","method":"get"},{"path":"/api/assistant/conversations/{conversationId}/evidence","method":"get"},{"path":"/api/assistant/conversations/{conversationId}/evidence/{bindingId}","method":"get"}]} showTitle showDescription />
     </>
   );
 }
