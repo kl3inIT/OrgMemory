@@ -1,9 +1,9 @@
 core:changelogs:
-  - content: "---\nsubject: Work with private files in Assistant\npackages:\n  orgmemory:\n    type: minor\n---\n\n## Features\n\nUpload or reuse up to three private files directly from the Assistant\npaperclip without publishing them to a Knowledge Space. Private files stay\nvisible only to their uploader, use the same structured document processing as\nKnowledge, and expire automatically after 30 days. Publishing durable governed\nKnowledge remains a separate explicit action.\n\n## Security\n\nPrivate-file turns recheck the uploader, organization, lifecycle, exact\nprocessing generation, and embedding profile before retrieval or download.\nDelete and expiry deny access before extracted content and stored objects are\ncleaned up; old answers retain only a non-clickable unavailable citation marker.\n"
-    filename: 2026-08-12-assistant-private-files.md
+  - content: "---\nsubject: Keep completed releases idle on later commits\npackages:\n  orgmemory:\n    type: patch\n---\n\n## Operations\n\nAfter a product release is fully published, a later green-main change with no\nrelease entry now remains an explicit release no-op instead of retrying the old\nrelease against newer repository content. Pending releases still resume and\ncontinue to block newer version work until recovery.\n"
+    filename: 2026-08-12-complete-lock-release-noop.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-12-assistant-private-files.md
+      - 2026-08-12-complete-lock-release-noop.md
     id: product:orgmemory
     updated: true
