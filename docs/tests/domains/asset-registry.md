@@ -14,7 +14,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets/**/*.test.ts`,
 `apps/web/test/e2e/asset-registry-golden-poc.spec.ts`.
 
-Reconciled: `2026-08-11-prompt-asset-authoring (7be9245e)`.
+Reconciled: `2026-08-11-prompt-asset-authoring (b90e79b8)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |

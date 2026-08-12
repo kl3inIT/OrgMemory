@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-11-prompt-asset-authoring (7be9245e)`.
+Reconciled: `2026-08-11-prompt-asset-authoring (b90e79b8)`.
 
 ## Current Behavior
 
