@@ -12,6 +12,7 @@ function source(citationNumber: number): AssistantSourceRef {
     citationNumber,
     title: `Sổ tay nhân sự ${citationNumber}`,
     url: `https://example.test/source-${citationNumber}`,
+    available: true,
   }
 }
 
@@ -95,6 +96,27 @@ describe("AssistantAnswer", () => {
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: /Open source 1/ })).not.toBeInTheDocument(),
     )
+  })
+
+  it("keeps an expired private-file marker visible but inert", () => {
+    const unavailable = {
+      ...source(1),
+      title: "Private file no longer available",
+      url: "",
+      available: false,
+    }
+
+    render(
+      <AssistantAnswer
+        content="Tài liệu nói rằng chính sách đã thay đổi. [1]"
+        sources={[unavailable]}
+        showEvidenceDisclaimer
+        onOpenSource={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText("Source 1 is no longer available")).toBeVisible()
+    expect(screen.queryByRole("button", { name: /Open source 1/ })).not.toBeInTheDocument()
   })
 
   it("keeps the rendered answer mounted while sources stream in", async () => {

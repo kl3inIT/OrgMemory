@@ -17,6 +17,7 @@ export interface AssistantSourceRef {
   title: string
   url: string
   excerptUrl?: string
+  available: boolean
 }
 
 interface AssistantSourcesPanelProps {
@@ -74,6 +75,7 @@ function SourcesPanelContent({
   const otherSources = sources.filter((source) => !citedIds.has(source.id))
 
   const openSource = (source: AssistantSourceRef) => {
+    if (!source.available) return
     onSelect(source.id)
     onPreview(source)
   }
@@ -161,11 +163,21 @@ function SourceListItem({
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`Preview source ${source.citationNumber}: ${source.title}`}
+      disabled={!source.available}
+      aria-label={
+        source.available
+          ? `Preview source ${source.citationNumber}: ${source.title}`
+          : `Source ${source.citationNumber} is no longer available`
+      }
       aria-current={selected ? "true" : undefined}
       className={cn(
         "group flex w-full gap-2.5 rounded-xl p-3 text-left transition-colors",
-        selected ? "bg-action-ghost-hover" : "hover:bg-surface-subtle",
+        !source.available && "cursor-default opacity-60",
+        selected
+          ? "bg-action-ghost-hover"
+          : source.available
+            ? "hover:bg-surface-subtle"
+            : undefined,
       )}
     >
       <span className="mt-0.5 grid size-5 shrink-0 place-items-center text-content-secondary">
@@ -187,7 +199,9 @@ function SourceListItem({
 }
 
 function sourceOrigin(source: AssistantSourceRef) {
+  if (!source.available) return "No longer available"
   if (source.url.startsWith("/api/citations/")) return "OrgMemory document"
+  if (source.url.startsWith("/api/assistant/files/")) return "Private Assistant file"
   try {
     return new URL(source.url).hostname
   } catch {

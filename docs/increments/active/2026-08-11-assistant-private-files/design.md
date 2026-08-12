@@ -4,8 +4,8 @@
 
 Selected with `REVISE`. The one-round Fable 5 challenge chose a reusable,
 retention-bounded `AssistantFile` subject to the conditions in
-`challenge-verdict.md`. Implementation remains blocked only on the required
-malware/DLP gate or an explicit project-owner waiver.
+`challenge-verdict.md`. The project owner explicitly waived malware/DLP for this
+increment after the pinned Onyx path was re-verified without either gate.
 
 ## Intent
 
@@ -109,11 +109,12 @@ document-processing engine, pins the resolved profile, and writes private
 chunks/embeddings keyed by organization, owner, file ID, and processing
 generation. The first delivery does not publish an Asset or graph projection.
 
-Server-side type detection is mandatory. `READY` additionally requires a
-malware/DLP scan to pass unless the project owner records an explicit temporary
-waiver in this increment. Download is always server-mediated, freshly
-owner-authorized, `nosniff`, sandboxed, and inline only for a closed safe-type
-allowlist. The browser receives no durable presigned object URL.
+Server-side type detection and Assistant-specific size/resource limits are
+mandatory. Malware scanning and DLP are explicitly out of scope by project-owner
+direction; parser success must not be described as a security scan. Download is
+always server-mediated, freshly owner-authorized, `nosniff`, sandboxed, and
+inline only for a closed safe-type allowlist. The browser receives no durable
+presigned object URL.
 
 Turn submission accepts at most three selected references. One turn uses one
 evidence lane in this delivery: private and governed selections cannot be mixed.
@@ -181,8 +182,8 @@ record is in `challenge-verdict.md`.
 - Never migrate or mutate existing governed evidence bindings.
 - Keep current Source/revision selection and citations functional.
 - Add private-file tables and APIs before switching the composer.
-- Keep the composer switch blocked until the malware/DLP gate is implemented or
-  the project owner records an explicit waiver.
+- Preserve the recorded project-owner malware/DLP waiver; do not add a fake scan
+  status or imply that parser admission is malware inspection.
 - Switch the paperclip only after owner-negative, expiry, deletion, exact-
   selection, retry, and parser-profile tests pass.
 - Keep `Publish to Knowledge` explicit and visually distinct.

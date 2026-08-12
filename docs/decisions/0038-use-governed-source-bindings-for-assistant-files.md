@@ -1,6 +1,6 @@
 # 0038 — Use governed Source bindings for Assistant files
 
-Status: accepted
+Status: superseded by [0039](0039-add-retention-bounded-actor-private-assistant-files.md)
 Date: 2026-08-10
 
 ## Context

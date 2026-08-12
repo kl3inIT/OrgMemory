@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 class SourceIngestionScheduler implements ApplicationListener<ContextClosedEvent> {
 
     private final SourceIngestionProcessor processor;
+    private final AssistantFileProcessor assistantFiles;
     private final SourceProcessingProperties properties;
     private final LongSupplier nanoTime;
     private volatile boolean acceptingWork = true;
@@ -26,29 +27,57 @@ class SourceIngestionScheduler implements ApplicationListener<ContextClosedEvent
     @Autowired
     SourceIngestionScheduler(
             SourceIngestionProcessor processor,
+            AssistantFileProcessor assistantFiles,
             SourceProcessingProperties properties) {
-        this(processor, properties, System::nanoTime);
+        this(processor, assistantFiles, properties, System::nanoTime);
+    }
+
+    SourceIngestionScheduler(
+            SourceIngestionProcessor processor,
+            AssistantFileProcessor assistantFiles,
+            SourceProcessingProperties properties,
+            LongSupplier nanoTime) {
+        this.processor = Objects.requireNonNull(processor, "processor");
+        this.assistantFiles = assistantFiles;
+        this.properties = Objects.requireNonNull(properties, "properties");
+        this.nanoTime = Objects.requireNonNull(nanoTime, "nanoTime");
+    }
+
+    SourceIngestionScheduler(
+            SourceIngestionProcessor processor,
+            SourceProcessingProperties properties) {
+        this(processor, null, properties, System::nanoTime);
     }
 
     SourceIngestionScheduler(
             SourceIngestionProcessor processor,
             SourceProcessingProperties properties,
             LongSupplier nanoTime) {
-        this.processor = Objects.requireNonNull(processor, "processor");
-        this.properties = Objects.requireNonNull(properties, "properties");
-        this.nanoTime = Objects.requireNonNull(nanoTime, "nanoTime");
+        this(processor, null, properties, nanoTime);
     }
 
     @Scheduled(fixedDelayString = "${orgmemory.ingestion.processing.poll-interval:2s}")
     void poll() {
         long startedAt = nanoTime.getAsLong();
-        for (int processed = 0;
-                processed < properties.maxJobsPerInvocation();
-                processed++) {
+        if (assistantFiles != null) assistantFiles.cleanupNext();
+        int processed = 0;
+        while (processed < properties.maxJobsPerInvocation()) {
             if (mustStop(startedAt)) {
                 return;
             }
-            if (processor.processNext() != WorkProcessingResult.PROCESSED) {
+            boolean madeProgress = false;
+            if (assistantFiles != null
+                    && assistantFiles.processNext() == WorkProcessingResult.PROCESSED) {
+                processed++;
+                madeProgress = true;
+            }
+            if (processed < properties.maxJobsPerInvocation()
+                    && (assistantFiles == null || !mustStop(startedAt))
+                    && processor.processNext() == WorkProcessingResult.PROCESSED) {
+                processed++;
+                madeProgress = true;
+            }
+            if (!madeProgress) {
                 return;
             }
         }

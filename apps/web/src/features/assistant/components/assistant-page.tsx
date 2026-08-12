@@ -3,6 +3,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import { type SourceUrlUIPart, type UIMessage } from "ai"
 import {
   Bot,
+  BookOpen,
   Check,
   ChevronsUpDown,
   Copy,
@@ -12,12 +13,20 @@ import {
   RotateCcw,
   ThumbsDown,
   ThumbsUp,
+  Upload,
   X,
 } from "lucide-react"
 import { Fragment, lazy, Suspense, type ReactNode, type RefObject } from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
+import {
+  Attachment,
+  AttachmentInfo,
+  AttachmentPreview,
+  AttachmentRemove,
+  Attachments,
+} from "@/components/ai-elements/attachments"
 import {
   Conversation,
   ConversationContent,
@@ -43,6 +52,10 @@ import {
 } from "@/components/ai-elements/model-selector"
 import {
   PromptInput,
+  PromptInputActionMenu,
+  PromptInputActionMenuContent,
+  PromptInputActionMenuItem,
+  PromptInputActionMenuTrigger,
   PromptInputBody,
   PromptInputButton,
   PromptInputFooter,
@@ -55,8 +68,16 @@ import {
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources"
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion"
 import { Button } from "@/components/ui/button"
+import { DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { createAssistantTransport } from "@/features/assistant/api/chat-transport"
 import { ASSISTANT_MESSAGE_MAX_CHARACTERS } from "@/features/assistant/assistant-message-constraints"
+import {
+  ASSISTANT_FILE_ACCEPT,
+  assistantFileShouldPoll,
+  assistantFileStatusLabel,
+  MAX_ASSISTANT_PRIVATE_FILES,
+  type AssistantFileView,
+} from "@/features/assistant/assistant-private-files"
 import {
   assistantEvidenceReady,
   assistantEvidenceShouldPoll,
@@ -86,14 +107,17 @@ import {
   deleteAssistantAnswerFeedbackMutation,
   getAssistantConversationHistoryOptions,
   getAssistantEvidenceOptions,
+  getAssistantFileOptions,
   getAssistantMessageCitationsOptions,
   getAssistantModelOptionsOptions,
   listAssistantStartersOptions,
   listAssistantConversationsQueryKey,
+  listRecentAssistantFilesOptions,
   listKnowledgeSpaceUploadTargetsOptions,
   selectAssistantConversationModelMutation,
   setAssistantAnswerFeedbackMutation,
   uploadAssistantEvidenceMutation,
+  uploadAssistantFileMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type {
   AssistantConversationMessageView,
@@ -141,7 +165,10 @@ function sourcesFor(message: UIMessage) {
       citationNumber,
       title: part.title ?? "Company knowledge",
       url,
-      excerptUrl: url.replace(/\/content$/, "/excerpt"),
+      excerptUrl: url.startsWith("/api/citations/")
+        ? url.replace(/\/content$/, "/excerpt")
+        : undefined,
+      available: true,
     })
   }
   return sources.sort((left, right) => left.citationNumber - right.citationNumber)
@@ -187,7 +214,8 @@ function citationUrl(rawUrl: string) {
     const sourceUrl = new URL(rawUrl, baseUrl)
     if (
       sourceUrl.origin === baseUrl.origin &&
-      /^\/api\/citations\/[0-9a-f-]{36}\/content$/i.test(sourceUrl.pathname) &&
+      (/^\/api\/citations\/[0-9a-f-]{36}\/content$/i.test(sourceUrl.pathname) ||
+        /^\/api\/assistant\/files\/[0-9a-f-]{36}\/content$/i.test(sourceUrl.pathname)) &&
       sourceUrl.search === "" &&
       sourceUrl.hash === ""
     ) {
@@ -205,8 +233,13 @@ function citationExcerptUrl(rawUrl: string) {
     const sourceUrl = new URL(rawUrl, baseUrl)
     if (
       sourceUrl.origin === baseUrl.origin &&
-      /^\/api\/citations\/[0-9a-f-]{36}\/excerpt$/i.test(sourceUrl.pathname) &&
-      sourceUrl.search === "" &&
+      (/^\/api\/citations\/[0-9a-f-]{36}\/excerpt$/i.test(sourceUrl.pathname) ||
+        /^\/api\/assistant\/files\/[0-9a-f-]{36}\/chunks\/[0-9a-f-]{36}$/i.test(
+          sourceUrl.pathname,
+        )) &&
+      (sourceUrl.pathname.startsWith("/api/citations/")
+        ? sourceUrl.search === ""
+        : /^\?generation=[1-9]\d*$/.test(sourceUrl.search)) &&
       sourceUrl.hash === ""
     ) {
       return sourceUrl.pathname
@@ -226,13 +259,13 @@ function hydratedSources(citations: AssistantCitationResponse[] | undefined) {
     const excerptUrl = citation.excerptUrl
       ? citationExcerptUrl(citation.excerptUrl)
       : null
+    const available = citation.available !== false
     if (
       !citation.sourceId ||
       !citationNumber ||
       !Number.isSafeInteger(citationNumber) ||
       seen.has(citationNumber) ||
-      !url ||
-      !excerptUrl
+      (available && (!url || !excerptUrl))
     ) {
       continue
     }
@@ -241,8 +274,9 @@ function hydratedSources(citations: AssistantCitationResponse[] | undefined) {
       id: citation.sourceId,
       citationNumber,
       title: citation.title?.trim() || "Company knowledge",
-      url,
-      excerptUrl,
+      url: url ?? "",
+      excerptUrl: excerptUrl ?? undefined,
+      available,
     })
   }
   return sources.sort((left, right) => left.citationNumber - right.citationNumber)
@@ -477,8 +511,11 @@ export function AssistantPage({
   const conversationIdRef = useRef(conversationId)
   const modelActivationIdRef = useRef<string | undefined>(undefined)
   const evidenceBindingIdsRef = useRef<string[]>([])
+  const assistantFileIdsRef = useRef<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedModelActivationId, setSelectedModelActivationId] = useState<string>()
   const [evidenceBindings, setEvidenceBindings] = useState<AssistantEvidenceBindingView[]>([])
+  const [selectedAssistantFiles, setSelectedAssistantFiles] = useState<AssistantFileView[]>([])
   const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false)
   const locallyCreatedConversationRef = useRef<string | undefined>(undefined)
   const nextTitleRef = useRef("New conversation")
@@ -492,6 +529,7 @@ export function AssistantPage({
         conversationId: () => conversationIdRef.current,
         modelActivationId: () => modelActivationIdRef.current,
         evidenceBindingIds: () => evidenceBindingIdsRef.current,
+        assistantFileIds: () => assistantFileIdsRef.current,
         onConversationId: (nextConversationId) => {
           if (!conversationIdRef.current) {
             locallyCreatedConversationRef.current = nextConversationId
@@ -592,6 +630,8 @@ export function AssistantPage({
       if (!isAbort && !isError) {
         evidenceBindingIdsRef.current = []
         setEvidenceBindings([])
+        assistantFileIdsRef.current = []
+        setSelectedAssistantFiles([])
       }
       const invalidations = [
         queryClient.invalidateQueries({
@@ -652,6 +692,31 @@ export function AssistantPage({
     ...modelOptionsDefinition,
     queryKey: scopeActorQueryKey(modelOptionsDefinition.queryKey, actorKey),
   })
+  const recentAssistantFilesDefinition = listRecentAssistantFilesOptions({
+    query: { page: 0, limit: 20 },
+  })
+  const recentAssistantFiles = useQuery({
+    ...recentAssistantFilesDefinition,
+    queryKey: scopeActorQueryKey(recentAssistantFilesDefinition.queryKey, actorKey),
+  })
+  const assistantFileStatusQueries = useQueries({
+    queries: selectedAssistantFiles.map((file) => {
+      const definition = getAssistantFileOptions({ path: { fileId: file.id } })
+      return {
+        ...definition,
+        queryKey: scopeActorQueryKey(definition.queryKey, actorKey),
+        refetchInterval: (query: { state: { data?: AssistantFileView } }) =>
+          assistantFileShouldPoll(query.state.data?.status) ? 1_500 : false,
+      }
+    }),
+  })
+  const currentAssistantFiles = selectedAssistantFiles.map(
+    (file, index) => assistantFileStatusQueries[index]?.data ?? file,
+  )
+  const privateFilesReady =
+    !assistantFileStatusQueries.some((query) => query.isError) &&
+    currentAssistantFiles.every((file) => file.status === "READY")
+  const uploadPrivateFile = useMutation(uploadAssistantFileMutation())
   const uploadTargets = useQuery({
     ...listKnowledgeSpaceUploadTargetsOptions(),
     queryKey: scopeActorQueryKey(
@@ -723,6 +788,8 @@ export function AssistantPage({
     setSelectedModelActivationId(undefined)
     evidenceBindingIdsRef.current = []
     setEvidenceBindings([])
+    assistantFileIdsRef.current = []
+    setSelectedAssistantFiles([])
     setSourcePanel(null)
     setPreviewSource(null)
     setFeedbackByMessage({})
@@ -745,6 +812,10 @@ export function AssistantPage({
       binding.id ? [binding.id] : [],
     )
   }, [evidenceBindings])
+
+  useEffect(() => {
+    assistantFileIdsRef.current = selectedAssistantFiles.map((file) => file.id)
+  }, [selectedAssistantFiles])
 
   useEffect(() => {
     if (
@@ -822,7 +893,65 @@ export function AssistantPage({
     [],
   )
 
+  async function addPrivateFiles(files: FileList | null) {
+    if (!files?.length) return
+    if (evidenceBindings.length > 0) {
+      toast.error("Remove governed Knowledge before attaching private files.")
+      return
+    }
+    const remaining = MAX_ASSISTANT_PRIVATE_FILES - assistantFileIdsRef.current.length
+    const uploads = Array.from(files).slice(0, remaining)
+    if (uploads.length < files.length) {
+      toast.error("A turn can include at most three files.")
+    }
+    for (const file of uploads) {
+      try {
+        const uploaded = await uploadPrivateFile.mutateAsync({ body: { file } })
+        setSelectedAssistantFiles((current) =>
+          current.some((item) => item.id === uploaded.id)
+            ? current
+            : [...current, uploaded].slice(0, MAX_ASSISTANT_PRIVATE_FILES),
+        )
+      } catch (error) {
+        toast.error(apiErrorMessage(error, `Could not upload ${file.name}.`))
+      }
+    }
+    await queryClient.invalidateQueries({
+      queryKey: scopeActorQueryKey(recentAssistantFilesDefinition.queryKey, actorKey),
+    })
+  }
+
+  function toggleRecentFile(file: AssistantFileView) {
+    if (evidenceBindings.length > 0) {
+      toast.error("Remove governed Knowledge before attaching private files.")
+      return
+    }
+    if (file.status !== "READY") {
+      toast.error("This file is not ready yet.")
+      return
+    }
+    setSelectedAssistantFiles((current) => {
+      if (current.some((item) => item.id === file.id)) {
+        return current.filter((item) => item.id !== file.id)
+      }
+      if (current.length >= MAX_ASSISTANT_PRIVATE_FILES) {
+        toast.error("A turn can include at most three files.")
+        return current
+      }
+      return [...current, file]
+    })
+  }
+
+  function removePrivateFile(fileId: string) {
+    setSelectedAssistantFiles((current) =>
+      current.filter((file) => file.id !== fileId),
+    )
+  }
+
   async function addEvidence(input: UploadSourceInput) {
+    if (assistantFileIdsRef.current.length > 0) {
+      throw new Error("Remove private files before publishing governed Knowledge.")
+    }
     if (evidenceBindingIdsRef.current.length >= MAX_ASSISTANT_EVIDENCE_FILES) {
       throw new Error("A turn can include at most three files.")
     }
@@ -881,6 +1010,10 @@ export function AssistantPage({
     }
     if (evidenceBindings.length > 0 && !evidenceReady) {
       toast.error("Wait until every selected file is ready.")
+      return
+    }
+    if (selectedAssistantFiles.length > 0 && !privateFilesReady) {
+      toast.error("Wait until every selected private file is ready.")
       return
     }
     if (
@@ -945,7 +1078,46 @@ export function AssistantPage({
       onSubmit={submit}
       className="w-full [&_[data-slot=input-group]]:rounded-3xl [&_[data-slot=input-group]]:border-border-subtle [&_[data-slot=input-group]]:bg-assistant-composer [&_[data-slot=input-group]]:shadow-sm [&_[data-slot=input-group]]:ring-0"
     >
-      {currentEvidenceBindings.length > 0 ? (
+      {currentAssistantFiles.length > 0 ? (
+        <PromptInputHeader
+          aria-label="Selected private files"
+          role="status"
+          aria-live="polite"
+          aria-atomic="false"
+        >
+          <Attachments variant="inline">
+            {currentAssistantFiles.map((file, index) => (
+              <Attachment
+                key={file.id}
+                data={{
+                  type: "file",
+                  id: file.id,
+                  filename: file.fileName,
+                  mediaType: file.mediaType,
+                  url: `/api/assistant/files/${file.id}/content`,
+                }}
+                onRemove={busy ? undefined : () => removePrivateFile(file.id)}
+                className="max-w-full bg-surface-subtle"
+              >
+                <AttachmentPreview
+                  fallbackIcon={
+                    assistantFileShouldPoll(file.status) ? (
+                      <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+                    ) : undefined
+                  }
+                />
+                <AttachmentInfo className="max-w-48" />
+                <span className="text-xs font-normal text-content-muted">
+                  {assistantFileStatusQueries[index]?.isError
+                    ? "Status unavailable"
+                    : assistantFileStatusLabel(file.status)}
+                </span>
+                <AttachmentRemove label={`Remove ${file.fileName}`} />
+              </Attachment>
+            ))}
+          </Attachments>
+        </PromptInputHeader>
+      ) : currentEvidenceBindings.length > 0 ? (
         <PromptInputHeader
           aria-label="Selected governed files"
           role="status"
@@ -999,19 +1171,103 @@ export function AssistantPage({
       </PromptInputBody>
       <PromptInputFooter>
         <PromptInputTools>
-          <PromptInputButton
-            type="button"
-            tooltip={evidenceUploadDisabledReason ?? "Attach governed file"}
-            disabled={Boolean(evidenceUploadDisabledReason)}
-            aria-label="Attach governed file"
-            onClick={() => setEvidenceDialogOpen(true)}
+          <PromptInputActionMenu
+            onOpenChange={(open) => {
+              if (open) void recentAssistantFiles.refetch()
+            }}
           >
-            {uploadEvidence.isPending ? (
-              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Paperclip className="size-4" aria-hidden="true" />
-            )}
-          </PromptInputButton>
+            <PromptInputActionMenuTrigger
+              tooltip="Attach files"
+              disabled={busy}
+              aria-label="Attach files"
+            >
+              {uploadPrivateFile.isPending ? (
+                <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Paperclip className="size-4" aria-hidden="true" />
+              )}
+            </PromptInputActionMenuTrigger>
+            <PromptInputActionMenuContent className="w-80">
+              <PromptInputActionMenuItem
+                disabled={
+                  uploadPrivateFile.isPending ||
+                  evidenceBindings.length > 0 ||
+                  selectedAssistantFiles.length >= MAX_ASSISTANT_PRIVATE_FILES
+                }
+                onSelect={(event) => {
+                  event.preventDefault()
+                  fileInputRef.current?.click()
+                }}
+              >
+                <Upload aria-hidden="true" />
+                Upload from device
+              </PromptInputActionMenuItem>
+              <DropdownMenuLabel className="pb-1 text-xs text-content-muted">
+                Recent files · private to you
+              </DropdownMenuLabel>
+              {recentAssistantFiles.isPending ? (
+                <div className="flex items-center gap-2 px-2 py-2 text-sm text-content-muted">
+                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                  Loading recent files…
+                </div>
+              ) : recentAssistantFiles.isError ? (
+                <div className="px-2 py-2 text-sm text-status-danger-content">
+                  Recent files are unavailable.
+                </div>
+              ) : recentAssistantFiles.data?.items.length ? (
+                recentAssistantFiles.data.items.slice(0, 8).map((file) => {
+                  const selected = selectedAssistantFiles.some((item) => item.id === file.id)
+                  const selectionFull =
+                    selectedAssistantFiles.length >= MAX_ASSISTANT_PRIVATE_FILES && !selected
+                  return (
+                    <PromptInputActionMenuItem
+                      key={file.id}
+                      disabled={
+                        evidenceBindings.length > 0 ||
+                        file.status !== "READY" ||
+                        selectionFull
+                      }
+                      onSelect={() => toggleRecentFile(file)}
+                    >
+                      {selected ? <Check aria-hidden="true" /> : <FileText aria-hidden="true" />}
+                      <span className="min-w-0 flex-1 truncate">{file.fileName}</span>
+                      <span className="text-xs text-content-muted">
+                        {assistantFileStatusLabel(file.status)}
+                      </span>
+                    </PromptInputActionMenuItem>
+                  )
+                })
+              ) : (
+                <div className="px-2 py-2 text-sm text-content-muted">
+                  No recent files yet.
+                </div>
+              )}
+              <DropdownMenuSeparator />
+              <PromptInputActionMenuItem
+                disabled={
+                  selectedAssistantFiles.length > 0 ||
+                  Boolean(evidenceUploadDisabledReason)
+                }
+                onSelect={() => setEvidenceDialogOpen(true)}
+              >
+                <BookOpen aria-hidden="true" />
+                Publish to Knowledge
+              </PromptInputActionMenuItem>
+            </PromptInputActionMenuContent>
+          </PromptInputActionMenu>
+          <input
+            ref={fileInputRef}
+            className="sr-only"
+            type="file"
+            accept={ASSISTANT_FILE_ACCEPT}
+            multiple
+            tabIndex={-1}
+            aria-hidden="true"
+            onChange={(event) => {
+              void addPrivateFiles(event.currentTarget.files)
+              event.currentTarget.value = ""
+            }}
+          />
           {evidenceDialogOpen ? (
             <Suspense fallback={null}>
               <SourceUploadDialog
@@ -1044,7 +1300,8 @@ export function AssistantPage({
             (!text.trim() ||
               modelOptions.isPending ||
               selectModel.isPending ||
-              (evidenceBindings.length > 0 && !evidenceReady))
+              (evidenceBindings.length > 0 && !evidenceReady) ||
+              (selectedAssistantFiles.length > 0 && !privateFilesReady))
           }
           className="rounded-full"
         />
@@ -1155,7 +1412,7 @@ export function AssistantPage({
                         showEvidenceDisclaimer={message.role === "assistant"}
                         onOpenSource={(sourceId) => {
                           const source = sources.find((candidate) => candidate.id === sourceId)
-                          if (source) setPreviewSource(source)
+                          if (source?.available) setPreviewSource(source)
                         }}
                       />
                     </MessageContent>
@@ -1175,16 +1432,25 @@ export function AssistantPage({
                       />
                       <SourcesContent>
                         {citedSources.map((source) => (
-                          <Source
-                            key={source.id}
-                            href={source.url}
-                            title={source.title}
-                            target="_self"
-                            onClick={(event) => {
-                              event.preventDefault()
-                              setPreviewSource(source)
-                            }}
-                          />
+                          source.available ? (
+                            <Source
+                              key={source.id}
+                              href={source.url}
+                              title={source.title}
+                              target="_self"
+                              onClick={(event) => {
+                                event.preventDefault()
+                                setPreviewSource(source)
+                              }}
+                            />
+                          ) : (
+                            <span
+                              key={source.id}
+                              className="flex items-center gap-2 text-content-muted"
+                            >
+                              [{source.citationNumber}] Private file no longer available
+                            </span>
+                          )
                         ))}
                       </SourcesContent>
                     </Sources>

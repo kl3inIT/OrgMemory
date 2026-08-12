@@ -12,12 +12,14 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `core/src/main/java/com/orgmemory/core/assetregistry/skill`,
 `integrations/ai-model-gateways`,
 `apps/api/src/main/java/com/orgmemory/api/assistant`,
+`apps/worker/src/main/java/com/orgmemory/worker/ingestion`,
+`core/src/main/resources/db/migration/V33__assistant_private_files.sql`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`,
 `apps/web/src/components/ai-elements/model-selector.tsx`, and
 `apps/web/src/components/ai-elements/prompt-input.tsx`.
 
-Reconciled: `2026-08-10-assistant-file-evidence (781c1aaa)`.
+Reconciled: `2026-08-11-assistant-private-files (pending implementation commit)`.
 
 ## Current Behavior
 
@@ -65,7 +67,53 @@ object-storage URLs. Every open performs one fresh canonical authorization and
 integrity check; missing, changed, and denied citations are wire-equivalent
 opaque `404` responses.
 
-The composer can publish at most three files as durable governed Knowledge for
+The paperclip exposes two explicit products rather than reusing one upload
+dialog. `Upload from device` creates an actor-private Assistant file; `Publish
+to Knowledge` opens the existing governed Source flow and retains its Space and
+classification disclosure. A turn may select up to three distinct private
+files or up to three governed bindings, never both. Removing a private chip
+changes only the pending selection; explicit delete is a separate destructive
+lifecycle action.
+
+An Assistant private file has immutable organization, actor, object identity,
+digest, filename, media type, size, creation time, and fixed non-renewing
+30-day expiry. Admission accepts parser-backed text, Markdown, CSV, HTML, RTF,
+PDF, legacy/OOXML Office, and OpenDocument formats up to 25 MB; it rejects
+images, declared archives, empty files, unsupported suffixes, obvious signature
+mismatches, and unsafe filenames. HTML and RTF are served only as browser-safe
+plain-text attachments; Office and OpenDocument files are attachment-only. The
+API never returns an object-store or presigned URL and rechecks actor,
+organization, TTL, and lifecycle on every status, excerpt, content, and delete
+operation. Recent Files is bounded, paginated, and actor-scoped.
+
+Worker is the sole private-file parser caller. It verifies stored length and
+SHA-256, then reuses the canonical parser and `structured-block-v1` engine under
+immutable requested and resolved processing-profile snapshots. Claims have a
+finite lease and at most three attempts. Deterministic parser, format, and
+profile failures stop retry; transient object/model failures retry. Private
+chunks live in their own actor- and organization-scoped table and never create
+a Source, revision, Asset, ACL snapshot, publication outbox row, or shared
+retrieval-cache entry. The worker alternates private and governed claims within
+the existing burst and wall-clock limits.
+
+Private turn submission atomically stores each selected file and its current
+processing generation beside the USER message. Claim time requires every exact
+selection to remain owned, READY, and unexpired. Retrieval queries only those
+private file identities, requires one active document-embedding profile and
+matching dimensions, combines private lexical/vector scores, and refuses model
+generation when any selected file is unusable or yields no evidence. Private
+and Knowledge citations have distinct identities and hydration paths. Replay
+rechecks owner, TTL, lifecycle, and generation; delete or expiry leaves an
+inert `Private file no longer available` marker with no content URL.
+
+Deletion and expiry deny new use before cleanup. Cleanup deletes the private
+chunk projection transactionally, retries object deletion, and retains only the
+file tombstone and citation identity needed for deterministic replay. Malware
+and DLP inspection are explicitly outside this increment under the recorded
+project-owner waiver after pinned Onyx was verified to have no such upload gate;
+parser admission is not represented as malware inspection.
+
+The governed lane still publishes at most three files as durable Knowledge for
 one pending turn. The actor chooses a currently writable Knowledge Space and a
 classification; the Assistant upload use case validates any supplied owned
 conversation before side effects, then delegates the bytes to the canonical
@@ -73,10 +121,10 @@ Source upload port. Source Ledger remains the owner of format admission,
 per-format limits, object storage, immutable Source/revision identity, and the
 asynchronous ingestion job. Assistant stores only an organization-, actor-, and
 conversation-scoped binding to that exact Source revision. It has no parser
-caller, transient attachment store, provider file handle, bind-existing-Source
-endpoint, OCR lane, image admission, or request-thread parsing path. The browser
-states that upload publishes to the selected Space audience; an actor with no
-`can_create_asset` Space cannot open the attachment flow.
+caller, provider file handle, bind-existing-Source endpoint, OCR lane, image
+admission, or request-thread parsing path. The browser states that publication
+uses the selected Space audience; an actor with no writable Space cannot enter
+that governed flow.
 
 Binding presentation is derived rather than independently mutable. Source
 processing produces `PROCESSING`, terminal parser states produce `FAILED`, and

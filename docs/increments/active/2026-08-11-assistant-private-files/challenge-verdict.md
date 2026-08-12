@@ -37,10 +37,11 @@ Recent Files.
 
 ## Committed recommendation
 
-Ship a reusable `AssistantFile`, subject to every condition below. Do not begin
-the composer switch until the unresolved malware/DLP gate has either an
-implemented scanner or an explicit project-owner waiver recorded in this
-increment.
+Ship a reusable `AssistantFile`, subject to every condition below. On 2026-08-11
+the project owner explicitly waived a malware/DLP integration for this increment
+after the pinned Onyx upload path was re-verified and found to have no antivirus,
+ClamAV, malware, or DLP gate. Assistant admission, parser isolation, size/resource
+limits, and the closed archive/image scope remain mandatory.
 
 1. Private chunks use a distinct citation identity and owner-authorized
    hydration/download path. Expired or deleted evidence leaves an inert message
@@ -52,9 +53,10 @@ increment.
 4. Claim locks or compare-and-sets lifecycle state. Delete denies new use before
    asynchronous cleanup; cleanup order is DB denial marker, private projection,
    then object bytes, with idempotent reconciliation for partial failures.
-5. Server-side type detection is mandatory. A malware/DLP scan or explicit
-   owner-approved waiver is required before `READY`; download serving is
-   server-mediated with `nosniff`, sandboxing, and a closed inline allowlist.
+5. Server-side type detection and the channel's size/resource limits are
+   mandatory. Malware/DLP is an explicitly waived non-goal for this increment;
+   download serving is server-mediated with `nosniff`, sandboxing, and a closed
+   inline allowlist.
 6. Recent Files is actor-and-organization scoped, bounded, and paginated. Actor
    offboarding and organization deletion enter the cleanup lifecycle. Retained
    filename/media snapshots are bounded and sanitized.
@@ -84,3 +86,7 @@ legal hold, images/OCR, archives, email recursion, provider-native files, TTL
 renewal, mixed-lane turn, cross-actor deduplication identity, or migration of
 existing governed bindings. `Publish to Knowledge` remains a separate Source
 registration; its bridge mechanics require a later publication review.
+
+Malware scanning and DLP remain future security capabilities rather than hidden
+prerequisites of this lane. Reconsidering that waiver requires its own explicit
+scope; it must not be silently inferred from parser success.

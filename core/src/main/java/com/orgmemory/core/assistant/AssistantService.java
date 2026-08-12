@@ -44,6 +44,7 @@ public class AssistantService {
             new DefaultAssistantTurnObservationConvention();
 
     private final PermissionAwareKnowledgeSearch retrieval;
+    private final AssistantPrivateFileSearch privateFileRetrieval;
     private final ChatModelPort chat;
     private final AssistantAgentModelPort agent;
     private final ObservationRegistry observations;
@@ -86,7 +87,19 @@ public class AssistantService {
             ObservationRegistry observations,
             AssistantTurnEvent.RetrievalEngine engine,
             AssistantStageEventSink stages) {
+        this(retrieval, null, chat, agent, observations, engine, stages);
+    }
+
+    public AssistantService(
+            PermissionAwareKnowledgeSearch retrieval,
+            AssistantPrivateFileSearch privateFileRetrieval,
+            ChatModelPort chat,
+            AssistantAgentModelPort agent,
+            ObservationRegistry observations,
+            AssistantTurnEvent.RetrievalEngine engine,
+            AssistantStageEventSink stages) {
         this.retrieval = retrieval;
+        this.privateFileRetrieval = privateFileRetrieval;
         this.chat = chat;
         this.agent = agent;
         this.observations = observations;
@@ -236,78 +249,122 @@ public class AssistantService {
             }
 
             int evidenceCount = search.evidence().size();
-            int citationCount = prepared.citations().size();
-            // A returned Flux is cold and could be subscribed more than once; Micrometer's
-            // stop is not idempotent, so the second terminal signal must not reach it.
-            java.util.concurrent.atomic.AtomicBoolean stopped =
-                    new java.util.concurrent.atomic.AtomicBoolean();
-            java.util.concurrent.atomic.AtomicBoolean firstTokenStageEmitted =
-                    new java.util.concurrent.atomic.AtomicBoolean();
-            Sinks.Many<AssistantAgentActivity> activitySink =
-                    Sinks.many().replay().limit(32);
-            Flux<String> generated = routeAuthority == null || agent == null
-                    ? chat.stream(
-                            actor.organizationId(),
-                            AiWorkload.ASSISTANT_CHAT,
-                            prepared.request(),
-                            conversationId)
-                    : agent.stream(
-                            routeAuthority,
-                            prepared.request(),
-                            conversationId,
-                            actor,
-                            requestId,
-                            activity -> activitySink.tryEmitNext(activity));
-            Flux<String> content = generated
-                    .filter(token -> token != null && !token.isEmpty())
-                    .switchIfEmpty(Flux.error(new AssistantUnavailableException(
-                            "The assistant returned no answer")))
-                    .onErrorMap(
-                            error -> !(error instanceof AssistantUnavailableException),
-                            error -> new AssistantUnavailableException("The assistant is unavailable", error))
-                    // Before the error mapping's terminal signal, so the moment the caller
-                    // could first see something is recorded even on a stream that later fails.
-                    .doOnNext(token -> {
-                        long firstTokenAt = System.nanoTime();
-                        context.firstTokenAt(firstTokenAt);
-                        if (firstTokenStageEmitted.compareAndSet(
-                                false,
-                                true)) {
-                            emitStage(
-                                    AssistantStageEventSink.Stage
-                                            .RETRIEVAL_TO_FIRST_TOKEN,
-                                    AssistantStageEventSink.Outcome.SUCCEEDED,
-                                    retrievalCompletedAt,
-                                    null);
-                        }
-                    })
-                    .doOnError(error -> {
-                        context.unavailable(System.nanoTime(), "assistant_stream_failed");
-                        observation.error(error);
-                        LOG.warn(
-                                "assistant turn unavailable failure_code={}",
-                                "assistant_stream_failed",
-                                error);
-                    })
-                    .doOnComplete(() ->
-                            context.answered(System.nanoTime(), evidenceCount, citationCount))
-                    .doOnCancel(() ->
-                            context.unavailable(System.nanoTime(), "assistant_stream_cancelled"))
-                    .doFinally(signal -> {
-                        activitySink.tryEmitComplete();
-                        if (stopped.compareAndSet(false, true)) {
-                            observation.stop();
-                        }
-                    });
-
-            return new AssistantTurn(
-                    search.requestId(),
-                    prepared.citations(),
-                    content,
-                    activitySink.asFlux());
+            return generate(
+                    actor, requestId, conversationId, routeAuthority,
+                    search.requestId(), prepared, evidenceCount,
+                    retrievalCompletedAt, context, observation);
         } catch (RuntimeException exception) {
             throw failed(observation, context, exception);
         }
+    }
+
+    public AssistantTurn startTurnWithPrivateFiles(
+            CurrentActor actor,
+            String question,
+            Integer requestedLimit,
+            String requestId,
+            String conversationId,
+            AssistantModelRouteAuthority routeAuthority,
+            long startedAtNanos,
+            AssistantPrivateFileSelection selection) {
+        AssistantTurnObservationContext context = new AssistantTurnObservationContext(
+                actor.organizationId(), engine, startedAtNanos);
+        Observation observation = AssistantTurnObservationDocumentation.TURN
+                .observation(null, DEFAULT_CONVENTION, () -> context, observations)
+                .start();
+        try {
+            if (privateFileRetrieval == null) {
+                throw new AssistantUnavailableException(
+                        "Private file retrieval is unavailable",
+                        null,
+                        "assistant_private_file_unavailable");
+            }
+            AssistantPrivateFileSearchResult search = privateFileRetrieval.search(
+                    actor, question, requestedLimit, requestId, selection);
+            context.retrievalCompletedAt(System.nanoTime());
+            if (search.evidence().isEmpty()) {
+                context.foundNoEvidence(System.nanoTime());
+                observation.stop();
+                return new AssistantTurn(
+                        search.requestId(), List.of(), Flux.just(noAccessibleEvidence(question)));
+            }
+            long retrievalCompletedAt = System.nanoTime();
+            PreparedTurn prepared;
+            try {
+                AssistantPromptFactory.PreparedPrompt prompt = AssistantPromptFactory.createPrivate(
+                        question, search.evidence(), actor);
+                prepared = new PreparedTurn(prompt.request(), prompt.citations());
+                emitStage(
+                        AssistantStageEventSink.Stage.GROUNDING_TO_PROMPT,
+                        AssistantStageEventSink.Outcome.SUCCEEDED,
+                        retrievalCompletedAt,
+                        null);
+            } catch (RuntimeException failure) {
+                emitStage(
+                        AssistantStageEventSink.Stage.GROUNDING_TO_PROMPT,
+                        AssistantStageEventSink.Outcome.FAILED,
+                        retrievalCompletedAt,
+                        "prompt_assembly_failed");
+                throw failure;
+            }
+            return generate(
+                    actor, requestId, conversationId, routeAuthority,
+                    search.requestId(), prepared, search.evidence().size(),
+                    retrievalCompletedAt, context, observation);
+        } catch (RuntimeException exception) {
+            throw failed(observation, context, exception);
+        }
+    }
+
+    private AssistantTurn generate(
+            CurrentActor actor,
+            String requestId,
+            String conversationId,
+            AssistantModelRouteAuthority routeAuthority,
+            String resolvedRequestId,
+            PreparedTurn prepared,
+            int evidenceCount,
+            long retrievalCompletedAt,
+            AssistantTurnObservationContext context,
+            Observation observation) {
+        int citationCount = prepared.citations().size();
+        java.util.concurrent.atomic.AtomicBoolean stopped = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicBoolean firstTokenStageEmitted = new java.util.concurrent.atomic.AtomicBoolean();
+        Sinks.Many<AssistantAgentActivity> activitySink = Sinks.many().replay().limit(32);
+        Flux<String> generated = routeAuthority == null || agent == null
+                ? chat.stream(actor.organizationId(), AiWorkload.ASSISTANT_CHAT, prepared.request(), conversationId)
+                : agent.stream(
+                        routeAuthority, prepared.request(), conversationId, actor, requestId,
+                        activity -> activitySink.tryEmitNext(activity));
+        Flux<String> content = generated
+                .filter(token -> token != null && !token.isEmpty())
+                .switchIfEmpty(Flux.error(new AssistantUnavailableException("The assistant returned no answer")))
+                .onErrorMap(
+                        error -> !(error instanceof AssistantUnavailableException),
+                        error -> new AssistantUnavailableException("The assistant is unavailable", error))
+                .doOnNext(token -> {
+                    long firstTokenAt = System.nanoTime();
+                    context.firstTokenAt(firstTokenAt);
+                    if (firstTokenStageEmitted.compareAndSet(false, true)) {
+                        emitStage(
+                                AssistantStageEventSink.Stage.RETRIEVAL_TO_FIRST_TOKEN,
+                                AssistantStageEventSink.Outcome.SUCCEEDED,
+                                retrievalCompletedAt,
+                                null);
+                    }
+                })
+                .doOnError(error -> {
+                    context.unavailable(System.nanoTime(), "assistant_stream_failed");
+                    observation.error(error);
+                    LOG.warn("assistant turn unavailable failure_code={}", "assistant_stream_failed", error);
+                })
+                .doOnComplete(() -> context.answered(System.nanoTime(), evidenceCount, citationCount))
+                .doOnCancel(() -> context.unavailable(System.nanoTime(), "assistant_stream_cancelled"))
+                .doFinally(signal -> {
+                    activitySink.tryEmitComplete();
+                    if (stopped.compareAndSet(false, true)) observation.stop();
+                });
+        return new AssistantTurn(resolvedRequestId, prepared.citations(), content, activitySink.asFlux());
     }
 
     private static String noAccessibleEvidence(String question) {
