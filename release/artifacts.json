@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "releaseSourceSha": "af7ed3acfa27477c851681e62042938cd01de1c6",
+  "releaseSourceSha": "7a9a7625ce7a44f5e51cfa190d39fbe0756f695a",
   "product": {
-    "decisionRunId": 31561998985,
+    "decisionRunId": 31564587853,
     "manifestRunId": 31561998985,
     "commitSha": "af7ed3acfa27477c851681e62042938cd01de1c6",
     "images": [
@@ -45,13 +45,13 @@
     ]
   },
   "docs": {
-    "decisionRunId": 31561998969,
-    "manifestRunId": 31561998969,
-    "commitSha": "af7ed3acfa27477c851681e62042938cd01de1c6",
+    "decisionRunId": 31564587787,
+    "manifestRunId": 31562799536,
+    "commitSha": "e7febec673c0769f973018c78cb9e5517cd49d0d",
     "image": {
-      "reference": "ghcr.io/kl3init/orgmemory-docs:sha-af7ed3acfa27477c851681e62042938cd01de1c6",
-      "digest": "sha256:56153fb5f12d67598a8c8ee5ef16d439770fde0592e1fc6ba72d1ae4377f7411",
-      "sourceSha": "af7ed3acfa27477c851681e62042938cd01de1c6"
+      "reference": "ghcr.io/kl3init/orgmemory-docs:sha-e7febec673c0769f973018c78cb9e5517cd49d0d",
+      "digest": "sha256:fa4d2295c91752b7f50ac00e83e0182086b80d4e853cc09e6ca14f5fcac5be98",
+      "sourceSha": "e7febec673c0769f973018c78cb9e5517cd49d0d"
     }
   }
 }
