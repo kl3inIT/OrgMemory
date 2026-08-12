@@ -4,7 +4,7 @@
 
 - Branch: `feat/assistant-private-files`
 - Worktree: `D:\OrgMemory-worktrees\assistant-private-files`
-- Candidate commit: pending implementation commit
+- Implementation commit: `92448337`
 - Independent challenge: one Fable 5 response, verdict `REVISE`; accepted
   conditions are recorded in `challenge-verdict.md` and decision 0039.
 - Malware/DLP: explicitly waived for this increment after the pinned Onyx
