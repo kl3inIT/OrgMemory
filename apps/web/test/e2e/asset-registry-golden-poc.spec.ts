@@ -81,6 +81,295 @@ test("Skill publication stays in the owner-led Asset workspace", async ({
   expect(harness.browserErrors).toEqual([])
 })
 
+test("Prompt authoring creates one private Draft and evaluates the exact direct release", async ({
+  page,
+}) => {
+  const harness = await promptAuthoringHarness(page)
+  await page.emulateMedia({ colorScheme: "dark" })
+  await page.setViewportSize({ width: 1536, height: 1024 })
+
+  await page.goto("/assets/new/prompt")
+  await expect(page.getByRole("heading", { level: 1, name: "Create a Prompt" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Required" })).toHaveCount(0)
+  await expect(page.getByLabel("Scope")).toHaveCount(0)
+
+  await page.getByLabel("Prompt name").fill("Support ticket classifier")
+  await page.getByLabel("Description").fill("Classifies an incoming support ticket.")
+  await page.getByLabel("Intended users").fill("L1 Support")
+  await page.getByLabel("Task objective").fill("Classify incoming support tickets")
+  await page
+    .getByLabel("Prompt template")
+    .fill("Classify this support ticket.\n\nTicket:\n{{ticket_text}}\n\nReturn category and rationale.")
+  await page.getByRole("button", { name: "Add detected" }).click()
+  await page.getByLabel("Sensitive").click()
+
+  await page.getByRole("button", { name: "Optional", exact: true }).click()
+  await page.getByLabel("Knowledge requirements").fill("support runbook\nSLA policy")
+  await page.getByLabel("Namespace").fill("support")
+  await page.getByRole("combobox", { name: "Knowledge Space" }).click()
+  await page.getByRole("option", { name: "Support knowledge" }).click()
+
+  await page.getByRole("button", { name: "Add test case" }).click()
+  await page.getByRole("button", { name: /1\. Untitled case/ }).click()
+  await page.getByLabel("Case name").fill("Password reset")
+  await page.getByRole("textbox", { name: "ticket_text", exact: true }).fill(
+    "Synthetic password reset request",
+  )
+  await page.getByLabel("Expected fragments").fill("access")
+  await page.getByLabel("Forbidden fragments").fill("secret")
+  await page.getByLabel("I confirm these are synthetic, non-secret values").click()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.locator('[data-slot="page-layout"]').evaluate((element) => element.scrollTo(0, 0))
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true)
+  await page.setViewportSize({ width: 1536, height: 1024 })
+
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.locator('[data-slot="page-layout"]').evaluate((element) => element.scrollTo(0, 0))
+    await page.screenshot({
+      path: "../output/design-qa/prompt-asset-authoring.png",
+      fullPage: false,
+    })
+    await page.getByRole("heading", { name: "Usage contract" }).evaluate((element) =>
+      element.scrollIntoView({ block: "start" }),
+    )
+    await page.screenshot({
+      path: "../output/design-qa/prompt-asset-authoring-contract.png",
+      fullPage: false,
+    })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.locator('[data-slot="page-layout"]').evaluate((element) => element.scrollTo(0, 0))
+    await page.screenshot({
+      path: "../output/design-qa/prompt-asset-authoring-mobile.png",
+      fullPage: false,
+    })
+    await page.getByRole("heading", { name: "Usage contract" }).evaluate((element) =>
+      element.scrollIntoView({ block: "start" }),
+    )
+    await page.screenshot({
+      path: "../output/design-qa/prompt-asset-authoring-contract-mobile.png",
+      fullPage: false,
+    })
+    await page.setViewportSize({ width: 1536, height: 1024 })
+  }
+
+  await page.getByRole("button", { name: "Create private Draft" }).click()
+  await expect(page).toHaveURL(new RegExp(`/assets/${PROMPT_ID}/governance$`))
+  await expect(page.getByRole("heading", { name: "Asset workspace" })).toBeVisible()
+  expect(harness.createBodies).toHaveLength(1)
+  expect(harness.createBodies[0]).toMatchObject({
+    type: "PROMPT_TEMPLATE",
+    namespace: "support",
+    slug: "support-ticket-classifier",
+    knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+    draft: { title: "Support ticket classifier", schemaVersion: "1" },
+  })
+  const createdDraft = harness.createBodies[0]?.draft as { payload: string } | undefined
+  if (!createdDraft) {
+    throw new Error("Prompt create request did not include its atomic Draft")
+  }
+  const createdPayload = JSON.parse(createdDraft.payload)
+  expect(createdPayload.knowledgeRequirements).toEqual(["support runbook", "SLA policy"])
+  expect(createdPayload.evaluationCases).toHaveLength(1)
+
+  await page.getByLabel("Task objective").fill("Classify and route incoming support tickets")
+  await page.getByRole("button", { name: /1\. Password reset/ }).click()
+  await page.getByLabel("I confirm these are synthetic, non-secret values").click()
+  await page.getByRole("button", { name: "Save working copy" }).click()
+  await expect.poll(() => harness.updateBodies).toHaveLength(1)
+  expect(harness.updateBodies[0]).toMatchObject({ expectedLockVersion: 0 })
+  await expect(page.getByText("Prompt working copy saved")).toBeVisible()
+
+  await page.getByLabel("Version").fill("1.0.0")
+  await page.getByRole("button", { name: "Publish release" }).click()
+  await page.getByRole("button", { name: "Confirm publish release" }).click()
+  await expect(page.getByRole("tab", { name: "Release history" })).toHaveAttribute(
+    "data-state",
+    "active",
+  )
+  await expect(page.getByText("Direct", { exact: true })).toBeVisible()
+
+  await page.goto(`/assets/${PROMPT_ID}?release=${PROMPT_RELEASE_ID}`)
+  await expect(page.getByText("Release tests", { exact: true })).toBeVisible()
+  await expect(page.getByText("1 case embedded in version 1.0.0.")).toBeVisible()
+  await page.getByRole("button", { name: "Run release tests" }).click()
+  await expect(page.getByText("Run tests for version 1.0.0?")).toBeVisible()
+  await page.getByRole("button", { name: "Run exact release" }).click()
+  await expect(page.getByText("1/1 cases passed")).toBeVisible()
+  await expect(page.getByText("Password reset", { exact: true })).toBeVisible()
+  expect(harness.requests).toContain(
+    `POST /api/assets/${PROMPT_ID}/releases/${PROMPT_RELEASE_ID}/prompt/evaluations`,
+  )
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
+test("Prompt creation retries failed Knowledge Space discovery", async ({ page }) => {
+  const harness = await promptAuthoringHarness(page, { failTargetRequests: 2 })
+  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" })
+  await page.setViewportSize({ width: 1536, height: 1024 })
+
+  await page.goto("/assets/new/prompt")
+  await expect(page.getByRole("heading", { level: 1, name: "Create a Prompt" })).toBeVisible()
+  await expect(page.getByText("Creation targets could not be loaded.")).toBeVisible()
+  const retry = page.getByRole("button", { name: "Try again" })
+  await expect(retry).toBeEnabled()
+  await expect(page.getByRole("alert")).toBeFocused()
+  await page.keyboard.press("Tab")
+  await expect(retry).toBeFocused()
+
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await retry.scrollIntoViewIfNeeded()
+    await page.screenshot({
+      path: "../output/design-qa/prompt-asset-authoring-target-retry.png",
+      fullPage: false,
+    })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await retry.scrollIntoViewIfNeeded()
+    await page.screenshot({
+      path: "../output/design-qa/prompt-asset-authoring-target-retry-mobile.png",
+      fullPage: false,
+    })
+  }
+
+  await retry.click()
+  await expect(page.getByText("Creation targets could not be loaded.")).toHaveCount(0)
+  await expect(page.getByRole("combobox", { name: "Knowledge Space" })).toBeEnabled()
+  expect(harness.targetRequestCount).toBe(3)
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  ])
+})
+
+test("Prompt save retries a failed refresh without repeating the mutation", async ({ page }) => {
+  const harness = await promptAuthoringHarness(page, { failAssetRefreshAfterUpdate: 2 })
+  await page.goto(`/assets/${PROMPT_ID}/governance`)
+
+  const objective = page.getByLabel("Task objective")
+  await objective.fill("Route urgent synthetic tickets")
+  await page.getByRole("button", { name: "Save working copy" }).click()
+
+  await expect(
+    page.getByText("The working copy was saved, but the latest revision could not be loaded."),
+  ).toBeVisible()
+  await expect(page.getByRole("button", { name: "Save working copy" })).toBeDisabled()
+  const retry = page.getByRole("button", { name: "Retry refresh" })
+  await expect(retry).toBeEnabled()
+  expect(harness.updateBodies).toHaveLength(1)
+  expect(harness.assetRefreshRequestCount).toBe(2)
+
+  await retry.click()
+
+  await expect(
+    page.getByText("The working copy was saved, but the latest revision could not be loaded."),
+  ).toHaveCount(0)
+  await expect(objective).toHaveValue("Route urgent synthetic tickets")
+  await expect(page.getByRole("button", { name: "Save working copy" })).toBeEnabled()
+  expect(harness.updateBodies).toHaveLength(1)
+  expect(harness.assetRefreshRequestCount).toBe(3)
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  ])
+})
+
+
+test("Prompt creation denial stays opaque and keeps submission unavailable", async ({ page }) => {
+  const harness = await promptAuthoringHarness(page, {
+    failTargetRequests: 2,
+    targetFailureStatus: 403,
+  })
+
+  await page.goto("/assets/new/prompt")
+
+  await expect(page.getByText("Creation targets could not be loaded.")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Create private Draft" })).toBeDisabled()
+  await expect(page.getByText("Creation targets are unavailable.")).toHaveCount(0)
+  expect(harness.created).toBe(false)
+})
+
+test("Prompt creation rejection retains authored input and creates no orphan", async ({ page }) => {
+  const harness = await promptAuthoringHarness(page, {
+    createFailure: {
+      status: 409,
+      detail: "That Prompt coordinate is already in use.",
+    },
+  })
+  await page.goto("/assets/new/prompt")
+  await fillMinimumPrompt(page)
+
+  await page.getByRole("button", { name: "Create private Draft" }).click()
+
+  await expect(page.getByText("That Prompt coordinate is already in use.")).toBeVisible()
+  await expect(page).toHaveURL(/\/assets\/new\/prompt$/)
+  await expect(page.getByLabel("Prompt name")).toHaveValue("Support ticket classifier")
+  expect(harness.createBodies).toHaveLength(1)
+  expect(harness.created).toBe(false)
+})
+
+test("Prompt optimistic conflict preserves local content", async ({ page }) => {
+  const harness = await promptAuthoringHarness(page, {
+    updateFailure: {
+      status: 409,
+      detail: "The working copy changed. Refresh before saving again.",
+    },
+  })
+  await page.goto(`/assets/${PROMPT_ID}/governance`)
+
+  const objective = page.getByLabel("Task objective")
+  await objective.fill("Route urgent synthetic tickets")
+  await page.getByRole("button", { name: "Save working copy" }).click()
+
+  await expect(
+    page.getByText("The working copy changed. Refresh before saving again."),
+  ).toBeVisible()
+  await expect(objective).toHaveValue("Route urgent synthetic tickets")
+  expect(harness.updateBodies).toHaveLength(1)
+})
+
+test("Prompt capability revocation disables working-copy mutations", async ({ page }) => {
+  const harness = await promptAuthoringHarness(page, { canEdit: false })
+  await page.goto(`/assets/${PROMPT_ID}/governance`)
+
+  await expect(
+    page.getByText("You can view this working copy but cannot edit it."),
+  ).toBeVisible()
+  await expect(page.getByLabel("Prompt name")).toBeDisabled()
+  await expect(page.getByRole("button", { name: "Save working copy" })).toBeDisabled()
+  expect(harness.updateBodies).toHaveLength(0)
+})
+
+test("ordered-message Prompt working copies remain read-only", async ({ page }) => {
+  const harness = await promptAuthoringHarness(page, { orderedMessageDraft: true })
+  await page.goto(`/assets/${PROMPT_ID}/governance`)
+
+  await expect(page.getByText("Message Prompt", { exact: true })).toBeVisible()
+  await expect(page.getByText("Read only", { exact: true })).toBeVisible()
+  await expect(page.getByText("Message editing is not supported yet")).toBeVisible()
+  await expect(page.getByLabel("Prompt template")).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Save working copy" })).toHaveCount(0)
+  expect(harness.updateBodies).toHaveLength(0)
+})
+
+test("withdrawn Prompt releases cannot start evaluation", async ({ page }) => {
+  const harness = await promptAuthoringHarness(page, { withdrawnRelease: true })
+  await page.goto(`/assets/${PROMPT_ID}?release=${PROMPT_RELEASE_ID}`)
+
+  await page.getByRole("button", { name: "Run release tests" }).click()
+  await page.getByRole("button", { name: "Run exact release" }).click()
+
+  await expect(
+    page.getByText("Release tests could not be completed with your current access."),
+  ).toBeVisible()
+  expect(harness.requests).toContain(
+    `POST /api/assets/${PROMPT_ID}/releases/${PROMPT_RELEASE_ID}/prompt/evaluations`,
+  )
+})
 test("authenticated Skill detail reads its install contract through the browser endpoint", async ({
   page,
 }) => {
@@ -343,7 +632,8 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
 
   await page.getByRole("button", { name: "Add asset" }).click()
   await expect(page.getByRole("menuitem", { name: /^Skill/ })).toBeVisible()
-  await expect(page.getByRole("menuitem", { name: /^Prompt template/ })).toHaveAttribute(
+  await expect(page.getByRole("menuitem", { name: /^Prompt template/ })).toBeVisible()
+  await expect(page.getByRole("menuitem", { name: /^Prompt template/ })).not.toHaveAttribute(
     "data-disabled",
   )
   await page.getByRole("menuitem", { name: /^Skill/ }).click()
@@ -1022,6 +1312,262 @@ async function skillGovernanceHarness(page: Page) {
   })
 
   return harness.result
+}
+
+async function fillMinimumPrompt(page: Page) {
+  await page.getByLabel("Prompt name").fill("Support ticket classifier")
+  await page.getByLabel("Description").fill("Classifies an incoming support ticket.")
+  await page.getByLabel("Task objective").fill("Classify incoming support tickets")
+  await page.getByLabel("Intended users").fill("L1 Support")
+  await page.getByLabel("Prompt template").fill("Classify this support ticket.")
+  await page.getByLabel("Namespace").fill("support")
+  await page.getByRole("combobox", { name: "Knowledge Space" }).click()
+  await page.getByRole("option", { name: "Support knowledge" }).click()
+}
+
+async function promptAuthoringHarness(
+  page: Page,
+  options: {
+    canEdit?: boolean
+    createFailure?: { status: number; detail: string }
+    failAssetRefreshAfterUpdate?: number
+    failTargetRequests?: number
+    orderedMessageDraft?: boolean
+    targetFailureStatus?: number
+    updateFailure?: { status: number; detail: string }
+    withdrawnRelease?: boolean
+  } = {},
+) {
+  const harness = baseHarness(page, "owner", "prompt-authoring-token")
+  const createBodies: Array<Record<string, unknown>> = []
+  const updateBodies: Array<Record<string, unknown>> = []
+  let targetRequestCount = 0
+  let assetRefreshRequestCount = 0
+  let created = false
+  let draft = options.orderedMessageDraft
+    ? {
+        title: "Support escalation assistant",
+        summary: "Guides a support escalation.",
+        classification: "INTERNAL",
+        schemaVersion: "1",
+        payload: JSON.stringify({
+          messages: [
+            { role: "system", content: "Follow the approved escalation policy." },
+            { role: "user", content: "Escalate this synthetic support request." },
+          ],
+        }),
+      }
+    : {
+        title: "Support ticket classifier",
+        summary: "Classifies an incoming support ticket.",
+        classification: "INTERNAL",
+        schemaVersion: "1",
+        payload: JSON.stringify({
+          objective: "Classify incoming support tickets",
+          audience: "L1 Support",
+          textTemplate: "Classify this support ticket.",
+          variables: [],
+          evaluationCases: [
+            {
+              name: "Password reset",
+              variables: {},
+              expectedContains: ["access"],
+              forbiddenContains: ["secret"],
+            },
+          ],
+          knowledgeRequirements: [],
+        }),
+      }
+  let lockVersion = 0
+  let published = Boolean(options.withdrawnRelease)
+
+  function release() {
+    return {
+      id: PROMPT_RELEASE_ID,
+      revisionId: "a3000000-0000-0000-0000-000000000003",
+      sequence: 1,
+      versionLabel: "1.0.0",
+      publicationMode: "DIRECT",
+      ...draft,
+      digest: "d".repeat(64),
+      releasedByUserId: OWNER_ID,
+      releasedAt: "2026-08-11T08:00:00Z",
+      availability: options.withdrawnRelease ? "WITHDRAWN" : "AVAILABLE",
+      availabilityHistory: [],
+    }
+  }
+
+  function assetView() {
+    return {
+      id: PROMPT_ID,
+      type: "PROMPT_TEMPLATE",
+      namespace: "support",
+      slug: "support-ticket-classifier",
+      knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+      portfolioState: published ? "ACTIVE" : "DRAFT_ONLY",
+      authorizationReady: true,
+      ownerUserId: OWNER_ID,
+      sharingState: "PRIVATE",
+      draft: {
+        id: "a3000000-0000-0000-0000-000000000004",
+        lockVersion,
+        ...draft,
+        editedByUserId: OWNER_ID,
+        updatedAt: "2026-08-11T08:00:00Z",
+      },
+      revisions: [],
+      reviews: [],
+      releases: published ? [release()] : [],
+      ownershipHealth: {
+        ownerPresent: true,
+        backupOwnerPresent: false,
+        orphaned: false,
+        continuityAtRisk: false,
+      },
+      roleAssignments: [],
+    }
+  }
+
+  await page.route("**/api/**", async (route) => {
+    const requestContext = await harness.beginRoute(route)
+    if (!requestContext) return
+    const { request, url, signature } = requestContext
+
+    if (url.pathname === "/api/knowledge-spaces/upload-targets") {
+      targetRequestCount += 1
+      if (targetRequestCount <= (options.failTargetRequests ?? 0)) {
+        await json(
+          route,
+          { message: "Creation targets are unavailable." },
+          options.targetFailureStatus ?? 503,
+        )
+        return
+      }
+      await json(route, [
+        {
+          id: "88888888-8888-4888-8888-888888888802",
+          key: "support",
+          name: "Support knowledge",
+          departmentId: DEPARTMENT_ID,
+        },
+      ])
+      return
+    }
+    if (request.method() === "POST" && url.pathname === "/api/assets") {
+      const body = request.postDataJSON() as Record<string, unknown> & {
+        draft: typeof draft
+      }
+      createBodies.push(body)
+      if (options.createFailure) {
+        await json(route, { detail: options.createFailure.detail }, options.createFailure.status)
+        return
+      }
+      draft = body.draft
+      await json(route, assetView(), 201)
+      created = true
+      return
+    }
+    if (request.method() === "GET" && url.pathname === `/api/assets/${PROMPT_ID}`) {
+      if (updateBodies.length) {
+        assetRefreshRequestCount += 1
+        if (assetRefreshRequestCount <= (options.failAssetRefreshAfterUpdate ?? 0)) {
+          await json(route, { message: "Asset refresh is temporarily unavailable." }, 503)
+          return
+        }
+      }
+      await json(route, assetView())
+      return
+    }
+    if (url.pathname === `/api/assets/${PROMPT_ID}/governance-actions`) {
+      await json(route, {
+        canEdit: options.canEdit ?? true,
+        canPublishDirect: true,
+        canManageSharing: false,
+        canTransferOwnership: false,
+        canWithdraw: true,
+        canOpenGovernance: true,
+      })
+      return
+    }
+    if (request.method() === "PUT" && url.pathname === `/api/assets/${PROMPT_ID}/draft`) {
+      const body = request.postDataJSON() as Record<string, unknown> & typeof draft
+      updateBodies.push(body)
+      if (options.updateFailure) {
+        await json(route, { detail: options.updateFailure.detail }, options.updateFailure.status)
+        return
+      }
+      draft = {
+        title: body.title,
+        summary: body.summary,
+        classification: body.classification,
+        schemaVersion: body.schemaVersion,
+        payload: body.payload,
+      }
+      lockVersion += 1
+      await json(route, assetView())
+      return
+    }
+    if (
+      request.method() === "POST" &&
+      url.pathname === `/api/assets/${PROMPT_ID}/direct-releases`
+    ) {
+      published = true
+      await json(route, assetView(), 201)
+      return
+    }
+    if (request.method() === "GET" && url.pathname === `/api/assets/${PROMPT_ID}/released`) {
+      await json(route, {
+        id: PROMPT_ID,
+        type: "PROMPT_TEMPLATE",
+        namespace: "support",
+        slug: "support-ticket-classifier",
+        knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+        portfolioState: "ACTIVE",
+        ownerUserId: OWNER_ID,
+        sharingState: "PRIVATE",
+        releases: [release()],
+      })
+      return
+    }
+    if (
+      request.method() === "POST" &&
+      url.pathname ===
+        `/api/assets/${PROMPT_ID}/releases/${PROMPT_RELEASE_ID}/prompt/evaluations`
+    ) {
+      if (options.withdrawnRelease) {
+        await json(route, { detail: "The selected release is not available." }, 409)
+        return
+      }
+      await json(route, {
+        evaluationId: "a3000000-0000-0000-0000-000000000005",
+        assetId: PROMPT_ID,
+        releaseId: PROMPT_RELEASE_ID,
+        releaseDigest: "d".repeat(64),
+        passedCases: 1,
+        totalCases: 1,
+        cases: [{ name: "Password reset", passed: true, failedAssertions: [] }],
+      }, 201)
+      return
+    }
+
+    harness.unexpectedRequests.push(signature)
+    await json(route, { message: "Unexpected Prompt authoring request" }, 500)
+  })
+
+  return {
+    ...harness.result,
+    createBodies,
+    updateBodies,
+    get assetRefreshRequestCount() {
+      return assetRefreshRequestCount
+    },
+    get created() {
+      return created
+    },
+    get targetRequestCount() {
+      return targetRequestCount
+    },
+  }
 }
 
 async function releasedSkillHarness(page: Page) {

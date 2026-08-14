@@ -61,6 +61,15 @@ describe("Asset Governance policy", () => {
         actions,
       ),
     ).toBe(true)
+    expect(
+      canPublishDirectly(
+        {
+          type: "PROMPT_TEMPLATE",
+          reviews: [{ id: "review-2", state: "IN_REVIEW" }],
+        },
+        actions,
+      ),
+    ).toBe(false)
   })
 
   it("treats an absent server governance verdict as denied", () => {

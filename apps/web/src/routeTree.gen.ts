@@ -31,6 +31,7 @@ import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users.$user
 import { Route as AuthenticatedAssetsAssetIdIndexRouteImport } from './routes/_authenticated/assets/$assetId.index'
 import { Route as AuthenticatedAssetsAssetIdGovernanceRouteImport } from './routes/_authenticated/assets/$assetId.governance'
 import { Route as AuthenticatedAssetsAssetIdSkillPackageRouteImport } from './routes/_authenticated/assets/$assetId.skill-package'
+import { Route as AuthenticatedAssetsNewPromptRouteImport } from './routes/_authenticated/assets/new.prompt'
 import { Route as AuthenticatedAssetsNewSkillRouteImport } from './routes/_authenticated/assets/new.skill'
 import { Route as AdminConnectorsSourceSystemIndexRouteImport } from './routes/admin/connectors/$sourceSystem.index'
 import { Route as AdminConnectorsSourceSystemConnectionKeyRouteImport } from './routes/admin/connectors/$sourceSystem.$connectionKey'
@@ -153,6 +154,12 @@ const AuthenticatedAssetsAssetIdSkillPackageRoute =
     path: '/assets/$assetId/skill-package',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAssetsNewPromptRoute =
+  AuthenticatedAssetsNewPromptRouteImport.update({
+    id: '/assets/new/prompt',
+    path: '/assets/new/prompt',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAssetsNewSkillRoute =
   AuthenticatedAssetsNewSkillRouteImport.update({
     id: '/assets/new/skill',
@@ -223,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/admin/users/': typeof AdminUsersIndexRoute
   '/assets/$assetId/governance': typeof AuthenticatedAssetsAssetIdGovernanceRoute
   '/assets/$assetId/skill-package': typeof AuthenticatedAssetsAssetIdSkillPackageRoute
+  '/assets/new/prompt': typeof AuthenticatedAssetsNewPromptRoute
   '/assets/new/skill': typeof AuthenticatedAssetsNewSkillRouteWithChildren
   '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
   '/assets/$assetId/': typeof AuthenticatedAssetsAssetIdIndexRoute
@@ -253,6 +261,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersIndexRoute
   '/assets/$assetId/governance': typeof AuthenticatedAssetsAssetIdGovernanceRoute
   '/assets/$assetId/skill-package': typeof AuthenticatedAssetsAssetIdSkillPackageRoute
+  '/assets/new/prompt': typeof AuthenticatedAssetsNewPromptRoute
   '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
   '/assets/$assetId': typeof AuthenticatedAssetsAssetIdIndexRoute
   '/admin/connectors/$sourceSystem': typeof AdminConnectorsSourceSystemIndexRoute
@@ -285,6 +294,7 @@ export interface FileRoutesById {
   '/admin/users/': typeof AdminUsersIndexRoute
   '/_authenticated/assets/$assetId/governance': typeof AuthenticatedAssetsAssetIdGovernanceRoute
   '/_authenticated/assets/$assetId/skill-package': typeof AuthenticatedAssetsAssetIdSkillPackageRoute
+  '/_authenticated/assets/new/prompt': typeof AuthenticatedAssetsNewPromptRoute
   '/_authenticated/assets/new/skill': typeof AuthenticatedAssetsNewSkillRouteWithChildren
   '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
   '/_authenticated/assets/$assetId/': typeof AuthenticatedAssetsAssetIdIndexRoute
@@ -318,6 +328,7 @@ export interface FileRouteTypes {
     | '/admin/users/'
     | '/assets/$assetId/governance'
     | '/assets/$assetId/skill-package'
+    | '/assets/new/prompt'
     | '/assets/new/skill'
     | '/admin/connectors/$sourceSystem/$connectionKey'
     | '/assets/$assetId/'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/assets/$assetId/governance'
     | '/assets/$assetId/skill-package'
+    | '/assets/new/prompt'
     | '/admin/connectors/$sourceSystem/$connectionKey'
     | '/assets/$assetId'
     | '/admin/connectors/$sourceSystem'
@@ -379,6 +391,7 @@ export interface FileRouteTypes {
     | '/admin/users/'
     | '/_authenticated/assets/$assetId/governance'
     | '/_authenticated/assets/$assetId/skill-package'
+    | '/_authenticated/assets/new/prompt'
     | '/_authenticated/assets/new/skill'
     | '/admin/connectors/$sourceSystem/$connectionKey'
     | '/_authenticated/assets/$assetId/'
@@ -552,6 +565,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssetsAssetIdSkillPackageRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/assets/new/prompt': {
+      id: '/_authenticated/assets/new/prompt'
+      path: '/assets/new/prompt'
+      fullPath: '/assets/new/prompt'
+      preLoaderRoute: typeof AuthenticatedAssetsNewPromptRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/assets/new/skill': {
       id: '/_authenticated/assets/new/skill'
       path: '/assets/new/skill'
@@ -643,6 +663,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAssetsIndexRoute: typeof AuthenticatedAssetsIndexRoute
   AuthenticatedAssetsAssetIdGovernanceRoute: typeof AuthenticatedAssetsAssetIdGovernanceRoute
   AuthenticatedAssetsAssetIdSkillPackageRoute: typeof AuthenticatedAssetsAssetIdSkillPackageRoute
+  AuthenticatedAssetsNewPromptRoute: typeof AuthenticatedAssetsNewPromptRoute
   AuthenticatedAssetsNewSkillRoute: typeof AuthenticatedAssetsNewSkillRouteWithChildren
   AuthenticatedAssetsAssetIdIndexRoute: typeof AuthenticatedAssetsAssetIdIndexRoute
   AuthenticatedAssetsAssetIdPacksReleaseIdRoute: typeof AuthenticatedAssetsAssetIdPacksReleaseIdRoute
@@ -658,6 +679,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedAssetsAssetIdGovernanceRoute,
   AuthenticatedAssetsAssetIdSkillPackageRoute:
     AuthenticatedAssetsAssetIdSkillPackageRoute,
+  AuthenticatedAssetsNewPromptRoute: AuthenticatedAssetsNewPromptRoute,
   AuthenticatedAssetsNewSkillRoute:
     AuthenticatedAssetsNewSkillRouteWithChildren,
   AuthenticatedAssetsAssetIdIndexRoute: AuthenticatedAssetsAssetIdIndexRoute,

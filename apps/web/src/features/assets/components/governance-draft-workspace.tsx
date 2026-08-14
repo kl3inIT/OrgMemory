@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { parsePayload } from "@/features/assets/asset-format"
 import { GovernanceDecisionDialog } from "@/features/assets/components/governance-decision-dialog"
 import { MetadataTile } from "@/features/assets/components/metadata-tile"
+import { PromptDraftWorkspace } from "@/features/assets/components/prompt-draft-workspace"
 import { canPublishDirectly } from "@/features/assets/governance-policy"
 import {
   publishAssetDraftMutation,
@@ -47,6 +48,43 @@ export function GovernanceDraftWorkspace({
   onChanged: () => Promise<unknown>
   onPublished: () => void
 }) {
+  const canPublish = canPublishDirectly(asset, actions)
+  if (asset.type === "PROMPT_TEMPLATE") {
+    return (
+      <PromptDraftWorkspace
+        key={`${asset.id}-${asset.draft?.lockVersion ?? 0}`}
+        asset={asset}
+        actions={actions}
+        canPublish={canPublish}
+        onChanged={onChanged}
+        onPublished={onPublished}
+      />
+    )
+  }
+  return (
+    <GenericDraftWorkspace
+      asset={asset}
+      actions={actions}
+      canPublish={canPublish}
+      onChanged={onChanged}
+      onPublished={onPublished}
+    />
+  )
+}
+
+function GenericDraftWorkspace({
+  asset,
+  actions,
+  canPublish,
+  onChanged,
+  onPublished,
+}: {
+  asset: AssetView
+  actions?: AssetGovernanceActions
+  canPublish: boolean
+  onChanged: () => Promise<unknown>
+  onPublished: () => void
+}) {
   const draft = asset.draft!
   const [versionLabel, setVersionLabel] = useState("")
   const publish = useMutation({
@@ -59,8 +97,6 @@ export function GovernanceDraftWorkspace({
     },
     onError: () => toast.error("The working copy could not be published"),
   })
-  const canPublish = canPublishDirectly(asset, actions)
-
   return (
     <div className={canPublish ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}>
       <div className="space-y-6">

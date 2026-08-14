@@ -31,7 +31,7 @@ export function GovernanceDecisionDialog({
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant={variant} disabled={disabled} className="w-full">
+        <Button type="button" variant={variant} disabled={disabled} className="w-full">
           <Icon aria-hidden="true" />
           {label}
         </Button>
@@ -51,4 +51,3 @@ export function GovernanceDecisionDialog({
     </AlertDialog>
   )
 }
-
