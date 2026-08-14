@@ -1,5 +1,46 @@
 [//]: # (Generated from release/CHANGELOG.md by Tegami. Do not edit manually.)
 
+## Organizational AI Memory v0.4.2
+
+### Skip release mutation for an idle phase
+
+#### Operations
+
+A completed release with no newer entry now stops after phase detection. The
+release workflow no longer invokes versioning or publication for that idle
+state, while pending recovery and new version work retain their exact existing
+gates.
+
+## Organizational AI Memory v0.4.1
+
+### Keep completed releases idle on later commits
+
+#### Operations
+
+After a product release is fully published, a later green-main change with no
+release entry now remains an explicit release no-op instead of retrying the old
+release against newer repository content. Pending releases still resume and
+continue to block newer version work until recovery.
+
+## Organizational AI Memory v0.4.0
+
+### Work with private files in Assistant
+
+#### Features
+
+Upload or reuse up to three private files directly from the Assistant
+paperclip without publishing them to a Knowledge Space. Private files stay
+visible only to their uploader, use the same structured document processing as
+Knowledge, and expire automatically after 30 days. Publishing durable governed
+Knowledge remains a separate explicit action.
+
+#### Security
+
+Private-file turns recheck the uploader, organization, lifecycle, exact
+processing generation, and embedding profile before retrieval or download.
+Delete and expiry deny access before extracted content and stored objects are
+cleaned up; old answers retain only a non-clickable unavailable citation marker.
+
 ## Organizational AI Memory v0.3.0
 
 ### Keep Assistant evidence useful after reload

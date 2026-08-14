@@ -189,11 +189,8 @@ test('Getting Started explains the core model and first governed journey', async
   await expect(
     page.getByRole('heading', { level: 1, name: 'Your first governed journey' }),
   ).toBeVisible();
-  await expect(
-    page.getByRole('img', {
-      name: 'Organizational AI Memory Assets catalog showing a Capability Pack, Work Instruction, Prompt Template, and Skill available to the current user.',
-    }),
-  ).toBeVisible();
+  await expect(page.getByText('Available to me', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Created by me', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('repository access', { exact: false })).toBeVisible();
 });
 

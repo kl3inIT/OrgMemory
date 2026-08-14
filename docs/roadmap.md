@@ -39,6 +39,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Authorization consolidation: typed batch-recheck policy and served governance affordances | shipped | [completed plan](increments/completed/2026-08-01-authz-consolidation/plan.md), [decision 0023](decisions/0023-batch-recheck-policy-and-served-affordances.md) |
 | Ingestion throughput: batched staging writes and bounded-burst schedulers | shipped | [completed plan](increments/completed/2026-08-01-ingestion-throughput/plan.md), [decision 0024](decisions/0024-bounded-burst-scheduling-over-drain.md) |
 | Knowledge ingestion coverage | shipped | [completed verification](increments/completed/2026-08-07-knowledge-ingestion-coverage/verification.md), [decision 0037](decisions/0037-separate-parser-capability-from-knowledge-admission.md) |
+| Assistant private files | shipped | [completed verification](increments/completed/2026-08-11-assistant-private-files/verification.md), released in v0.4.0 |
 | Copy-forward coordination: durable ownership and bounded streaming | shipped | [completed plan](increments/completed/2026-08-01-copyforward-coordinator/plan.md), [decision 0025](decisions/0025-copyforward-durable-ownership.md) |
 | Connector polling coordination: shared lifecycle, client rotation, and failure admission | shipped | [completed plan](increments/completed/2026-08-01-connector-polling-driver/plan.md), [decision 0026](decisions/0026-connector-polling-lifecycle.md) |
 | Authorized graph traversal coordinator | shipped | [completed verification](increments/completed/2026-08-01-authorized-graph-traversal/verification.md), [decision 0027](decisions/0027-core-owned-authorized-graph-traversal.md) |
@@ -57,7 +58,7 @@ The table is a delivery index, not a second description of current behavior.
 | --- | --- | --- |
 | [Prompt Asset authoring and exact-release use](increments/active/2026-08-11-prompt-asset-authoring/plan.md) | active | local implementation and happy-path browser POC pass; complete error/accessibility hardening, authenticated runtime approval, PR/CI, merge, and exact-SHA deployment gates |
 | [Assistant governed file evidence](increments/active/2026-08-10-assistant-file-evidence/plan.md) | active | implement conversation-bound governed upload, active-engine answerability, and selection-constrained retrieval on the shipped parser and Source pipeline |
-| [Asset library sharing lifecycle](increments/active/2026-08-10-asset-library-sharing-lifecycle/plan.md) | next | characterize ownership/review conflicts and split released-consumption from governance reads after the overlapping Asset Registry package-refactor slice lands; then implement the challenged owner-only direct-sharing lifecycle |
+| [Asset library sharing lifecycle](increments/active/2026-08-10-asset-library-sharing-lifecycle/plan.md) | active | owner-led direct publication, released-only Viewer reads, sharing, locked transfer/demotion, recovery, withdrawal, and Skill activation are on `main`; close transfer-target eligibility, conflict migration, authorization rollout/convergence evidence, collision handling, and remaining browser gates |
 | [Assistant turn activity continuity](increments/completed/2026-08-06-assistant-turn-activity-continuity/verification.md) | shipped | one stable pre-answer surface now preserves thinking through renderable text and presents Skill detail only when useful; the unrelated browser timing baseline gap is recorded |
 | [Assistant conversation memory SSOT](increments/completed/2026-08-06-assistant-conversation-memory-ssot/verification.md) | shipped | collapsed the conversation to one owned store read back through a project-owned read-only turn advisor, and gave a failed turn a sentence naming its cause |
 | [Clearance separation](increments/active/2026-08-06-clearance-separation/plan.md) | active | complete the implementation gates, then review the migration, two Executive call sites, and generated contract diff in the merge loop |
@@ -96,9 +97,9 @@ implementation-active until their predecessor exit gates pass.
 
 1. Begin the owner-led public-docs queue with the context and outline
    checkpoints for What is OrgMemory?.
-2. Finish the overlapping Asset Registry package-refactor slice, then begin the
-   Asset library sharing lifecycle with the governance-read split and redacted
-   ownership/review conflict characterization.
+2. Close the Asset library sharing lifecycle's redacted conflict migration,
+   transfer-target eligibility, authorization rollout/convergence and rollback
+   proof, Skill collision handling, and remaining two-user/browser gates.
 3. Deliver Prompt Asset authoring and exact-release use on the existing direct
    publication, evaluation, and optional Knowledge contracts; do not add review
    or strict Required grounding.

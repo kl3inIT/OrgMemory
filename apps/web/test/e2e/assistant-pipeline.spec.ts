@@ -9,6 +9,8 @@ const MODEL_ACTIVATION_ID = "45000000-0000-4000-8000-000000000001"
 const EVIDENCE_BINDING_ID = "46000000-0000-4000-8000-000000000001"
 const SECOND_EVIDENCE_BINDING_ID = "46000000-0000-4000-8000-000000000006"
 const SPACE_ID = "46000000-0000-4000-8000-000000000002"
+const PRIVATE_FILE_ID = "47000000-0000-4000-8000-000000000001"
+const RECENT_PRIVATE_FILE_ID = "47000000-0000-4000-8000-000000000002"
 
 interface HistoryMessage {
   id: string
@@ -33,6 +35,7 @@ interface AssistantHarnessOptions {
   switchedActorHistory?: HistoryMessage[]
   selectedModelActivationId?: string
   uploadTargets?: Array<Record<string, unknown>>
+  recentAssistantFiles?: Array<Record<string, unknown>>
   evidenceStatusFailures?: number
 }
 
@@ -107,6 +110,36 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
         departmentName: "Research",
         clearance: "STANDARD",
       })
+      return
+    }
+
+    if (request.method() === "GET" && url.pathname === "/api/assistant/files") {
+      await json(route, {
+        items: options.recentAssistantFiles ?? [],
+        page: 0,
+        hasMore: false,
+      })
+      return
+    }
+
+    if (request.method() === "POST" && url.pathname === "/api/assistant/files") {
+      await json(route, assistantFile(PRIVATE_FILE_ID, "brief.txt", "UPLOADED"), 201)
+      return
+    }
+
+    const assistantFileStatusMatch = /^\/api\/assistant\/files\/([^/]+)$/.exec(
+      url.pathname,
+    )
+    if (request.method() === "GET" && assistantFileStatusMatch?.[1]) {
+      const fileId = assistantFileStatusMatch[1]
+      await json(
+        route,
+        assistantFile(
+          fileId,
+          fileId === RECENT_PRIVATE_FILE_ID ? "quarterly-plan.pdf" : "brief.txt",
+          "READY",
+        ),
+      )
       return
     }
 
@@ -377,11 +410,63 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
   }
 }
 
+test("uploads private files without publishing Knowledge and submits their identities", async ({ page }) => {
+  const harness = await assistantHarness(page)
+  await page.goto("/")
+
+  await page.getByRole("button", { name: "Attach files" }).click()
+  await expect(page.getByRole("menuitem", { name: "Upload from device" })).toBeVisible()
+  await page.locator('input[type="file"][multiple]').setInputFiles({
+    name: "brief.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("Private working context."),
+  })
+
+  const selectedFiles = page.getByLabel("Selected private files")
+  await expect(selectedFiles.getByText("brief.txt", { exact: true }).first()).toBeVisible()
+  await expect(selectedFiles.getByText("Ready", { exact: true })).toBeVisible()
+
+  await expect(page.getByRole("menuitem", { name: "Publish to Knowledge" })).toBeDisabled()
+  await page.keyboard.press("Escape")
+  await submit(page, "Summarize the private file")
+
+  await expect.poll(() => harness.chatBodies.length).toBe(1)
+  expect(harness.chatBodies[0]?.assistantFileIds).toEqual([PRIVATE_FILE_ID])
+  expect(harness.chatBodies[0]?.evidenceBindingIds).toEqual([])
+  await expect(selectedFiles).toHaveCount(0)
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
+test("reattaches a ready recent private file", async ({ page }) => {
+  const harness = await assistantHarness(page, {
+    recentAssistantFiles: [
+      assistantFile(RECENT_PRIVATE_FILE_ID, "quarterly-plan.pdf", "READY"),
+    ],
+  })
+  await page.goto("/")
+
+  await page.getByRole("button", { name: "Attach files" }).click()
+  await page.getByRole("menuitem", { name: /quarterly-plan\.pdf.*Ready/ }).click()
+  await expect(
+    page
+      .getByLabel("Selected private files")
+      .getByText("quarterly-plan.pdf", { exact: true })
+      .first(),
+  ).toBeVisible()
+  await submit(page, "What does this plan say?")
+
+  await expect.poll(() => harness.chatBodies.length).toBe(1)
+  expect(harness.chatBodies[0]?.assistantFileIds).toEqual([RECENT_PRIVATE_FILE_ID])
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
 test("uploads governed evidence and submits its ordered binding with the turn", async ({ page }) => {
   const harness = await assistantHarness(page)
   await page.goto("/")
 
-  await page.getByRole("button", { name: "Attach governed file" }).click()
+  await openPublishToKnowledge(page)
   await expect(page.getByText(/publishes the file as durable governed Knowledge/i)).toBeVisible()
   await page.locator("#source-file").setInputFiles({
     name: "policy.txt",
@@ -392,7 +477,7 @@ test("uploads governed evidence and submits its ordered binding with the turn", 
   await page.getByRole("option", { name: "Research" }).click()
   await page.getByRole("button", { name: "Upload", exact: true }).click()
 
-  await page.getByRole("button", { name: "Attach governed file" }).click()
+  await openPublishToKnowledge(page)
   await page.locator("#source-file").setInputFiles({
     name: "handbook.txt",
     mimeType: "text/plain",
@@ -422,7 +507,7 @@ test("keeps polling and explains a temporary evidence status failure", async ({ 
   const harness = await assistantHarness(page, { evidenceStatusFailures: 2 })
   await page.goto("/")
 
-  await page.getByRole("button", { name: "Attach governed file" }).click()
+  await openPublishToKnowledge(page)
   await page.locator("#source-file").setInputFiles({
     name: "policy.txt",
     mimeType: "text/plain",
@@ -449,7 +534,7 @@ test("keeps the exact governed binding across a failed turn retry", async ({ pag
   })
   await page.goto("/")
 
-  await page.getByRole("button", { name: "Attach governed file" }).click()
+  await openPublishToKnowledge(page)
   await page.locator("#source-file").setInputFiles({
     name: "policy.txt",
     mimeType: "text/plain",
@@ -480,12 +565,29 @@ test("keeps governed attachment closed when no upload Space is authorized", asyn
   const harness = await assistantHarness(page, { uploadTargets: [] })
   await page.goto("/")
 
-  await expect(page.getByRole("button", { name: "Attach governed file" })).toBeDisabled({
-    timeout: 15_000,
-  })
+  await page.getByRole("button", { name: "Attach files" }).click()
+  await expect(page.getByRole("menuitem", { name: "Upload from device" })).toBeEnabled()
+  await expect(page.getByRole("menuitem", { name: "Publish to Knowledge" })).toBeDisabled()
   expect(harness.unexpectedRequests).toEqual([])
   expect(harness.browserErrors).toEqual([])
 })
+
+async function openPublishToKnowledge(page: Page) {
+  await page.getByRole("button", { name: "Attach files" }).click()
+  await page.getByRole("menuitem", { name: "Publish to Knowledge" }).click()
+}
+
+function assistantFile(id: string, fileName: string, status: string) {
+  return {
+    id,
+    fileName,
+    mediaType: fileName.endsWith(".pdf") ? "application/pdf" : "text/plain",
+    contentLength: 128,
+    status,
+    expiresAt: "2026-09-11T00:00:00Z",
+    createdAt: "2026-08-12T00:00:00Z",
+  }
+}
 
 test("anchors only server-declared citations and opens the matching source", async ({ page }) => {
   const secondPath = `/api/citations/${SECOND_CHUNK_ID}/content`

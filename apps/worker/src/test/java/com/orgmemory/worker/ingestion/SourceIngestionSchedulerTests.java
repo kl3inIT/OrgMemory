@@ -43,6 +43,24 @@ class SourceIngestionSchedulerTests {
     }
 
     @Test
+    void givesPrivateAndGovernedQueuesAChanceInTheSameBurst() {
+        SourceIngestionProcessor processor = mock(SourceIngestionProcessor.class);
+        AssistantFileProcessor assistantFiles = mock(AssistantFileProcessor.class);
+        when(processor.processNext()).thenReturn(WorkProcessingResult.PROCESSED);
+        when(assistantFiles.processNext()).thenReturn(WorkProcessingResult.PROCESSED);
+        SourceIngestionScheduler scheduler = new SourceIngestionScheduler(
+                processor,
+                assistantFiles,
+                properties(4, Duration.ofSeconds(30)),
+                System::nanoTime);
+
+        scheduler.poll();
+
+        verify(assistantFiles, times(2)).processNext();
+        verify(processor, times(2)).processNext();
+    }
+
+    @Test
     void stopsBeforeTheNextClaimWhenInterrupted() {
         SourceIngestionProcessor processor = mock(SourceIngestionProcessor.class);
         when(processor.processNext()).thenAnswer(invocation -> {

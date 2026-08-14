@@ -1634,6 +1634,86 @@
         }
       }
     },
+    "/api/assistant/files": {
+      "get": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "List the current actor's recent private files",
+        "operationId": "listRecentAssistantFiles",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantFilePage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Upload one actor-private Assistant file",
+        "operationId": "uploadAssistantFile",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantFileView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/assistant/evidence": {
       "post": {
         "tags": [
@@ -4463,6 +4543,143 @@
                   "items": {
                     "$ref": "#/components/schemas/AssistantCitationResponse"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assistant/files/{fileId}": {
+      "get": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Read one owned private file's processing state",
+        "operationId": "getAssistantFile",
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantFileView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Deny and schedule cleanup of one owned private file",
+        "operationId": "deleteAssistantFile",
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/assistant/files/{fileId}/content": {
+      "get": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Stream one freshly owner-authorized private file",
+        "operationId": "readAssistantFileContent",
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamingResponseBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assistant/files/{fileId}/chunks/{chunkId}": {
+      "get": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Read one freshly owner-authorized private citation excerpt",
+        "operationId": "readAssistantFileExcerpt",
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "chunkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "generation",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantPrivateFileExcerptResponse"
                 }
               }
             }
@@ -7876,6 +8093,58 @@
           }
         }
       },
+      "AssistantFileView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fileName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mediaType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "contentLength": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "UPLOADED",
+              "PROCESSING",
+              "READY",
+              "FAILED",
+              "DELETING",
+              "DELETED",
+              "EXPIRED"
+            ]
+          },
+          "failureCode": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "createdAt",
+          "expiresAt",
+          "fileName",
+          "id",
+          "mediaType",
+          "status"
+        ]
+      },
       "AssistantEvidenceBindingView": {
         "type": "object",
         "properties": {
@@ -7945,6 +8214,15 @@
             "format": "uuid"
           },
           "evidenceBindingIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 3,
+            "minItems": 0
+          },
+          "assistantFileIds": {
             "type": "array",
             "items": {
               "type": "string",
@@ -9908,10 +10186,56 @@
             "type": "integer",
             "format": "int32"
           },
+          "available": {
+            "type": "boolean"
+          },
           "excerptUrl": {
             "type": "string"
           },
           "contentUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "AssistantFilePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantFileView"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "AssistantPrivateFileExcerptResponse": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "heading": {
+            "type": "string"
+          },
+          "startPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "endPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "content": {
             "type": "string"
           }
         }

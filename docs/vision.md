@@ -41,22 +41,26 @@ platform.
 The default trust model is **passive discovery, active publishing**: a user may
 capture work locally and receive a private draft; sharing it with the
 organization requires preview, policy checks, and an explicit publication
-action. Review is required by the Asset profile and organization policy, not
-assumed for every contribution. In the current Skill profile, an accountable
-owner-class actor may publish directly with durable `DIRECT` provenance;
-reviewed publication remains available for higher-risk use.
+action. The target model allows an Asset profile or organization policy to
+require review, but the current POC does not enforce an organization-level
+review policy. In the current owner-led library, the canonical human owner may
+publish any enabled Asset profile directly with durable `DIRECT` provenance;
+the reviewed API path remains available for explicit compatibility use and
+history.
 
 ## First Customer And Success Gate
 
 The initial design partner is an enterprise team with repeated AI-assisted
 support, operations, finance, or QA work and a concrete handover/onboarding pain.
 The first product pilot is role capability onboarding for one bounded task: a
-named author and reviewer publish a Pack of authorized Knowledge, a Work
-Instruction, and an evaluated Prompt Template; a second user discovers that
-Pack and completes the task. It succeeds when exact released components are
-reused, updated or withdrawn safely, and ownership transfers without permission
-leakage. Expansion to 20-100 users is a later gate after trust, permission
-correctness, contribution willingness, and operational recovery are proven.
+named owner directly publishes a Pack of authorized Knowledge, a Work
+Instruction, and an evaluated Prompt Template. A second user discovers that
+Pack and completes the task. A later higher-risk pilot may exercise a mandatory
+review policy only after that policy is implemented. The first pilot succeeds
+when exact released components are reused, updated or withdrawn safely, and
+ownership transfers without permission leakage. Expansion to 20-100 users is a
+later gate after trust, permission correctness, contribution willingness, and
+operational recovery are proven.
 
 Kill risks are employee-surveillance perception, weak source permissions,
 low-quality prompt dumping, no reuse by another person, and an operating burden
@@ -107,11 +111,11 @@ surface uses one `SecureKnowledgeRetrieval` use case and rechecks citations.
 - `Asset`: shared registry identity for organizationally valuable, reusable
   items.
 - `AssetDraft`: mutable working content for any Asset type.
-- `AssetRevision`: immutable submitted snapshot and digest reviewed by
-  an exact policy and reviewer set.
+- `AssetRevision`: immutable snapshot and digest created by direct publication
+  or submitted as an exact review target.
 - `AssetRelease`: immutable released payload, digest, provenance, and
-  dependency set created from a Revision that satisfies the profile's
-  publication policy.
+  dependency set created from a Revision that satisfies the profile's direct or
+  reviewed publication policy.
 - `AssetTypeProfile`: typed schema, renderer, validation, publication policy,
   and consumption adapters.
 

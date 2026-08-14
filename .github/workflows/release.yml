@@ -145,7 +145,7 @@ jobs:
           if [[ -f .tegami/publish-lock.yaml ]]; then
             has_lock=true
           fi
-          if [[ "$has_entries" == "true" && "$has_lock" == "true" ]]; then
+          if [[ "$has_lock" == "true" ]]; then
             set +e
             pnpm exec tsx scripts/check-publish-lock.mts
             lock_status=$?
@@ -166,7 +166,7 @@ jobs:
             node scripts/release-workflow-policy.mjs phase >> "$GITHUB_OUTPUT"
 
       - name: Resolve immutable artifact evidence for a pending version
-        if: steps.trust.outputs.current == 'true'
+        if: steps.trust.outputs.current == 'true' && steps.phase.outputs.mode == 'version'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -174,12 +174,12 @@ jobs:
           RELEASE_SOURCE_SHA: ${{ steps.trust.outputs.commit_sha }}
         run: |
           set -euo pipefail
-          if [[ "$RELEASE_PHASE" == "version" ]]; then
-            pnpm exec tsx scripts/resolve-release-artifacts.mjs "$RELEASE_SOURCE_SHA"
-          fi
+          pnpm exec tsx scripts/resolve-release-artifacts.mjs "$RELEASE_SOURCE_SHA"
 
       - name: Revalidate current main immediately before mutation
-        if: steps.trust.outputs.current == 'true'
+        if: >-
+          steps.trust.outputs.current == 'true' &&
+          (steps.phase.outputs.mode == 'version' || steps.phase.outputs.mode == 'publish')
         shell: bash
         env:
           COMMIT_SHA: ${{ steps.trust.outputs.commit_sha }}
@@ -190,7 +190,9 @@ jobs:
           [[ "$COMMIT_SHA" == "$(git rev-parse HEAD)" ]]
 
       - name: Version or publish product release
-        if: steps.trust.outputs.current == 'true'
+        if: >-
+          steps.trust.outputs.current == 'true' &&
+          (steps.phase.outputs.mode == 'version' || steps.phase.outputs.mode == 'publish')
         env:
           CI: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

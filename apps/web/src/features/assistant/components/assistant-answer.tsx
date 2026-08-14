@@ -49,6 +49,20 @@ function CitationMarker({ children, "data-number": rawNumber }: CitationElementP
   const source = sourceByNumber.get(citationNumber)
   if (!source) return <>{children}</>
 
+  if (!source.available) {
+    return (
+      <InlineCitation>
+        <InlineCitationTrigger
+          sources={[]}
+          label={`[${citationNumber}]`}
+          className="cursor-default opacity-60"
+          aria-label={`Source ${citationNumber} is no longer available`}
+          title="Private file no longer available"
+        />
+      </InlineCitation>
+    )
+  }
+
   return (
     <InlineCitation>
       <InlineCitationTrigger
