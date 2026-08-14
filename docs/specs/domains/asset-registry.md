@@ -120,10 +120,14 @@ the editor and can be published unchanged. Direct publication snapshots the
 last saved Draft as an immutable exact release and does not change sharing.
 Release tests run only from the selected released-detail view after explicit
 confirmation and report aggregate plus case-level results. The browser exposes
-creation-target loading and failure separately, preserves unsaved editor state
-across refetches of the same Draft lock version, migrates persisted fixture
-values when a variable is renamed, and resets release-local evaluation state
-when the selected exact release changes.
+creation-target loading and failure separately, offers an explicit retry for a
+transient target failure, and focuses the accessible error before its retry
+action. Governance save and direct publication distinguish a successful server
+mutation from a later refresh failure: success remains visible, stale mutation
+controls stay disabled, and refresh retries do not repeat the mutation.
+Refetches preserve unsaved editor state, variable renames migrate persisted
+fixture values, and selecting another exact release resets release-local
+evaluation state.
 
 ### Work Instruction
 

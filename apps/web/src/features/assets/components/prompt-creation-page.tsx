@@ -73,6 +73,11 @@ export function PromptCreationPage() {
           submitting={create.isPending}
           disabled={spaces.isPending || spaces.isError}
           error={error ?? (spaces.isError ? "Creation targets could not be loaded." : undefined)}
+          errorAction={!error && spaces.isError ? {
+            label: spaces.isFetching ? "Retrying" : "Try again",
+            onClick: () => void spaces.refetch(),
+            disabled: spaces.isFetching,
+          } : undefined}
           spaces={spaces.data}
           spacesLoading={spaces.isPending}
           asideAction={

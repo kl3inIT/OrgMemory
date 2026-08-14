@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 
@@ -163,7 +163,7 @@ describe("PromptTemplateEditor", () => {
   it("distinguishes target loading and permission disabling from submission", () => {
     render(
       <PromptTemplateEditor
-        value={createEmptyPromptForm()}
+        value={{ ...createEmptyPromptForm(), textTemplate: "Classify {{ticket_text}}" }}
         onChange={vi.fn()}
         onSubmit={vi.fn()}
         submitLabel="Create private Draft"
@@ -174,6 +174,46 @@ describe("PromptTemplateEditor", () => {
 
     expect(screen.getByLabelText("Knowledge Space")).toHaveValue("Loading creation targets")
     expect(screen.getByRole("button", { name: "Create private Draft" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Add detected" })).toBeDisabled()
+  })
+
+  it("shows the loaded empty creation-target state distinctly", () => {
+    render(
+      <PromptTemplateEditor
+        value={createEmptyPromptForm()}
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        submitLabel="Create private Draft"
+        spaces={[]}
+      />,
+    )
+
+    expect(screen.getByLabelText("Knowledge Space")).toHaveTextContent("No creation target")
+    expect(screen.getByLabelText("Knowledge Space")).toBeDisabled()
+  })
+
+  it("offers an accessible retry action when creation targets fail", async () => {
+    const user = userEvent.setup()
+    const retry = vi.fn()
+    render(
+      <PromptTemplateEditor
+        value={createEmptyPromptForm()}
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        submitLabel="Create private Draft"
+        disabled
+        error="Creation targets could not be loaded."
+        errorAction={{ label: "Try again", onClick: retry }}
+      />,
+    )
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveFocus())
+
+    await user.click(screen.getByRole("button", { name: "Try again" }))
+
+    expect(retry).toHaveBeenCalledOnce()
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Creation targets could not be loaded.",
+    )
   })
 
   it("reorders persisted test cases explicitly", async () => {

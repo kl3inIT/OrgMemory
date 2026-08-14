@@ -75,25 +75,33 @@ export function GovernanceWorkspacePage({
   })
   const [selectedTab, setSelectedTab] = useState<GovernanceTab>()
   const queryClient = useQueryClient()
-  const refresh = async () => {
+  const refreshQueries = async (throwOnError: boolean) => {
     await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: scopeAssetQueryKey(
-          getAssetQueryKey({ path: { assetId } }),
-          actorKey,
-        ),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: scopeAssetQueryKey(
-          getAssetGovernanceActionsQueryKey({ path: { assetId } }),
-          actorKey,
-        ),
-      }),
+      queryClient.invalidateQueries(
+        {
+          queryKey: scopeAssetQueryKey(
+            getAssetQueryKey({ path: { assetId } }),
+            actorKey,
+          ),
+        },
+        { throwOnError },
+      ),
+      queryClient.invalidateQueries(
+        {
+          queryKey: scopeAssetQueryKey(
+            getAssetGovernanceActionsQueryKey({ path: { assetId } }),
+            actorKey,
+          ),
+        },
+        { throwOnError },
+      ),
     ])
   }
+  const refresh = () => refreshQueries(false)
+  const refreshPrompt = () => refreshQueries(true)
 
   if (asset.isPending) return <AssetPageLoading />
-  if (asset.isError || !asset.data?.id) {
+  if (!asset.data?.id) {
     return (
       <AssetPageError
         title="Governance workspace is unavailable"
@@ -150,7 +158,7 @@ export function GovernanceWorkspacePage({
               <GovernanceDraftWorkspace
                 asset={asset.data}
                 actions={actions.data}
-                onChanged={refresh}
+                onChanged={asset.data.type === "PROMPT_TEMPLATE" ? refreshPrompt : refresh}
                 onPublished={() => setSelectedTab("releases")}
               />
             </TabsContent>

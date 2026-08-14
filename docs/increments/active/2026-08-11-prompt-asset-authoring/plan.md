@@ -102,14 +102,14 @@ approval, PR/CI, merge, and exact-SHA deployment remain separate gates.
 - [x] Cover form-to-payload mapping, placeholder/variable synchronization,
   evaluation editing, Optional grounding, and permission-gated actions with
   focused unit/component tests.
-- [ ] Add focused optimistic-conflict and capability-revocation component tests.
+- [x] Add focused optimistic-conflict and capability-revocation component tests.
 - [x] Extend the golden browser POC for authenticated catalog -> atomic create ->
   Governance edit -> direct publish -> exact-release evaluate, including the
   persisted-sensitive-fixture warning and no-evidence Optional copy.
-- [ ] Add browser variants for create rejection with no orphan,
+- [x] Add browser variants for create rejection with no orphan,
   ordered-message read-only protection, denied creation, and withdrawn release.
 - [x] Verify labels, non-color test status, narrow layout, and horizontal overflow.
-- [ ] Verify keyboard order, error focus, light/dark themes, reduced motion, and
+- [x] Verify keyboard order, error focus, light/dark themes, reduced motion, and
   loading, empty, and error states.
 - [x] Compare the implemented surface with `prompt-editor-prototype.png`; use the
   prototype for hierarchy, not pixel-level replacement of shared design tokens.

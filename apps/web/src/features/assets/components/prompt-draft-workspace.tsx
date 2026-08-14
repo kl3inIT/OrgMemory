@@ -44,9 +44,38 @@ export function PromptDraftWorkspace({
     parsed.kind === "text" ? withPlacement(parsed.value, asset) : fallback(asset, draft),
   )
   const [error, setError] = useState<string>()
+  const [refreshError, setRefreshError] = useState<string>()
+  const [refreshIntent, setRefreshIntent] = useState<"save" | "publish">()
+  const [refreshing, setRefreshing] = useState(false)
   const [versionLabel, setVersionLabel] = useState("")
   const update = useMutation(updateAssetDraftMutation())
   const publish = useMutation(publishAssetDraftMutation())
+
+  async function refreshAfterMutation(intent: "save" | "publish") {
+    try {
+      await onChanged()
+      setRefreshError(undefined)
+      setRefreshIntent(undefined)
+      return true
+    } catch {
+      setRefreshIntent(intent)
+      setRefreshError(
+        intent === "publish"
+          ? "The release was published, but the latest release history could not be loaded."
+          : "The working copy was saved, but the latest revision could not be loaded.",
+      )
+      return false
+    }
+  }
+
+  async function retryRefresh() {
+    const intent = refreshIntent
+    if (!intent) return
+    setRefreshing(true)
+    const refreshed = await refreshAfterMutation(intent)
+    setRefreshing(false)
+    if (refreshed && intent === "publish") onPublished()
+  }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -60,13 +89,12 @@ export function PromptDraftWorkspace({
       return
     }
     setError(undefined)
+    setRefreshError(undefined)
     try {
       await update.mutateAsync({
         path: { assetId: asset.id! },
         body: { expectedLockVersion: draft.lockVersion ?? 0, ...built.update },
       })
-      await onChanged()
-      toast.success("Prompt working copy saved")
     } catch (failure) {
       setError(
         apiErrorMessage(
@@ -74,23 +102,27 @@ export function PromptDraftWorkspace({
           "The working copy changed or could not be saved. Your local content is still here; copy it before reloading.",
         ),
       )
+      return
     }
+    toast.success("Prompt working copy saved")
+    await refreshAfterMutation("save")
   }
 
   async function publishRelease() {
     setError(undefined)
+    setRefreshError(undefined)
     try {
       await publish.mutateAsync({
         path: { assetId: asset.id! },
         body: { versionLabel: versionLabel.trim() },
       })
-      setVersionLabel("")
-      await onChanged()
-      onPublished()
-      toast.success("Immutable Release published")
     } catch (failure) {
       setError(apiErrorMessage(failure, "The working copy could not be published."))
+      return
     }
+    setVersionLabel("")
+    toast.success("Immutable Release published")
+    if (await refreshAfterMutation("publish")) onPublished()
   }
 
   const publishCard = canPublish ? (
@@ -115,7 +147,7 @@ export function PromptDraftWorkspace({
         <GovernanceDecisionDialog
           label="Publish release"
           description={`Publish the saved working copy as immutable version ${versionLabel.trim() || "—"} with DIRECT provenance?`}
-          disabled={!versionLabel.trim() || publish.isPending || update.isPending}
+          disabled={!versionLabel.trim() || publish.isPending || update.isPending || refreshing || Boolean(refreshError)}
           icon={Rocket}
           onConfirm={() => void publishRelease()}
         />
@@ -162,6 +194,24 @@ export function PromptDraftWorkspace({
     )
   }
 
+  const targetError = spaces.isError ? "Creation targets could not be loaded." : undefined
+  const accessError = canEdit ? undefined : "You can view this working copy but cannot edit it."
+  const editorError = error ?? refreshError ?? targetError ?? accessError
+  const refreshErrorAction = refreshError
+    ? {
+        label: refreshing ? "Retrying" : "Retry refresh",
+        onClick: () => void retryRefresh(),
+        disabled: refreshing,
+      }
+    : undefined
+  const targetErrorAction = !error && !refreshError && spaces.isError
+    ? {
+        label: spaces.isFetching ? "Retrying" : "Try again",
+        onClick: () => void spaces.refetch(),
+        disabled: spaces.isFetching,
+      }
+    : undefined
+
   return (
     <PromptTemplateEditor
       value={value}
@@ -169,8 +219,9 @@ export function PromptDraftWorkspace({
       onSubmit={save}
       submitLabel={update.isPending ? "Saving working copy" : "Save working copy"}
       submitting={update.isPending}
-      disabled={!canEdit}
-      error={error ?? (spaces.isError ? "Creation targets could not be loaded." : !canEdit ? "You can view this working copy but cannot edit it." : undefined)}
+      disabled={!canEdit || Boolean(refreshError)}
+      error={editorError}
+      errorAction={refreshErrorAction ?? targetErrorAction}
       spaces={spaces.data}
       spacesLoading={spaces.isPending}
       placementLocked

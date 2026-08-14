@@ -12,6 +12,8 @@ import {
 import {
   cloneElement,
   isValidElement,
+  useEffect,
+  useRef,
   type FormEvent,
   type ReactElement,
   type ReactNode,
@@ -54,6 +56,11 @@ type PromptTemplateEditorProps = {
   submitting?: boolean
   disabled?: boolean
   error?: string
+  errorAction?: {
+    label: string
+    onClick: () => void
+    disabled?: boolean
+  }
   spaces?: KnowledgeSpaceResponse[]
   spacesLoading?: boolean
   placementLocked?: boolean
@@ -68,12 +75,17 @@ export function PromptTemplateEditor({
   submitting = false,
   disabled = false,
   error,
+  errorAction,
   spaces = [],
   spacesLoading = false,
   placementLocked = false,
   asideAction,
 }: PromptTemplateEditorProps) {
   const editorDisabled = submitting || disabled
+  const errorRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (error) errorRef.current?.focus()
+  }, [error])
   const placeholders = extractPromptPlaceholders(value.textTemplate)
   const unresolved = placeholders.filter(
     (placeholder) => !value.variables.some((variable) => variable.name === placeholder),
@@ -99,25 +111,23 @@ export function PromptTemplateEditor({
 
   function updateVariable(index: number, variable: PromptVariableForm) {
     const previousName = value.variables[index]?.name
-    const renamed = previousName !== undefined && previousName !== variable.name
-    patch({
-      variables: value.variables.map((current, currentIndex) =>
-        currentIndex === index ? variable : current,
-      ),
-      ...(renamed
-        ? {
-            evaluationCases: value.evaluationCases.map((evaluationCase) => {
-              if (!Object.hasOwn(evaluationCase.values, previousName)) return evaluationCase
-              const { [previousName]: migratedValue, ...unchangedValues } =
-                evaluationCase.values
-              return {
-                ...evaluationCase,
-                values: { ...unchangedValues, [variable.name]: migratedValue },
-              }
-            }),
-          }
-        : {}),
+    const variables = value.variables.map((current, currentIndex) =>
+      currentIndex === index ? variable : current,
+    )
+    if (previousName === undefined || previousName === variable.name) {
+      patch({ variables })
+      return
+    }
+
+    const evaluationCases = value.evaluationCases.map((evaluationCase) => {
+      if (!Object.hasOwn(evaluationCase.values, previousName)) return evaluationCase
+      const { [previousName]: migratedValue, ...unchangedValues } = evaluationCase.values
+      return {
+        ...evaluationCase,
+        values: { ...unchangedValues, [variable.name]: migratedValue },
+      }
     })
+    patch({ variables, evaluationCases })
   }
 
   function removeVariable(index: number) {
@@ -229,6 +239,7 @@ export function PromptTemplateEditor({
                         ],
                       })
                     }
+                    disabled={editorDisabled}
                   >
                     Add detected
                   </Button>
@@ -364,7 +375,24 @@ export function PromptTemplateEditor({
 
           <PlacementPanel value={value} spaces={spaces} loading={spacesLoading} locked={placementLocked} disabled={editorDisabled} onChange={patch} />
 
-          {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
+          {error ? (
+            <Alert ref={errorRef} tabIndex={-1} variant="destructive">
+              <AlertDescription>
+                <span>{error}</span>
+                {errorAction ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={errorAction.disabled}
+                    onClick={errorAction.onClick}
+                  >
+                    {errorAction.label}
+                  </Button>
+                ) : null}
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
           <Button type="submit" size="lg" className="w-full" disabled={editorDisabled}>
             {submitLabel}
