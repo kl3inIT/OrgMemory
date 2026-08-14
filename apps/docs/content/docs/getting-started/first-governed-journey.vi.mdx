@@ -17,7 +17,7 @@ sourceRefs:
   - apps/web/src/features/assets/components/asset-detail-page.tsx
   - apps/web/src/features/assets/components/pack-journey-page.tsx
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
-lastReviewed: 2026-08-05
+lastReviewed: 2026-08-14
 ---
 
 Hành trình này bắt đầu sau khi administrator của tổ chức cấp quyền cho bạn và có
@@ -32,19 +32,16 @@ quy trình setup riêng.
 
 ## 1. Mở catalog Assets
 
-Mở **Assets** từ thanh điều hướng của sản phẩm. Catalog chỉ liệt kê các Asset đã
-phát hành, chưa bị withdrawn và được phép sử dụng bởi danh tính hiện tại của bạn.
-Tìm theo công việc, vai trò hoặc kết quả, lọc theo loại Asset rồi chọn đúng nội
-dung bạn cần.
+Mở **Assets** từ thanh điều hướng của sản phẩm. **Available to me** là scope mặc
+định và chỉ liệt kê các Asset đã release, chưa bị withdrawn mà danh tính hiện tại
+được phép sử dụng. Tìm theo công việc, vai trò hoặc kết quả, lọc theo loại Asset
+rồi chọn đúng nội dung bạn cần. Card hiển thị owner là con người, trạng thái
+sharing, phiên bản chính xác hiện tại và thời gian cập nhật; Skill còn hiển thị
+lựa chọn Enabled riêng của bạn.
 
-<ArchitectureDiagram
-  alt="Catalog Assets của Organizational AI Memory hiển thị một Capability Pack, Work Instruction, Prompt Template và Skill mà người dùng hiện tại được phép sử dụng."
-  description="Catalog hiển thị loại Asset dành cho người dùng, phiên bản chính xác, ngày phát hành và hành động phù hợp với loại đó. Screenshot này dùng dữ liệu tài liệu giả lập được chụp từ giao diện sản phẩm hiện tại."
-  height={638}
-  src="/images/getting-started/asset-catalog.png"
-  title="Khám phá một Asset đã phát hành và được cấp quyền"
-  width={1270}
-/>
+**Created by me** là workspace của owner và có thể chứa bản làm việc riêng tư
+chưa được release. Hãy quay lại **Available to me** khi mục tiêu của bạn là sử
+dụng Asset thay vì biên soạn.
 
 Nếu một Asset không xuất hiện, nó có thể đang không khả dụng, đã bị withdrawn
 hoặc nằm ngoài phạm vi quyền hiện tại của bạn. Catalog không làm lộ tên hoặc
@@ -56,7 +53,8 @@ Mở Asset và xác nhận:
 
 - loại Asset phù hợp với công việc bạn định thực hiện;
 - phiên bản được chọn là bản phát hành bạn mong đợi;
-- trạng thái hiện tại là available, không phải deprecated hoặc withdrawn;
+- trạng thái cho phép lượt sử dụng mới, không phải withdrawn; badge
+  `Deprecated` vẫn có thể xuất hiện trên release lịch sử tương thích;
 - phần tóm tắt, đối tượng sử dụng, điều kiện tiên quyết và kết quả mong đợi phù
   hợp với công việc;
 - **Version and provenance** xác định release coordinate, ngày phát hành và

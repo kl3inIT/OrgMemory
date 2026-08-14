@@ -15,7 +15,7 @@ sourceRefs:
   - docs/specs/domains/secure-retrieval.md
   - docs/specs/domains/assistant-and-mcp.md
   - apps/web/src/features/assets/asset-format.ts
-lastReviewed: 2026-07-30
+lastReviewed: 2026-08-14
 ---
 
 Organizational AI Memory kết nối hai hướng: bằng chứng trở thành tri thức tổ chức
@@ -108,40 +108,59 @@ Catalog **Assets** của sản phẩm chứa bốn loại năng lực có thể 
 Từ **Asset** trong giao diện sản phẩm chỉ bốn loại có thể tái sử dụng này.
 **Knowledge Asset** là tên kỹ thuật của Knowledge có thể tìm kiếm và được quản
 trị. Chúng có liên quan nhưng không dùng chung vòng đời: Knowledge đi theo bằng
-chứng nguồn, còn Asset có thể tái sử dụng đi theo quá trình biên soạn và review.
+chứng nguồn, còn Asset có thể tái sử dụng đi theo quá trình biên soạn do owner
+quản lý và phát hành chính xác.
 
-## Draft, review và bản phát hành chính xác
+## Bản làm việc riêng tư, chia sẻ và bản phát hành chính xác
 
 <Steps>
   <Step>
-    ### Draft
+    ### Bản làm việc riêng tư
 
-    Tác giả được cấp quyền chỉnh sửa bản làm việc.
+    Mỗi Asset mới có một owner là con người. Owner và Editor được thêm rõ ràng
+    có thể sửa bản làm việc mutable, nhưng Editor không thể publish hoặc thay
+    đổi quyền truy cập.
   </Step>
   <Step>
-    ### Revision bất biến
+    ### Publish hoặc chia sẻ
 
-    Khi submit, tiêu đề, payload, change note và digest được đóng băng thành một
-    đối tượng review duy nhất.
-  </Step>
-  <Step>
-    ### Review
-
-    Reviewer ghi quyết định trên đúng revision đó thay vì trên một draft vẫn
-    đang thay đổi.
+    Owner có thể publish trực tiếp mọi loại Asset đang được hỗ trợ. Nếu Asset
+    chưa có release, lần chia sẻ đầu tiên cho Viewer sẽ publish phiên bản bất
+    biến `1.0.0` trong cùng transaction database với sharing intent.
   </Step>
   <Step>
     ### Bản phát hành chính xác
 
-    Publish tạo ra một phiên bản bất biến mà người dùng được cấp quyền có thể
-    truy cập chính xác.
+    Publication đóng băng bản làm việc thành Revision và Release bất biến, có
+    digest và provenance `DIRECT`. Release chính xác cùng pin trong Capability
+    Pack không thay đổi khi bản làm việc được cập nhật.
+  </Step>
+  <Step>
+    ### Chuyển owner hoặc withdraw
+
+    Có thể chuyển owner mà không viết lại release; owner cũ trở thành Editor.
+    Withdraw Asset chặn mọi release khỏi lượt sử dụng mới và retire định danh ổn
+    định, trong khi lịch sử được cấp quyền vẫn được giữ lại.
   </Step>
 </Steps>
 
-Một bản phát hành có thể ở trạng thái **available**, **deprecated** hoặc
-**withdrawn**. Deprecation cảnh báo rằng có thể đã có bản thay thế. Withdrawal
-ngăn việc sử dụng mới nhưng không viết lại bằng chứng, review hoặc lịch sử sử
-dụng.
+Mô hình dành cho contributor có hai trục liên quan thay vì một chuỗi trạng thái
+thẳng. Bản làm việc vẫn mutable trong khi publication nối thêm các Release bất
+biến; quyền truy cập độc lập ở trạng thái **Private** hoặc **Shared**. Chia sẻ
+Editor không publish, còn lần chia sẻ Viewer đầu tiên sẽ publish. Withdraw Asset
+là trạng thái kết thúc đối với lượt sử dụng mới. Viewer chỉ nhận nội dung đã
+release và chia sẻ toàn công ty chỉ cấp Viewer.
+
+Các release từng được review và trạng thái `Deprecated` vẫn đọc được. Luồng
+contribution trên browser mặc định publish trực tiếp, chỉ đọc lịch sử review cũ
+và ẩn deprecate từng release khỏi nhóm hành động chính. Compatibility API cho
+review và deprecate từng release vẫn ghi được; plan sẽ đóng mutation review mới
+sau compatibility rollout nhưng hiện không đóng API deprecation. Hiện chưa có
+policy cấp tổ chức bắt buộc review. Withdrawal ngăn lượt sử dụng mới mà không
+viết lại release, audit hoặc lịch sử sử dụng. Skill có thêm lựa chọn **Enabled**
+riêng cho từng người dùng: sharing quyết định ai có thể khám phá Skill đã
+release, còn enabling quyết định Assistant của người dùng đó có thể chọn Skill
+hay không.
 
 ## Quyền truy cập, nguồn gốc và citation
 

@@ -15,7 +15,7 @@ sourceRefs:
   - docs/specs/domains/secure-retrieval.md
   - docs/specs/domains/assistant-and-mcp.md
   - apps/web/src/features/assets/asset-format.ts
-lastReviewed: 2026-07-29
+lastReviewed: 2026-08-14
 ---
 
 Organizational AI Memory connects two paths: evidence becomes authorized
@@ -107,39 +107,59 @@ The product's **Assets** catalog contains four kinds of reusable capability.
 The word **Asset** in the product UI refers to these four reusable types.
 **Knowledge Asset** is the technical name for governed searchable Knowledge.
 They are connected but do not share the same lifecycle: Knowledge follows
-source evidence, while reusable Assets follow authoring and review.
+source evidence, while reusable Assets follow owner-led authoring and exact
+publication.
 
-## Drafts, reviews, and exact releases
+## Private working copies, sharing, and exact releases
 
 <Steps>
   <Step>
-    ### Draft
+    ### Private working copy
 
-    An authorized author changes the working copy.
+    Every new Asset has one human owner. The owner and explicit Editors may
+    change the mutable working copy, but Editors cannot publish or change
+    access.
   </Step>
   <Step>
-    ### Immutable revision
+    ### Publish or share
 
-    Submission freezes the title, payload, change note, and digest into one
-    review target.
-  </Step>
-  <Step>
-    ### Review
-
-    A reviewer records a decision against that exact revision rather than a
-    moving draft.
+    The owner may publish any enabled Asset type directly. If the Asset has no
+    release yet, its first Viewer share publishes immutable version `1.0.0` in
+    the same database transaction as the sharing intent.
   </Step>
   <Step>
     ### Exact release
 
-    Publication creates an immutable version that authorized consumers can
-    address exactly.
+    Publication snapshots the working copy into an immutable Revision and
+    Release with a digest and `DIRECT` provenance. Existing exact releases and
+    Capability Pack pins never change when the working copy is updated.
+  </Step>
+  <Step>
+    ### Transfer or withdraw
+
+    Ownership can be transferred without rewriting releases; the previous owner
+    becomes an Editor. Withdrawing the Asset blocks every release from new use
+    and retires the stable identity while preserving authorized history.
   </Step>
 </Steps>
 
-A release can be **available**, **deprecated**, or **withdrawn**. Deprecation
-warns that a replacement may exist. Withdrawal prevents new consumption but
-does not rewrite historical evidence, reviews, or usage records.
+The contributor model has two related axes rather than one linear state chain.
+The working copy remains mutable while publication appends immutable Releases;
+access is independently **Private** or **Shared**. An Editor share does not
+publish, while the first Viewer share does. Asset withdrawal is terminal for
+new use. Viewers receive released content only, and company-wide sharing is
+Viewer-only.
+
+Existing reviewed releases and `Deprecated` availability records remain
+readable. The browser contribution path defaults to direct publication, shows
+legacy review history read-only, and hides per-release deprecation as a primary
+action. Compatibility review and per-release deprecation APIs remain writable;
+the plan closes new review mutations after compatibility rollout, while it does
+not currently close the deprecation API. No current organization-level policy
+forces review. Withdrawal prevents new consumption without rewriting release,
+audit, or usage evidence. Skills add one separate per-user **Enabled** choice:
+sharing controls who may discover a released Skill, while enabling controls
+whether that user's Assistant may select it.
 
 ## Permissions, provenance, and citations
 
