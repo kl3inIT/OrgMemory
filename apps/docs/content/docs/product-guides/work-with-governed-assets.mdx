@@ -15,7 +15,7 @@ sourceRefs:
   - apps/web/src/features/assets/components/pack-journey-page.tsx
   - apps/cli/src/install.ts
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
-lastReviewed: 2026-08-02
+lastReviewed: 2026-08-14
 ---
 
 Use this guide when you know the outcome you need and want to find, inspect, and
@@ -31,21 +31,17 @@ usable release. No repository access or deployment setup is required.
 
   ### Find an Asset
 
-  Open **Assets** in the product navigation. Search by the task or outcome, then
-  narrow the results by Asset type or change the sort order.
+  Open **Assets** in the product navigation. Stay in **Available to me** when
+  you want to consume a released Asset; **Created by me** is the owner's
+  workspace and may include private working copies. Search by the task or
+  outcome, then narrow the results by Asset type or change the sort order.
 
   The catalog is actor-specific: it returns the latest non-withdrawn exact
-  release that the current identity may use. A missing item is not evidence that
-  the Asset exists; the catalog does not disclose denied candidates.
-
-  <ArchitectureDiagram
-    alt="Organizational AI Memory Assets catalog showing authorized Capability Pack, Work Instruction, Prompt Template, and Skill releases."
-    description="Use search, type filters, sorting, and paging to narrow the authorized catalog. Each result identifies its type, exact version, availability, and release date. This screenshot uses synthetic documentation data captured from the current product UI."
-    height={638}
-    src="/images/getting-started/asset-catalog.png"
-    title="Find the release that matches your task"
-    width={1270}
-  />
+  release that the current identity may use. Each card identifies the type,
+  human owner, sharing state, current exact version, and updated time. Skills
+  also expose the current user's Enabled preference. A missing item is not
+  evidence that the Asset exists; the catalog does not disclose denied
+  candidates.
 
   </Step>
   <Step>
@@ -133,10 +129,12 @@ usable release. No repository access or deployment setup is required.
   - If an Asset is absent from the catalog, check your search and filters, then
     ask an administrator or Asset owner to verify access without assuming the
     Asset exists.
-  - If the detail page has no usable release, ask the owner to complete the
-    review and release process.
-  - If a release is **Deprecated**, prefer a current release unless a controlled
-    workflow requires the older exact version.
+  - If the detail page has no usable release, ask the owner to publish the
+    working copy or share it with the intended Viewer audience. The compatible
+    reviewed API path can also produce a release, but no current
+    organization-level policy forces it.
+  - If a compatible historical release is **Deprecated**, prefer a current
+    release unless a controlled workflow requires the older exact version.
   - A **Withdrawn** release cannot start new consumption. Historical evidence
     and existing pins remain identifiable, but they do not make the release
     usable again.

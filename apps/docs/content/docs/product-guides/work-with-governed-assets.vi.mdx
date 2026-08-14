@@ -15,7 +15,7 @@ sourceRefs:
   - apps/web/src/features/assets/components/pack-journey-page.tsx
   - apps/cli/src/install.ts
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
-lastReviewed: 2026-08-02
+lastReviewed: 2026-08-14
 ---
 
 Dùng hướng dẫn này khi bạn đã biết kết quả mình cần và muốn tìm, kiểm tra rồi sử
@@ -32,22 +32,17 @@ hành có thể sử dụng. Không cần truy cập repository hoặc setup dep
 
   ### Tìm một Asset
 
-  Mở **Assets** trong thanh điều hướng của sản phẩm. Tìm theo công việc hoặc kết
-  quả, sau đó thu hẹp bằng loại Asset hoặc thay đổi thứ tự sắp xếp.
+  Mở **Assets** trong thanh điều hướng của sản phẩm. Giữ scope **Available to
+  me** khi bạn muốn sử dụng Asset đã release; **Created by me** là workspace của
+  owner và có thể chứa bản làm việc riêng tư. Tìm theo công việc hoặc kết quả,
+  sau đó thu hẹp bằng loại Asset hoặc thay đổi thứ tự sắp xếp.
 
   Catalog phụ thuộc vào chủ thể hiện tại: nó trả về bản phát hành chính xác mới
-  nhất, chưa bị withdrawn mà danh tính hiện tại được phép sử dụng. Một mục không
-  xuất hiện không chứng minh rằng Asset đó tồn tại; catalog không tiết lộ các
-  candidate bị từ chối.
-
-  <ArchitectureDiagram
-    alt="Catalog Assets của Organizational AI Memory hiển thị các bản phát hành Capability Pack, Work Instruction, Prompt Template và Skill được cấp quyền."
-    description="Dùng tìm kiếm, bộ lọc loại, sắp xếp và phân trang để thu hẹp catalog được cấp quyền. Mỗi kết quả cho biết loại, phiên bản chính xác, trạng thái và ngày phát hành. Screenshot này dùng dữ liệu tài liệu giả lập được chụp từ giao diện sản phẩm hiện tại."
-    height={638}
-    src="/images/getting-started/asset-catalog.png"
-    title="Tìm bản phát hành phù hợp với công việc"
-    width={1270}
-  />
+  nhất, chưa bị withdrawn mà danh tính hiện tại được phép sử dụng. Mỗi card cho
+  biết loại, owner là con người, trạng thái sharing, phiên bản chính xác hiện tại
+  và thời gian cập nhật. Skill còn hiển thị lựa chọn Enabled của người dùng hiện
+  tại. Một mục không xuất hiện không chứng minh rằng Asset đó tồn tại; catalog
+  không tiết lộ các candidate bị từ chối.
 
   </Step>
   <Step>
@@ -135,10 +130,12 @@ hành có thể sử dụng. Không cần truy cập repository hoặc setup dep
   - Nếu Asset không có trong catalog, kiểm tra lại tìm kiếm và bộ lọc, sau đó
     yêu cầu administrator hoặc Asset owner xác minh quyền mà không giả định
     Asset đó tồn tại.
-  - Nếu trang chi tiết chưa có bản phát hành có thể sử dụng, yêu cầu owner hoàn
-    thành quy trình review và release.
-  - Nếu bản phát hành là **Deprecated**, ưu tiên bản hiện tại trừ khi một quy
-    trình được kiểm soát yêu cầu đúng phiên bản cũ.
+  - Nếu trang chi tiết chưa có bản phát hành có thể sử dụng, yêu cầu owner
+    publish bản làm việc hoặc chia sẻ cho nhóm Viewer dự kiến. Compatibility API
+    reviewed cũng có thể tạo release, nhưng hiện chưa có policy cấp tổ chức bắt
+    buộc dùng luồng này.
+  - Nếu một release lịch sử tương thích ở trạng thái **Deprecated**, ưu tiên bản
+    hiện tại trừ khi quy trình được kiểm soát yêu cầu đúng phiên bản cũ.
   - Bản phát hành **Withdrawn** không thể bắt đầu lượt sử dụng mới. Bằng chứng
     lịch sử và pin đang có vẫn xác định được bản đó nhưng không làm nó khả dụng
     trở lại.

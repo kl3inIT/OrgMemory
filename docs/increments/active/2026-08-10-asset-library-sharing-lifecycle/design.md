@@ -132,8 +132,9 @@ publication, or sharing authority.
 
 Sharing states are:
 
-- **Private** — owner and explicitly added Editors only; no Viewer audience.
-- **Shared with people or groups** — at least one explicit Viewer audience.
+- **Private** — no active Viewer or Editor audience.
+- **Shared with people or groups** — at least one explicit user or group Viewer
+  or Editor audience.
 - **Organization** — every actor already admitted by the parent Space's
   `can_view` ceiling receives Viewer access.
 
@@ -153,23 +154,28 @@ owner count is zero and does not recreate the former owner as Editor.
 ### Lifecycle
 
 ```mermaid
-flowchart LR
-    A[Create or import] --> B[Private working copy]
-    B -->|Share| C[Shared exact Release]
-    C -->|Save update| D[New exact Release]
-    D --> C
-    C -->|Withdraw Asset| W[Withdrawn]
+flowchart TD
+    A[Create or import] --> B[Mutable working copy]
+    B -->|Owner publishes| R[Immutable exact Release]
+    B -->|First Viewer share| R
+    R -->|Owner publishes update| R2[New immutable exact Release]
+    B -->|Add Viewer or Editor| S[Shared access]
+    S -->|Remove final Viewer or Editor| P[Private access]
+    R -->|Withdraw Asset| W[Withdrawn]
 ```
 
-The lifecycle shown to contributors is **Private → Shared → Withdrawn**.
-`AssetRevision`, `AssetRelease`, package digests, exact version coordinates,
-availability events, and audit lines remain implementation invariants.
+The contributor model has two related axes. A mutable working copy can append
+immutable Releases; access independently moves between Private and Shared.
+Withdrawal is terminal for new use. `AssetRevision`, `AssetRelease`, package
+digests, exact version coordinates, availability events, and audit lines remain
+implementation invariants.
 
-- The first Share validates the working copy and commits the immutable Revision,
-  Release with `publicationMode=DIRECT`, canonical audience intent, and audit
-  evidence in one PostgreSQL transaction. OpenFGA projection follows through
-  the outbox; the Asset remains sharing-pending until convergence.
-- Owner-only Save update validates and creates a new immutable Revision and
+- The first Viewer Share validates the working copy and commits the immutable
+  Revision, Release with `publicationMode=DIRECT`, canonical audience intent,
+  and audit evidence in one PostgreSQL transaction. An Editor Share changes
+  access without publishing. OpenFGA projection follows through the outbox; the
+  Asset remains sharing-pending until convergence.
+- Owner-only Publish update validates and creates a new immutable Revision and
   Release under the Draft/Asset lock. It changes the catalog's current Release
   only after the transaction succeeds.
 - Existing exact pins keep resolving to their old Release while it remains

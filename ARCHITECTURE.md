@@ -198,13 +198,29 @@ accountable roles, mutable drafts, immutable digest-pinned revisions, distinct
 review decisions, immutable releases, append-only availability history, and
 actor-scoped consumption evidence. Prompt Template, Work Instruction,
 Capability Pack, and Skill Package are code-owned profiles over this common
-kernel. A Skill import validates one bounded Agent Skills ZIP before its
-original bytes enter object storage. An owner-class actor may publish that
-Draft directly into an immutable Revision and Release; the optional reviewed
-path remains available, and every release records `DIRECT` or `REVIEWED`
-provenance. Both paths pin the exact object key and SHA-256. Existing
-Knowledge remains in its canonical ledger and is federated by exact visible
-version; it is not copied into registry tables.
+kernel. Every new Asset has one canonical human owner and starts as a private
+working copy. The owner may publish every enabled profile directly into an
+immutable Revision and Release; the first Viewer share publishes version
+`1.0.0` when no Release exists. Editors may change only the working Draft, and
+Viewers receive only released content. Company-wide sharing is Viewer-only.
+Existing reviewed Releases and review records remain compatible history, and
+the optional reviewed API path remains available; every Release records
+`DIRECT` or `REVIEWED` provenance.
+
+Ownership transfer is one locked canonical-ledger transition that appoints the
+new owner and demotes the previous owner to Editor. Administrator recovery is
+allowed only for an owner vacancy. Asset-level withdrawal appends `WITHDRAWN`
+availability evidence to every non-withdrawn Release and retires the stable
+identity. Relationship changes advance a canonical generation, mark
+authorization unready, and queue versioned OpenFGA write/delete intents; reads
+remain fail-closed until the current generation converges. Transfer currently
+relies on the same-organization user foreign key; active-user and parent-Space
+eligibility checks remain an open hardening gate.
+
+A Skill import validates one bounded Agent Skills ZIP before its original bytes
+enter object storage. Direct and reviewed Skill publication both pin the exact
+object key and SHA-256. Existing Knowledge remains in its canonical ledger and
+is federated by exact visible version; it is not copied into registry tables.
 
 A mutable Skill Draft may replace its package under live edit authorization,
 an expected Draft version, and the Asset lock. The swap deletes and recreates
@@ -259,9 +275,11 @@ All REST, Assistant, web, and MCP consumption resolves an exact released
 version and live actor authorization. Capability Packs pin exact component
 releases and independently authorize every item, so a replacement cannot
 silently mutate an assigned journey and a denied component collapses to an
-opaque access gap. Ownership health is derived from active owner and backup
-owner assignments and exposes explicit orphaned/continuity-risk states without
-changing the immutable release.
+opaque access gap. A visible Skill is disabled for each actor by default;
+Assistant discovery and activation require both current release visibility and
+that actor's explicit Enabled preference. Governance history still derives the
+legacy owner/backup-owner health flags for compatible records without changing
+immutable Release bytes.
 
 ## Persisted Model
 

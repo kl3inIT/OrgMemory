@@ -17,7 +17,7 @@ sourceRefs:
   - apps/web/src/features/assets/components/asset-detail-page.tsx
   - apps/web/src/features/assets/components/pack-journey-page.tsx
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
-lastReviewed: 2026-08-05
+lastReviewed: 2026-08-14
 ---
 
 This journey begins after an organization administrator has given you access
@@ -31,18 +31,15 @@ sections below are the journey; no separate setup path is required.
 
 ## 1. Open the Assets catalog
 
-Open **Assets** from the product navigation. The catalog lists only released,
-non-withdrawn Assets that your current identity may use. Search by task, role,
-or outcome, filter by Asset type, and choose the exact item you need.
+Open **Assets** from the product navigation. **Available to me** is the default
+scope and lists only released, non-withdrawn Assets that your current identity
+may use. Search by task, role, or outcome, filter by Asset type, and choose the
+exact item you need. Cards show the human owner, sharing state, current exact
+version, and updated time; Skills also expose your personal Enabled choice.
 
-<ArchitectureDiagram
-  alt="Organizational AI Memory Assets catalog showing a Capability Pack, Work Instruction, Prompt Template, and Skill available to the current user."
-  description="The catalog exposes the user-facing Asset type, exact version, release date, and the action appropriate for that type. This screenshot uses synthetic documentation data captured from the current product UI."
-  height={638}
-  src="/images/getting-started/asset-catalog.png"
-  title="Discover an authorized released Asset"
-  width={1270}
-/>
+**Created by me** is the owner's workspace and can include private working
+copies that have not been released. Return to **Available to me** when your goal
+is to consume an Asset rather than author one.
 
 An Asset that does not appear may be unavailable, withdrawn, or outside your
 current permission scope. The catalog does not reveal denied Asset names or
@@ -54,7 +51,8 @@ Open the Asset and confirm:
 
 - the type matches the task you intend to perform;
 - the selected version is the release you expect;
-- its availability is current rather than deprecated or withdrawn;
+- its availability permits new use rather than being withdrawn; a
+  `Deprecated` badge can remain on compatible historical releases;
 - the summary, audience, prerequisites, and expected outcome fit your work;
 - **Version and provenance** identifies the release coordinate, date, and
   digest.

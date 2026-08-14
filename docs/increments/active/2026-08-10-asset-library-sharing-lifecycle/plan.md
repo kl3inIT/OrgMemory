@@ -3,10 +3,10 @@
 Design: [design.md](design.md). Architecture challenge:
 [challenge brief](challenge-brief.md) and [verdict](challenge-verdict.md).
 
-Implementation began on `feat/asset-library-sharing-lifecycle` after the
-project owner explicitly prioritized this increment over the stale overlapping
-worktree. Remaining unchecked items are follow-up release gates or intentionally
-unimplemented hardening; checked items are executable in this branch.
+The owner-led lifecycle implementation reached `main` in `03993bca`, followed
+by catalog and authoring refinements. Remaining unchecked items are migration,
+transfer-target eligibility, rollout, collision, and browser-hardening gates;
+checked items are executable on the current `main` baseline.
 
 ## 0. Decision and characterization gates
 
@@ -76,9 +76,12 @@ unimplemented hardening; checked items are executable in this branch.
   PostgreSQL transaction, then project user/group/organization Viewer
   relationships. Expose pending/failed convergence honestly; do not claim
   cross-store atomicity.
-- [ ] Implement one locked ownership transfer in the canonical ledger and
-  demotion of the previous owner to Editor. Validate an active organization
-  member and Space ceiling, then converge the projection idempotently.
+- [x] Implement one locked ownership transfer in the canonical ledger and
+  demotion of the previous owner to Editor, with generation-scoped projection
+  intents.
+- [ ] Validate the next owner as an active standard human in the organization
+  who satisfies the parent Space view/create ceiling, then add the associated
+  convergence and security-negative proof.
 - [x] Implement ownerless-only administrator recovery with a locked vacancy
   predicate and audit evidence; add a separate `can_emergency_withdraw` path.
 - [x] Implement asset-level withdrawal of every non-withdrawn Release and
@@ -126,7 +129,7 @@ unimplemented hardening; checked items are executable in this branch.
   backup owner/review are removed from new POC writes.
 - [x] Reconcile `docs/specs/domains/asset-registry.md` and its test mirror only
   after behavior ships; refresh `Source:` and `Reconciled:`.
-- [ ] Reconcile `ARCHITECTURE.md`, vision, public docs, and generated OpenAPI
+- [x] Reconcile `ARCHITECTURE.md`, vision, public docs, and generated OpenAPI
   without describing planned behavior as current.
 - [x] Run focused core/API/OpenFGA/web tests while iterating, then terminating
   `clean test`, frontend lint/typecheck/unit/build, docs check/build, generated
