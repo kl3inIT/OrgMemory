@@ -2,10 +2,9 @@
 
 ## Status
 
-Implemented locally and verified against the browser POC. The approved direction
-is a browser authoring and exact-release use slice over existing Prompt and Asset
-contracts. Required Knowledge grounding is deferred. Authenticated runtime
-approval, PR/CI, merge, and exact-SHA deployment remain separate gates.
+Shipped and verified on 2026-08-14. The browser-native Prompt authoring and
+exact-release use slice is recorded in the adjacent `verification.md`; strict
+Required Knowledge grounding remains deferred.
 
 ## 1. Freeze the existing contract
 
@@ -124,10 +123,10 @@ approval, PR/CI, merge, and exact-SHA deployment remain separate gates.
 - [x] Reconcile `docs/specs/domains/asset-registry.md` and its mirrored test
   matrix with implementation evidence and refreshed `Source:`/`Reconciled:`
   lines. Update `ARCHITECTURE.md` only if project-wide implemented facts change.
-- [ ] Capture authenticated browser evidence. Keep local validation, PR CI,
+- [x] Capture authenticated browser evidence. Keep local validation, PR CI,
   merge, exact-SHA deployment, runtime verification, and worktree cleanup as
   separate gates.
-- [ ] Move this increment to completed only after behavior, documentation, and
+- [x] Move this increment to completed only after behavior, documentation, and
   required verification all agree; then update the roadmap from active to
   shipped.
 
@@ -148,3 +147,7 @@ The final verification record must name the exact branch and commit, changed
 contracts, focused and completion test commands, authenticated browser path,
 known gaps, PR/CI result, merged SHA, deployed SHA, runtime proof, and cleanup
 state. Passing CI or a healthy deployment alone is not visual verification.
+
+See `verification.md` for the exact reviewed branch and commit, PR/CI and
+workflow runs, merged and deployed SHA, browser path, known gaps, and cleanup
+state.
