@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -75,8 +75,7 @@ describe("PromptDraftWorkspace", () => {
     )
 
     const objective = screen.getByLabelText("Task objective")
-    await user.clear(objective)
-    await user.type(objective, "Route urgent synthetic tickets")
+    fireEvent.change(objective, { target: { value: "Route urgent synthetic tickets" } })
     await user.click(screen.getByRole("button", { name: "Save working copy" }))
 
     expect(
