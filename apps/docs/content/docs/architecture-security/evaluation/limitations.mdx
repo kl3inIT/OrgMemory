@@ -10,7 +10,8 @@ sourceRefs:
   - docs/vision.md
   - docs/roadmap.md
   - ARCHITECTURE.md
-lastReviewed: 2026-07-29
+  - integrations/authorization-openfga/src/main/openfga/model.fga
+lastReviewed: 2026-08-14
 ---
 
 Organizational AI Memory is a production-shaped POC, not an approved enterprise deployment.
@@ -41,6 +42,12 @@ coverage are not mistaken for operational certification.
   Group mutation endpoints remain disabled;
 - one external issuer/subject belongs to one application user and organization;
   one person across multiple organizations needs a future global-person model;
+- the organizational model is flat: one organization with a single level of
+  departments, and no holding-company or legal-entity tier above or between
+  organizations;
+- authorization groups accept only direct user and service-account members, so
+  nested directory groups cannot be expressed and must be flattened or rejected
+  at provisioning time;
 - source-derived permissions for content composed from multiple source objects
   do not yet have a complete intersection contract.
 
@@ -76,6 +83,7 @@ coverage are not mistaken for operational certification.
 | Performance SLOs | Representative corpus/workload, repeatable environment, percentile latency, throughput, saturation, and failure behavior |
 | Retrieval quality | Versioned evaluation set, provider/model coordinates, permission-negative cases, citation quality, and reproducible results |
 | Multi-organization identity | Explicit global-person/membership model with migration and tenant-isolation evidence |
+| Organizational hierarchy | Legal-entity/holding hierarchy and nested-group modeling with authorization-equivalence and migration evidence |
 | Public versioning | Supported compatibility policy and genuinely incompatible released generations |
 
 <Callout title="No hidden roadmap promise" type="info">
