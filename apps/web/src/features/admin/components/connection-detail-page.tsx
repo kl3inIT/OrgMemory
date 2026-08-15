@@ -1,6 +1,6 @@
 import { useMutation, useQueries } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { ArrowLeft, RefreshCw, TriangleAlert } from "lucide-react"
+import { ArrowLeft, History, RefreshCw, Settings2, ShieldCheck, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
 
 import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
@@ -21,9 +21,9 @@ import {
 import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admin/components/admin-page"
 import { SourceIcon, type SourceIconName } from "@/features/admin/components/source-icon"
 import { CONNECTOR_CATALOG } from "@/features/admin/connector-catalog"
-import { allFields, CONNECTOR_FORMS } from "@/features/admin/connector-forms"
+import { allFields, CONNECTOR_FORMS, type ConnectorField } from "@/features/admin/connector-forms"
 import type { AdminComponentCheckpointResponse, AdminCrawlAttemptResponse } from "@/lib/hey-api"
-import { formatDate } from "@/lib/format"
+import { formatBytes, formatDate } from "@/lib/format"
 
 /**
  * How each outcome reads on the screen.
@@ -61,11 +61,29 @@ const OUTCOMES: Record<string, { label: string; variant: "success" | "warning" |
   },
 }
 
-function changedBy(attempt: AdminCrawlAttemptResponse) {
+const INCOMPLETE_REASONS: Record<string, { title: string; detail: string }> = {
+  GOOGLE_DRIVE_CONTENT_BUDGET_EXHAUSTED: {
+    title: "Content limit reached",
+    detail:
+      "The crawl stopped retaining text at the configured limit, then continued checking file permissions.",
+  },
+}
+
+function incompleteReasonPresentation(reason?: string) {
+  if (!reason) return undefined
+  return (
+    INCOMPLETE_REASONS[reason] ?? {
+      title: "Incomplete source evidence",
+      detail: "The source did not prove this component complete in its latest observation.",
+    }
+  )
+}
+
+export function changedBy(attempt: AdminCrawlAttemptResponse): string {
   const parts = [
-    attempt.objectsMaterialized ? `${attempt.objectsMaterialized} new` : "",
-    attempt.objectsRematerialized ? `${attempt.objectsRematerialized} changed` : "",
-    attempt.objectsRotated ? `${attempt.objectsRotated} access` : "",
+    attempt.objectsMaterialized ? `${attempt.objectsMaterialized} added` : "",
+    attempt.objectsRematerialized ? `${attempt.objectsRematerialized} content updated` : "",
+    attempt.objectsRotated ? `${attempt.objectsRotated} permissions updated` : "",
     attempt.objectsRetired ? `${attempt.objectsRetired} retired` : "",
     attempt.objectsFailed ? `${attempt.objectsFailed} failed` : "",
   ].filter(Boolean)
@@ -73,6 +91,13 @@ function changedBy(attempt: AdminCrawlAttemptResponse) {
 }
 
 const attemptColumns: ColumnDef<AdminCrawlAttemptResponse>[] = [
+  {
+    accessorKey: "attemptedAt",
+    header: "When",
+    enableSorting: true,
+    meta: { cellClassName: "whitespace-nowrap text-muted-foreground" },
+    cell: ({ row }) => formatDate(row.original.attemptedAt),
+  },
   {
     accessorKey: "outcome",
     header: "Outcome",
@@ -87,16 +112,9 @@ const attemptColumns: ColumnDef<AdminCrawlAttemptResponse>[] = [
     },
   },
   {
-    accessorKey: "attemptedAt",
-    header: "When",
-    enableSorting: true,
-    meta: { cellClassName: "text-muted-foreground" },
-    cell: ({ row }) => formatDate(row.original.attemptedAt),
-  },
-  {
     id: "changed",
     accessorFn: changedBy,
-    header: "Changed",
+    header: "Changes",
     enableSorting: true,
     meta: { cellClassName: "text-muted-foreground" },
   },
@@ -104,22 +122,26 @@ const attemptColumns: ColumnDef<AdminCrawlAttemptResponse>[] = [
     id: "reason",
     accessorFn: (attempt) =>
       [attempt.errorCode, attempt.errorMessage].filter(Boolean).join(" "),
-    header: "Reason",
+    header: "Details",
     meta: { cellClassName: "max-w-md text-muted-foreground" },
     cell: ({ row }) => {
       const attempt = row.original
+      const reason = incompleteReasonPresentation(attempt.errorCode)
+      if (!attempt.errorCode && !attempt.errorMessage) return "—"
       return (
-        <>
+        <div className="space-y-1">
+          <p className="font-medium text-foreground">
+            {reason?.title ?? attempt.errorMessage}
+          </p>
+          {reason && attempt.errorMessage ? (
+            <p className="text-xs">{attempt.errorMessage}</p>
+          ) : null}
           {attempt.errorCode ? (
-            <code className="rounded bg-muted px-1 py-0.5 text-xs">
+            <code className="block break-all text-xs text-muted-foreground">
               {attempt.errorCode}
             </code>
           ) : null}
-          {attempt.errorMessage ? (
-            <div className="mt-0.5 text-xs">{attempt.errorMessage}</div>
-          ) : null}
-          {!attempt.errorCode && !attempt.errorMessage ? "—" : null}
-        </>
+        </div>
       )
     },
   },
@@ -133,21 +155,30 @@ const COMPONENT_LABELS: Record<string, string> = {
 
 function ComponentCheckpoint({ checkpoint }: { checkpoint: AdminComponentCheckpointResponse }) {
   const complete = checkpoint.captureStatus === "COMPLETE"
+  const reason = incompleteReasonPresentation(checkpoint.incompleteReason)
   return (
-    <SettingRow label={COMPONENT_LABELS[checkpoint.component ?? ""] ?? checkpoint.component ?? "Component"}>
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="min-w-0 bg-card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <dt className="font-medium">
+          {COMPONENT_LABELS[checkpoint.component ?? ""] ?? checkpoint.component ?? "Component"}
+        </dt>
         <Badge variant={complete ? "success" : "warning"}>
-          {complete ? "Complete" : (checkpoint.captureStatus ?? "Unknown")}
+          {complete ? "Complete" : "Incomplete"}
         </Badge>
-        <span>
-          Last successful:{" "}
-          {formatDate(checkpoint.lastSuccessfulAt, { fallback: "Never" })}
-        </span>
       </div>
-      {checkpoint.incompleteReason ? (
-        <p className="mt-1 text-sm text-warning-foreground">{checkpoint.incompleteReason}</p>
-      ) : null}
-    </SettingRow>
+      <dd className="mt-3 space-y-2 text-sm text-muted-foreground">
+        <p>
+          Last complete {formatDate(checkpoint.lastSuccessfulAt, { fallback: "Never" })}
+        </p>
+        {reason ? (
+          <div className="space-y-1">
+            <p className="font-medium text-status-warning-content">{reason.title}</p>
+            <p>{reason.detail}</p>
+            <code className="block break-all text-xs">{checkpoint.incompleteReason}</code>
+          </div>
+        ) : null}
+      </dd>
+    </div>
   )
 }
 
@@ -176,7 +207,9 @@ export function ConnectionDetailPage({
   const crawlNow = useMutation({
     ...requestAdminConnectionCrawlMutation(),
     onSuccess: () =>
-      toast.success("Crawl requested. The worker reads its content on the next poll — the attempt appears below when it does."),
+      toast.success(
+        "Crawl requested. The worker reads its content on the next poll — the attempt appears below when it does.",
+      ),
     onError: () => toast.error("The crawl could not be requested."),
   })
 
@@ -202,24 +235,62 @@ export function ConnectionDetailPage({
     )
   }
 
+  const catalogued = CONNECTOR_CATALOG.find((entry) => entry.sourceSystem === sourceSystem)
+  const sourceName = catalogued?.name ?? sourceSystem
   const connection = (connections.data ?? []).find(
     (candidate) => candidate.sourceConnectionKey === connectionKey,
   )
+
+  if (!connection) {
+    return (
+      <AdminPage
+        title="Connection not found"
+        description={`${sourceName} connection ${connectionKey}`}
+        actions={
+          <Button variant="outline" asChild>
+            <Link to="/admin/connectors">
+              <ArrowLeft aria-hidden="true" />
+              All sources
+            </Link>
+          </Button>
+        }
+      >
+        <AdminEmpty
+          title="This connection no longer exists"
+          description="Return to Sources to choose a configured connection."
+        />
+      </AdminPage>
+    )
+  }
+
   const attempts = activity.data?.recentAttempts ?? []
   const componentCheckpoints = activity.data?.componentCheckpoints ?? []
-  const space = (spaces.data ?? []).find((candidate) => candidate.id === connection?.knowledgeSpaceId)
-  const catalogued = CONNECTOR_CATALOG.find((entry) => entry.sourceSystem === sourceSystem)
+  const space = (spaces.data ?? []).find((candidate) => candidate.id === connection.knowledgeSpaceId)
   const descriptor = CONNECTOR_FORMS[sourceSystem]
-
-  // Standing rather than transient: a connection that cannot read is not a thing to be
-  // discovered by whoever eventually wonders where the content went.
-  const blocked = connection?.crawlEnabled && !connection.credentialSet
+  const blocked = connection.crawlEnabled && !connection.credentialSet
   const lastAttempt = attempts[0]
   const stalled = lastAttempt && lastAttempt.outcome !== "SUCCEEDED"
+  const latestIssue = lastAttempt?.errorCode
+    ? INCOMPLETE_REASONS[lastAttempt.errorCode]
+    : undefined
+  const partial = lastAttempt?.outcome === "PARTIAL"
+  let latestCrawlTitle = latestIssue?.title ?? "Latest crawl did not complete"
+  if (!latestIssue && lastAttempt?.outcome === "UNAVAILABLE") {
+    latestCrawlTitle = `${sourceName} could not be read`
+  } else if (!latestIssue && lastAttempt?.outcome === "PARTIAL") {
+    latestCrawlTitle = "Latest crawl completed with partial evidence"
+  }
+  let crawlDisabledReason: string | undefined
+  if (!connection.crawlEnabled) {
+    crawlDisabledReason = "Enable this connection before requesting a crawl."
+  } else if (!connection.credentialSet) {
+    crawlDisabledReason = "Store a credential before requesting a crawl."
+  }
 
   return (
     <AdminPage
-      title={`${catalogued?.name ?? sourceSystem} · ${connectionKey}`}
+      title={sourceName}
+      description={`Connection ${connectionKey}`}
       icon={
         catalogued ? <SourceIcon name={catalogued.icon as SourceIconName} className="size-6" /> : undefined
       }
@@ -228,14 +299,13 @@ export function ConnectionDetailPage({
           <Button variant="outline" asChild>
             <Link to="/admin/connectors">
               <ArrowLeft aria-hidden="true" />
-              Sources
+              All sources
             </Link>
           </Button>
-          {/* Only meaningful once the connection can actually read: an off or credential-less
-              connection accepts the request and the worker, which polls neither, never acts. */}
           <Button
             variant="outline"
-            disabled={!connection?.crawlEnabled || !connection.credentialSet || crawlNow.isPending}
+            disabled={Boolean(crawlDisabledReason) || crawlNow.isPending}
+            title={crawlDisabledReason}
             onClick={() => crawlNow.mutate({ path: { sourceSystem, connectionKey } })}
           >
             <RefreshCw aria-hidden="true" />
@@ -255,15 +325,15 @@ export function ConnectionDetailPage({
     >
       <AdminStats
         stats={[
-          { label: "Objects retrievable", value: activity.data?.objectsActive ?? 0 },
-          { label: "Retired", value: activity.data?.objectsArchived ?? 0 },
+          { label: "Available objects", value: activity.data?.objectsActive ?? 0 },
+          { label: "Retired objects", value: activity.data?.objectsArchived ?? 0 },
           {
-            label: "Last indexed",
+            label: "Last crawl",
             value: formatDate(activity.data?.lastCrawlAt, { fallback: "Never" }),
-            hint: activity.data?.lastCrawlAt ? undefined : "Nothing has been checkpointed",
+            hint: activity.data?.lastCrawlAt ? undefined : "No checkpoint yet",
           },
           {
-            label: "Last change",
+            label: "Last object change",
             value: formatDate(activity.data?.lastObjectAt, { fallback: "None" }),
           },
         ]}
@@ -272,14 +342,9 @@ export function ConnectionDetailPage({
       {blocked ? (
         <Alert variant="destructive">
           <TriangleAlert aria-hidden="true" />
-          <AlertTitle>This connection is switched on but cannot read anything</AlertTitle>
+          <AlertTitle>This connection is on but cannot read {sourceName}</AlertTitle>
           <AlertDescription className="space-y-2">
-            <p>
-              The crawl is enabled and no credential is stored, so every poll ends without
-              contacting {catalogued?.name ?? sourceSystem}.
-            </p>
-            {/* Straight to the step that fixes it. Naming the problem and leaving the reader to
-                find where it is solved is the same as not naming it. */}
+            <p>No credential is stored, so the worker cannot contact {sourceName}.</p>
             <Button size="sm" variant="outline" asChild>
               <Link
                 to="/admin/connectors/$sourceSystem"
@@ -294,27 +359,52 @@ export function ConnectionDetailPage({
       ) : null}
 
       {!blocked && stalled ? (
-        <Alert variant="destructive">
+        <Alert
+          variant={partial ? "default" : "destructive"}
+          className={
+            partial
+              ? "border-status-warning-border bg-status-warning-surface text-status-warning-content"
+              : undefined
+          }
+        >
           <TriangleAlert aria-hidden="true" />
-          <AlertTitle>The most recent crawl did not succeed</AlertTitle>
-          <AlertDescription>
-            {OUTCOMES[lastAttempt.outcome ?? ""]?.hint ?? "The crawl reported a failure."}{" "}
-            {lastAttempt.errorMessage}
+          <AlertTitle>{latestCrawlTitle}</AlertTitle>
+          <AlertDescription
+            className={partial ? "space-y-2 text-status-warning-content/90" : "space-y-2"}
+          >
+            <p>
+              {latestIssue?.detail ??
+                OUTCOMES[lastAttempt.outcome ?? ""]?.hint ??
+                "The crawl reported a failure."}
+              {!latestIssue && lastAttempt.errorMessage ? ` ${lastAttempt.errorMessage}` : ""}
+            </p>
+            {lastAttempt.errorCode === "GOOGLE_DRIVE_CONTENT_BUDGET_EXHAUSTED" ? (
+              <Button size="sm" variant="outline" asChild>
+                <Link
+                  to="/admin/connectors/$sourceSystem"
+                  params={{ sourceSystem }}
+                  search={{ connection: connectionKey, step: "scope" }}
+                >
+                  Review crawl limits
+                </Link>
+              </Button>
+            ) : null}
           </AlertDescription>
         </Alert>
       ) : null}
 
       <AdminSection
         title="Sync health"
-        description="Content, permissions, and membership advance independently. Incomplete source evidence is visible here but never becomes successful authorization state."
+        description="Each component advances independently; incomplete evidence never becomes a successful checkpoint."
+        icon={<ShieldCheck aria-hidden="true" />}
       >
         {componentCheckpoints.length === 0 ? (
           <AdminEmpty
             title="No component has been observed"
-            description="Component health appears after the worker handles the first batch."
+            description="Health appears after the worker handles the first batch."
           />
         ) : (
-          <dl className="divide-y divide-border-subtle">
+          <dl className="grid gap-px bg-border-subtle sm:grid-cols-2">
             {componentCheckpoints.map((checkpoint) => (
               <ComponentCheckpoint
                 key={checkpoint.component ?? checkpoint.observedCursor}
@@ -326,48 +416,14 @@ export function ConnectionDetailPage({
       </AdminSection>
 
       <AdminSection
-        title="Configuration"
-        description="What an administrator told this connection to do. The credential is not among it — it is stored encrypted and is never returned in any form."
-      >
-        <dl className="divide-y divide-border-subtle">
-          <SettingRow label="Crawl">
-            {connection?.crawlEnabled ? (
-              <Badge variant="success">On</Badge>
-            ) : (
-              <Badge variant="outline">Off</Badge>
-            )}
-          </SettingRow>
-          <SettingRow label="Publishes into">
-            {space?.name ?? space?.key ?? "Not set"}
-          </SettingRow>
-          <SettingRow label="Credential">
-            {connection?.credentialSet ? (
-              <span>Stored {formatDate(connection.credentialSetAt)}</span>
-            ) : (
-              <Badge variant="warning">None</Badge>
-            )}
-          </SettingRow>
-          <SettingRow label="Content interval">
-            {Math.round((connection?.contentCrawlIntervalSeconds ?? 0) / 60)} minutes
-          </SettingRow>
-          {descriptor
-            ? allFields(descriptor).map((field) => (
-                <SettingRow key={field.name} label={field.label}>
-                  {formatSetting(connection?.sourceConfig?.[field.name])}
-                </SettingRow>
-              ))
-            : null}
-        </dl>
-      </AdminSection>
-
-      <AdminSection
         title="Recent crawls"
-        description="One row per batch the driver acted on, newest first. A connection that produced no batch at all appears here too — that is what a revoked credential looks like."
+        description="Newest first. Failed polls remain visible even when no batch was produced."
+        icon={<History aria-hidden="true" />}
       >
         {attempts.length === 0 ? (
           <AdminEmpty
             title="Nothing has been crawled yet"
-            description="Attempts appear here once the worker has polled this connection."
+            description="Attempts appear after the worker polls this connection."
           />
         ) : (
           <DataTable
@@ -377,7 +433,72 @@ export function ConnectionDetailPage({
           />
         )}
       </AdminSection>
+
+      <AdminSection
+        title="Configuration"
+        description="Current destination, credential state, scope, and crawl limits."
+        icon={<Settings2 aria-hidden="true" />}
+      >
+        <div className="grid gap-px bg-border-subtle lg:grid-cols-2">
+          <ConfigurationGroup title="Connection">
+            <SettingRow label="Crawl">
+              {connection.crawlEnabled ? (
+                <Badge variant="success">On</Badge>
+              ) : (
+                <Badge variant="outline">Off</Badge>
+              )}
+            </SettingRow>
+            <SettingRow label="Publishes into">
+              {space?.name ?? space?.key ?? "Not set"}
+            </SettingRow>
+            <SettingRow label="Credential">
+              {connection.credentialSet ? (
+                <span>Encrypted · stored {formatDate(connection.credentialSetAt)}</span>
+              ) : (
+                <Badge variant="warning">None</Badge>
+              )}
+            </SettingRow>
+            <SettingRow label="Content interval">
+              {Math.round((connection.contentCrawlIntervalSeconds ?? 0) / 60)} minutes
+            </SettingRow>
+          </ConfigurationGroup>
+
+          <ConfigurationGroup title={`${sourceName} scope`}>
+            {descriptor ? (
+              allFields(descriptor).map((field) => (
+                <SettingRow
+                  key={field.name}
+                  label={
+                    field.type === "number" && field.summaryFormat === "bytes"
+                      ? field.label.replace(" bytes", "")
+                      : field.label
+                  }
+                >
+                  {formatConnectionSetting(field, connection.sourceConfig?.[field.name])}
+                </SettingRow>
+              ))
+            ) : (
+              <SettingRow label="Source settings">No source-specific settings</SettingRow>
+            )}
+          </ConfigurationGroup>
+        </div>
+      </AdminSection>
     </AdminPage>
+  )
+}
+
+function ConfigurationGroup({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="min-w-0 bg-card">
+      <h3 className="border-b border-border-subtle px-4 py-3 text-sm font-semibold">{title}</h3>
+      <dl className="divide-y divide-border-subtle">{children}</dl>
+    </section>
   )
 }
 
@@ -390,12 +511,17 @@ function SettingRow({ label, children }: { label: string; children: React.ReactN
   )
 }
 
-/** A stored setting, whatever shape the source gave it. Absent reads as the default, not blank. */
-function formatSetting(value: unknown) {
-  if (Array.isArray(value)) {
-    return value.length ? value.join(", ") : "All"
+/** Format a stored source setting for the read-only connection summary. */
+export function formatConnectionSetting(field: ConnectorField, value: unknown): string {
+  const stored = value ?? ("default" in field ? field.default : undefined)
+  if (field.type === "number" && field.summaryFormat === "bytes" && typeof stored === "number") {
+    return formatBytes(stored)
   }
-  if (typeof value === "boolean") return value ? "Yes" : "No"
-  if (value === undefined || value === null || value === "") return "Not set"
-  return String(value)
+  if (Array.isArray(stored)) return stored.length ? stored.join(", ") : "All"
+  if (typeof stored === "boolean") return stored ? "Yes" : "No"
+  if (typeof stored === "number") return new Intl.NumberFormat().format(stored)
+  if (stored === undefined || stored === null || stored === "") {
+    return field.type === "list" || field.type === "scopes" ? "All" : "Not set"
+  }
+  return String(stored)
 }

@@ -32,7 +32,13 @@ export type ConnectorField =
    * exactly like a `list` — the difference is only that the options are known.
    */
   | (FieldBase & { type: "scopes"; default?: string[]; emptyMeans?: string })
-  | (FieldBase & { type: "number"; default: number; min?: number })
+  | (FieldBase & {
+      type: "number"
+      default: number
+      min?: number
+      /** Optional formatting used by read-only summaries; storage remains unchanged. */
+      summaryFormat?: "bytes"
+    })
   | (FieldBase & { type: "checkbox"; default?: boolean })
   | (FieldBase & { type: "select"; default: string; options: { value: string; label: string }[] })
 
@@ -111,6 +117,7 @@ export const CONNECTOR_FORMS: Record<string, ConnectorFormDescriptor> = {
         label: "Retained text bytes per crawl",
         default: 67_108_864,
         min: 26_214_400,
+        summaryFormat: "bytes",
         description:
           "Aggregate UTF-8 text retained before ingestion. Hitting it preserves collected permissions but leaves content incomplete.",
       },
