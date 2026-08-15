@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation active on `feat/google-drive-ingestion-hardening`.
+Completed on `feat/google-drive-ingestion-hardening`; implementation commit `9d7112d0`.
 
 ## Architecture
 
@@ -19,51 +19,53 @@ Implementation active on `feat/google-drive-ingestion-hardening`.
 
 ## Implementation
 
-- [ ] Add `maxBatchBytes` to `GoogleDriveCrawlSettings`: 64 MiB default,
+- [x] Add `maxBatchBytes` to `GoogleDriveCrawlSettings`: 64 MiB default,
   non-positive values use the default, and smaller positive values clamp to the
   25 MiB response cap.
-- [ ] Read one body under the existing response cap; stop retaining bodies when
+- [x] Read one body under the existing response cap; stop retaining bodies when
   aggregate UTF-8 bytes would be exceeded, but continue every remaining file
   through permission observation.
-- [ ] Emit CONTENT incomplete with
+- [x] Emit CONTENT incomplete with
   `GOOGLE_DRIVE_CONTENT_BUDGET_EXHAUSTED`, whole-crawl incomplete, and
   PERMISSION complete when all sharing was established; do not count skipped
   bodies as provider failures.
-- [ ] Make permission-only reconciliation of an object without a materialized
+- [x] Make permission-only reconciliation of an object without a materialized
   source head return benign `UNCHANGED`.
-- [ ] Expose the advanced setting in the existing descriptor-driven connector
+- [x] Expose the advanced setting in the existing descriptor-driven connector
   form without adding a Drive-specific component.
-- [ ] Preserve existing source replay, retirement, golden cursor, and
+- [x] Preserve existing source replay, retirement, golden cursor, and
   mostly-failed semantics; deliberately change CONTENT checkpoint completeness
   on an aggregate-budget hit.
 
 ## Proof
 
-- [ ] Add exact-boundary, native-export overshoot, permissions-only continuation,
+- [x] Add exact-boundary, native-export overshoot, permissions-only continuation,
   admission isolation, cadence, incomplete-reason, and golden-cursor adapter
   tests.
-- [ ] Add a real PostgreSQL budget-hit test proving no false retirement and
+- [x] Add a real PostgreSQL budget-hit test proving no false retirement and
   benign permission reconciliation for unmaterialized tail content.
-- [ ] Add a recorded-response Google Drive vertical integration test using a
+- [x] Add a recorded-response Google Drive vertical integration test using a
   generated service-account key, real connector reconciliation/PostgreSQL, and
   permission-aware retrieval.
-- [ ] Prove a direct-user grant allows only the mapped user.
-- [ ] Prove a permission-only recrawl revokes that user without changing the
+- [x] Prove a direct-user grant allows only the mapped user.
+- [x] Prove a permission-only recrawl revokes that user without changing the
   source revision or rematerializing content.
-- [ ] Prove the fixture uses no real credential and performs no network calls.
-- [ ] Prove the existing admin activity/checkpoint surface exposes the stable
+- [x] Prove the fixture uses no real credential and performs no network calls.
+- [x] Prove the existing admin activity/checkpoint surface exposes the stable
   aggregate-budget incomplete reason.
 
 ## Verification and consolidation
 
-- [ ] Run Jmix/IDE static inspection for every edited backend Java file.
-- [ ] Run the narrow connector and worker integration tests.
-- [ ] Run the terminating backend `clean test` context gate.
-- [ ] Run frontend typecheck/unit/build and browser verification if the
-  descriptor UI changes.
-- [ ] Reconcile `ARCHITECTURE.md`, the knowledge-ingestion spec/test pair, and
+- [x] Attempt LSP/IDE inspection for edited backend Java; no Java language server
+  was attached, so use the repository mechanical static check plus compilation
+  and the terminating context gate.
+- [x] Run the narrow connector and worker integration tests.
+- [x] Run the terminating backend `clean test` context gate.
+- [x] Run frontend lint, typecheck, unit, build, and browser verification for the
+  descriptor UI change.
+- [x] Reconcile `ARCHITECTURE.md`, the knowledge-ingestion spec/test pair, and
   roadmap status with the exact verified behavior.
-- [ ] Record exact commands, results, known gaps, branch, and commit in
+- [x] Record exact commands, results, known gaps, branch, and commit in
   `verification.md`; move the increment to completed only after all gates pass.
 
 ## Stop conditions
