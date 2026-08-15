@@ -1,7 +1,7 @@
 # OrgMemory Architecture
 
 This document records behavior and structure verified in the repository.
-Reconciled against the polyglot workspace foundation `7acda3a` on 2026-07-29.
+Reconciled through Google Drive ingestion hardening `9d7112d0` on 2026-08-14.
 Intended changes belong in [docs/vision.md](docs/vision.md) and the
 [active increments](docs/increments/active/README.md).
 
@@ -312,8 +312,13 @@ and GitHub are adapters contributing a profile, a batch source and a credential
 probe, with no source named in `core` or in the API. Their batch sources delegate
 connection enumeration, content cadence, derived-client rotation, mostly-failed
 admission, and failure isolation to one integrations-owned polling driver while
-retaining provider API, mapping, completeness, and cursor semantics. An adapter
-that cannot establish an object's source ACL leaves that object out of its payload
+retaining provider API, mapping, completeness, and cursor semantics.
+Google Drive additionally bounds retained extracted text per crawl: 64 MiB by
+default, with a floor equal to the 25 MiB single-response cap. Exhausting that
+budget marks CONTENT incomplete with a stable reason while permission
+observation continues; complete permission evidence remains eligible for
+reconciliation and the policy skip is not counted as a provider failure.
+An adapter that cannot establish an object's source ACL leaves that object out of its payload
 rather than sending an empty grant list, because the ledger seals an empty list as
 the source stating
 that nobody may read it. Source connection rows

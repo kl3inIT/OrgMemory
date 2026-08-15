@@ -1,9 +1,17 @@
 core:changelogs:
-  - content: "---\nsubject: Skip release mutation for an idle phase\npackages:\n  orgmemory:\n    type: patch\n---\n\n## Operations\n\nA completed release with no newer entry now stops after phase detection. The\nrelease workflow no longer invokes versioning or publication for that idle\nstate, while pending recovery and new version work retain their exact existing\ngates.\n"
-    filename: 2026-08-12-skip-idle-release-mutation.md
+  - content: "---\nsubject: Clarify the owner-led Asset lifecycle\npackages:\n  orgmemory:\n    type: patch\n---\n\n## Documentation\n\nPublic guidance now distinguishes mutable working copies, independent sharing\nstate, immutable exact Releases, ownership transfer, Asset withdrawal, and the\nper-user Skill Enabled preference. It also identifies the optional writable\nreview and deprecation compatibility APIs without implying that the current POC\nenforces organization-wide review.\n"
+    filename: 2026-08-14-asset-lifecycle-documentation.md
+    v: 0.0.0
+  - content: "---\nsubject: Keep Drive permissions current through bounded crawls\npackages:\n  orgmemory:\n    type: minor\n---\n\n## Features\n\nGoogle Drive crawls now bound retained text without abandoning permission checks\nfor the remaining files. Administrators can inspect content and permission\nhealth separately, understand partial crawl outcomes, and open the exact crawl\nlimits that need attention from the connection detail page.\n"
+    filename: google-drive-ingestion-hardening.md
+    v: 0.0.0
+  - content: "---\nsubject: Author governed Prompts in the Asset library\npackages:\n  orgmemory:\n    type: minor\n---\n\n## Features\n\nCreate and edit private Prompt working copies in the Asset library with typed\nvariables, bounded synthetic test cases, and optional Knowledge requirements.\nOwners can publish an immutable version directly, then run the tests embedded\nin that exact release without adding a review workflow or changing who can see\nthe Asset.\n"
+    filename: prompt-asset-authoring.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-12-skip-idle-release-mutation.md
+      - 2026-08-14-asset-lifecycle-documentation.md
+      - google-drive-ingestion-hardening.md
+      - prompt-asset-authoring.md
     id: product:orgmemory
     updated: true

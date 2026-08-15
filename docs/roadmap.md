@@ -16,6 +16,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Repository harness and secure knowledge foundation | shipped | [completed increments](increments/completed/README.md) |
 | Browser authentication, AI gateway, Assistant, secure hybrid retrieval, and MCP | shipped | [completed increments](increments/completed/README.md) |
 | Generic source contract plus Slack, Google Drive, and GitHub adapters | shipped | [completed increments](increments/completed/README.md) |
+| Google Drive bounded ingestion and permission-aware vertical proof | shipped | [completed verification](increments/completed/2026-08-15-google-drive-ingestion-hardening/verification.md) |
 | Source authorization core V2 and GitHub authorization synchronization | shipped | [source core](increments/completed/2026-07-28-source-authorization-core-v2/plan.md), [sync correctness](increments/completed/2026-07-28-source-authorization-sync-correctness/plan.md), [GitHub connector](increments/completed/2026-07-28-github-authorization-connector/plan.md) |
 | Secure Java LightRAG semantic port and replaceable storage adapters | shipped | [LightRAG parity history](increments/completed/2026-07-23-full-lightrag-semantic-port/plan.md) |
 | Governed Asset Registry, shared page system, and catalog UX | shipped | [Asset Registry](increments/completed/2026-07-25-unified-asset-registry-definition/plan.md), [catalog UX](increments/completed/2026-07-27-asset-catalog-ux/plan.md) |
@@ -83,6 +84,7 @@ The table is a delivery index, not a second description of current behavior.
 | [Shared ZM team development](increments/active/2026-07-31-shared-zm-team-development/plan.md) | active | guard one shared non-production dataset with protected-change detection, exclusive worker/maintenance leases, loopback local development, and deployment verification |
 | [OpenFGA model rollout repair](increments/active/2026-07-29-openfga-model-rollout/plan.md) | active | version and pin the repository model during deployment, then verify the affected admin screens |
 | [Production CI/CD and ZM runtime](increments/active/2026-07-25-production-cicd-zm/plan.md) | active | shared-PostgreSQL cutover, restore proof, end-to-end runtime and rollback gates |
+| [Google Drive binary ingestion](increments/active/2026-08-15-google-drive-binary-ingestion/plan.md) | active | pass the architecture challenge, then ingest PDF/DOCX through immutable evidence, the durable parser job, current Drive ACLs, and a two-user live Workspace proof |
 | [Reproducible demo bootstrap](increments/active/2026-07-22-reproducible-demo-bootstrap/plan.md) | active | public ingestion and permission-evaluation run |
 | [Slack connector live proof](increments/active/2026-07-23-slack-connector-live/plan.md) | active | live workspace crawl and next-crawl revocation |
 | [Asset projection generation repair](increments/active/2026-07-25-asset-projection-generation/plan.md) | active | production Assistant/citation/permission verification |
@@ -103,13 +105,16 @@ implementation-active until their predecessor exit gates pass.
    proof, Skill collision handling, and remaining two-user/browser gates.
 3. Complete the guarded ZM database cutover, runtime health, browser login,
    upload, GraphRAG, Assistant/citation, restore, rollback, and resource gates.
-4. Complete the reproducible demo's real ingestion and permission-evaluation
-   path.
-5. Run the Slack live proof with credentials outside the repository and retain
+4. Complete the active Google Drive binary-ingestion architecture gate and
+   PDF/DOCX durable parser path, including revision, citation, and two-user ACL
+   proof.
+5. Complete the reproducible demo's real ingestion and permission-evaluation
+   path using the resulting bounded Google Drive connector.
+6. Run the Slack live proof with credentials outside the repository and retain
    only redacted evidence.
-6. Close the production proofs for asset projection generation and LightRAG
+7. Close the production proofs for asset projection generation and LightRAG
    latency.
-7. Continue the dependency-ordered native identity program: provisioning
+8. Continue the dependency-ordered native identity program: provisioning
    foundation, Users private beta, inert Directory Groups, optional explicit
    authorization mapping, then vendor/operations certification.
 
@@ -124,12 +129,11 @@ implementation-active until their predecessor exit gates pass.
 
 ## Engineering Backlog
 
-- Widen Knowledge Base ingestion coverage. `KnowledgeContentType` allows upload
-  of PDF, DOCX, PPTX, MD and TXT only; `SpringAiDocumentParser.ALLOWED_MEDIA_TYPES`
-  matches. Spreadsheets (XLSX/XLS/CSV), HTML, JSON/XML and legacy Office are
-  unsupported, and every image type is explicitly `uploadAllowed=false`. Adding a
-  format is not just an allowlist entry: each needs a parser, a chunking shape
-  and a browser-safe delivery type.
+- After the active Google Drive PDF/DOCX proof, evaluate the remaining
+  parser-supported connector formats in pilot order: XLSX/PPTX, OpenDocument,
+  legacy Office, HTML/RTF/CSV/JSON/XML/Markdown/text. Image and scanned-PDF
+  indexing remains a separate OCR/multimodal decision with cost, privacy,
+  quality, chunking, and browser-safe delivery gates.
 - Wire or retire the LightRAG multimodal pipeline. `graph-rag-core/multimodal`
   ships 22 classes covering IMAGE, TABLE and EQUATION with a
   `SpringAiMultimodalAnalyzer` adapter, but `MultimodalProcessor` has no caller

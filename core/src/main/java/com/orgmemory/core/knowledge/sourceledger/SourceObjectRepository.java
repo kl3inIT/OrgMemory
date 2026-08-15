@@ -109,6 +109,22 @@ public interface SourceObjectRepository extends JpaRepository<SourceObject, UUID
     Optional<SourceObject> findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
             UUID organizationId, String sourceSystem, String sourceConnectionKey, String externalObjectId);
 
+    @Query("""
+            SELECT count(source)
+            FROM SourceObject source
+            WHERE source.organizationId = :organizationId
+              AND source.sourceSystem = :sourceSystem
+              AND source.sourceConnectionKey = :sourceConnectionKey
+              AND source.externalObjectId = :externalObjectId
+              AND source.status = com.orgmemory.core.knowledge.sourceledger.SourceObjectStatus.ACTIVE
+              AND source.currentRevisionId IS NOT NULL
+            """)
+    long countActiveCurrentRevision(
+            @Param("organizationId") UUID organizationId,
+            @Param("sourceSystem") String sourceSystem,
+            @Param("sourceConnectionKey") String sourceConnectionKey,
+            @Param("externalObjectId") String externalObjectId);
+
     /** The external ids a connection currently has in retrieval, for diffing against a crawl. */
     @Query("""
             SELECT source.externalObjectId
