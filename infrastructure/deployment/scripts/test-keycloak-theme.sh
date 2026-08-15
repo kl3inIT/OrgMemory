@@ -135,7 +135,7 @@ docker run --detach \
   "$image" \
   start-dev --import-realm >/dev/null
 
-port="$(docker port "$container" 8080/tcp | tail -n 1 | sed -E 's/.*:([0-9]+)$/\1/')"
+port="$(docker port "$container" 8080/tcp | tr -d '\r' | tail -n 1 | sed -E 's/.*:([0-9]+)$/\1/')"
 base_url="http://127.0.0.1:${port}"
 metadata_url="$base_url/realms/orgmemory/.well-known/openid-configuration"
 
@@ -194,7 +194,7 @@ if script_url is None or favicon_match is None:
 
 urls = [script_url, html.unescape(favicon_match.group(1))]
 urls = [base_url + value if value.startswith("/") else value for value in urls]
-pathlib.Path(output_path).write_text("\n".join(urls) + "\n", encoding="utf-8")
+pathlib.Path(output_path).write_text("\n".join(urls) + "\n", encoding="utf-8", newline="\n")
 PY
 
 while IFS= read -r asset_url; do
@@ -204,7 +204,8 @@ done <"$tmp_dir/asset-urls.txt"
 runtime_uid="$(docker exec "$container" id -u)"
 [[ "$runtime_uid" == "1000" ]]
 owner_mode="$(
-  docker exec "$container" stat -c '%u:%g:%a' \
+  # MSYS_NO_PATHCONV keeps Git Bash from rewriting the in-container path.
+  MSYS_NO_PATHCONV=1 docker exec "$container" stat -c '%u:%g:%a' \
     /opt/keycloak/providers/orgmemory-keycloak-theme.jar
 )"
 # The runtime stays non-root, while the immutable provider is root-owned and
@@ -351,12 +352,12 @@ try {
 }
 JS
 
-docker exec "$container" /opt/keycloak/bin/kcadm.sh config credentials \
+MSYS_NO_PATHCONV=1 docker exec "$container" /opt/keycloak/bin/kcadm.sh config credentials \
   --server http://127.0.0.1:8080 \
   --realm master \
   --user admin \
   --password verification-only >/dev/null
-docker exec "$container" /opt/keycloak/bin/kcadm.sh update realms/orgmemory \
+MSYS_NO_PATHCONV=1 docker exec "$container" /opt/keycloak/bin/kcadm.sh update realms/orgmemory \
   --server http://127.0.0.1:8080 \
   --realm master \
   -s loginTheme=keycloak >/dev/null
