@@ -2,6 +2,42 @@
 
 Product releases are assembled from reviewed entries under `.tegami/`.
 
+## orgmemory@0.6.0
+
+### Explain document access in business terms
+
+#### Features
+
+Administrators can check a user's current document access with a named business
+assignment path, separate document availability, and the time permissions were
+evaluated. Unknown or unavailable derivations remain explicit instead of being
+presented as direct or inherited access, and technical authorization identifiers
+stay out of the primary User Detail experience.
+
+### Restyle the Keycloak OAuth consent page
+
+#### Fixes
+
+The OAuth consent page shown when an MCP client such as Claude requests
+access now renders with the OrgMemory login theme: centered card on the
+themed canvas in light and dark mode, a readable scope list, and a
+consistent full-width accept/cancel pair. Previously the page lost the
+theme layout entirely and rendered as an unstyled card in the top-left
+corner.
+
+### Keep MCP answers and released Assets within their intended authority
+
+#### Fixes
+
+MCP knowledge search now gives connected assistants stable source numbers and
+direct-answer guidance without exposing permission details unnecessarily.
+Released Asset instructions remain below the connected assistant's system,
+safety, and tool-permission policies; Skill tool declarations do not grant
+access, hidden relations remain opaque, and Asset discovery returns a bounded
+candidate set before exact-release use.
+
+
+
 ## orgmemory@0.5.0
 
 ### Clarify the owner-led Asset lifecycle
