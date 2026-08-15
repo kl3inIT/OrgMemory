@@ -1,5 +1,36 @@
 [//]: # (Generated from release/CHANGELOG.md by Tegami. Do not edit manually.)
 
+## Organizational AI Memory v0.5.0
+
+### Clarify the owner-led Asset lifecycle
+
+#### Documentation
+
+Public guidance now distinguishes mutable working copies, independent sharing
+state, immutable exact Releases, ownership transfer, Asset withdrawal, and the
+per-user Skill Enabled preference. It also identifies the optional writable
+review and deprecation compatibility APIs without implying that the current POC
+enforces organization-wide review.
+
+### Keep Drive permissions current through bounded crawls
+
+#### Features
+
+Google Drive crawls now bound retained text without abandoning permission checks
+for the remaining files. Administrators can inspect content and permission
+health separately, understand partial crawl outcomes, and open the exact crawl
+limits that need attention from the connection detail page.
+
+### Author governed Prompts in the Asset library
+
+#### Features
+
+Create and edit private Prompt working copies in the Asset library with typed
+variables, bounded synthetic test cases, and optional Knowledge requirements.
+Owners can publish an immutable version directly, then run the tests embedded
+in that exact release without adding a review workflow or changing who can see
+the Asset.
+
 ## Organizational AI Memory v0.4.2
 
 ### Skip release mutation for an idle phase
