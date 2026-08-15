@@ -8,15 +8,21 @@ separates content and permission cadence, and feeds the governed connector
 ledger. Its provider tests are strong, but the production path still has two
 unproved properties:
 
-1. one Drive batch can retain up to `maxFiles * maxFileBytes` of extracted text
-   before reconciliation (500 * 10 MiB by default, plus one bounded Google-native
-   export), because `ConnectorCrawlBatch` owns every body as a `String`;
+1. one Drive batch can retain up to 500 individually capped bodies before
+   reconciliation: nominally 5,000 MiB for metadata-sized files and as much as
+   12,500 MiB when Google-native exports omit size metadata and each reaches the
+   25 MiB response cap, because `ConnectorCrawlBatch` owns every body as a
+   `String`;
 2. no test drives recorded Drive responses through the real adapter, connector
    reconciliation, PostgreSQL ledger, sealed ACL, and permission-aware retrieval
    in one flow.
 
-Per-file caps do not bound a batch. A connector that can exhaust the worker before
-its first durable write is not ready for the enterprise demo.
+Per-file caps do not bound a batch. The shared polling driver also constructs
+every enabled connection's batch before the worker ingests any of them. The
+pre-ledger worker bound is therefore the sum across enabled connections of each
+batch budget, one in-flight capped response, metadata, and transient copies. This
+increment is limited to the enterprise demo's one enabled Google Drive
+connection.
 
 ## Product promise
 
@@ -35,13 +41,17 @@ Keep the established source boundary:
 - `core` owns durable reconciliation, immutable source revisions, sealed ACL
   generations, mapping, lifecycle, and retrieval enforcement.
 
-Do not add a Google-specific staging schema or a second ingestion service. Add an
-adapter-owned aggregate extracted-content budget, `maxBatchBytes`, with a
-conservative default and browser configuration. The adapter counts UTF-8 bytes
-of each extracted body before retaining it. Once the next body would exceed the
-budget, it stops reading further bodies, marks content and whole-crawl
-completeness false, but preserves permission evidence already established. A
-single response remains bounded by the existing API-client hard cap.
+Do not add a Google-specific staging schema or a second ingestion service. Add
+an adapter-owned aggregate extracted-content budget, `maxBatchBytes`, exposed by
+the existing descriptor-driven browser form. It defaults to 64 MiB and is
+clamped to at least the API client's 25 MiB single-response cap. The adapter
+reads one body under that cap, counts its UTF-8 bytes, and retains it only when
+the aggregate stays within budget. A crossing body is discarded. The adapter
+then stops body reads but continues permission observation for every remaining
+listed file. It marks CONTENT and whole-crawl completeness false with
+`GOOGLE_DRIVE_CONTENT_BUDGET_EXHAUSTED`; permission completeness changes only
+when sharing itself could not be established. Peak body retention is the budget
+plus one capped response and transient copies.
 
 The vertical proof uses recorded Google responses and a generated non-production
 service-account key, then runs the resulting batch through the real PostgreSQL
@@ -67,19 +77,29 @@ Those exclusions are functional limits, not implied support.
 
 ## Failure and replay semantics
 
-A budget hit is partial progress, not success and not a provider failure. It must:
+A budget hit is partial progress, not an exception, rejection, or provider
+failure. It must:
 
 - emit no tombstone or complete-crawl claim for unseen content;
-- leave the CONTENT component incomplete so its checkpoint does not advance;
-- leave already established permission evidence eligible for reconciliation;
-- expose a stable, non-secret incomplete reason;
-- retry from the source on a later poll after configuration changes or a larger
-  budget.
+- leave CONTENT incomplete with the stable, non-secret
+  `GOOGLE_DRIVE_CONTENT_BUDGET_EXHAUSTED` reason while advancing only its
+  observed checkpoint cursor;
+- continue permission observation for every listed file without counting
+  budget-skipped files in the mostly-failed numerator;
+- preserve a complete PERMISSION component when all sharing was established;
+- consume content cadence to avoid a hot loop; operators raise the budget or
+  narrow scope and use the existing crawl-now request.
 
 This accepts source replay before the ledger boundary for the demo rather than
 introducing a durable pre-ledger queue. The decision is valid only while the
 bounded full crawl fits the pilot envelope. Measured repeated-provider cost,
 large-tenant scale, or change-token requirements reopen durable staging.
+
+Permission-only reconciliation of an object with no materialized source head is
+benign and unchanged: there is no revision, chunk, or retrieval surface to
+govern, and the ACL seals when content later materializes. Throwing here would
+wedge the security-relevant PERMISSION checkpoint for blank, oversized, and
+budget-stopped new files.
 
 ## Strongest counterargument
 
@@ -110,6 +130,21 @@ source of truth.
 - Replace service accounts with OAuth; that changes consent, refresh-token
   storage, and connection ownership without solving the memory or vertical-proof
   gaps.
+
+## Reopening conditions
+
+Durable checkpoint continuation becomes a new decision when any one occurs:
+
+1. `GOOGLE_DRIVE_CONTENT_BUDGET_EXHAUSTED` appears on two consecutive scheduled
+   content passes for one connection;
+2. a standing tenant corpus exceeds `maxBatchBytes` or `maxFiles`;
+3. measured crash replay or repeated-provider cost exceeds the pilot envelope;
+4. the one-enabled-Drive demo envelope expands materially; or
+5. source change tokens, webhooks, or incremental sync are adopted.
+
+The preferred follow-up passes a last-observed CONTENT cursor or resume token
+into the adapter, analogous to the pinned Onyx runner. It is not a
+Google-specific staging schema by default.
 
 ## Exit gates
 

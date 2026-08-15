@@ -281,22 +281,20 @@ class ConnectorReconciler {
 
     /**
      * Reconciles an object that arrived in the permissions payload without content — a
-     * permissions-only re-crawl on its own cadence. It rotates the existing object's ACL to a
-     * new sealed generation; an object with no materialized content yet cannot be established
-     * from permissions alone and is rejected.
+     * permissions-only re-crawl on its own cadence. It rotates an existing object's ACL. An
+     * object with no materialized content has no revision, chunks, or retrieval surface to
+     * govern; its ACL is sealed when content later materializes, so the observation is benign.
      */
     ObjectOutcome reconcilePermissions(
             ConnectorIngestionContext ctx,
             ConnectorPermissionItem permission,
             SourcePrincipalResolution resolution) {
-        AclPlan plan = buildAclPlan(ctx, permission, resolution);
         var head = ingestion.findSourceHead(
                 ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), permission.externalObjectId());
         if (head.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "permissions arrived for an object with no materialized content: "
-                            + permission.externalObjectId());
+            return ObjectOutcome.UNCHANGED;
         }
+        AclPlan plan = buildAclPlan(ctx, permission, resolution);
         return rotate(ctx, head.get(), plan, permission.externalObjectId());
     }
 

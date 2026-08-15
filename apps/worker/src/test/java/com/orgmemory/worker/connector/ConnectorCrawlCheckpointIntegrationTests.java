@@ -459,6 +459,42 @@ class ConnectorCrawlCheckpointIntegrationTests {
     }
 
     @Test
+    void aggregateBudgetReasonIsVisibleInTheExistingCheckpointSurface() {
+        seedOrganization();
+        ConnectorCrawlBatch incomplete = new ConnectorCrawlBatch(
+                ORG,
+                "google_drive",
+                "drive-budget-workspace",
+                SPACE,
+                ACTOR,
+                "drive-budget-batch",
+                ConnectorContractVersions.supported(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(ConnectorComponentState.incomplete(
+                        ConnectorSyncComponent.CONTENT,
+                        "drive-content-partial",
+                        "GOOGLE_DRIVE_CONTENT_BUDGET_EXHAUSTED")),
+                false);
+
+        checkpoints.complete(incomplete, Set.of(ConnectorSyncComponent.CONTENT));
+
+        var checkpoint = checkpoints
+                .describe(ORG, "google_drive", "drive-budget-workspace")
+                .getFirst();
+        assertEquals(ConnectorCaptureStatus.INCOMPLETE, checkpoint.captureStatus());
+        assertEquals("GOOGLE_DRIVE_CONTENT_BUDGET_EXHAUSTED", checkpoint.incompleteReason());
+        assertEquals("drive-content-partial", checkpoint.observedCursor());
+        assertTrue(checkpoint.lastSuccessfulCursor() == null);
+        assertTrue(
+                checkpoints.pendingComponents(incomplete).isEmpty(),
+                "an identical partial observation is checkpoint-skippable");
+    }
+
+    @Test
     void membershipChangeDoesNotReplayUnchangedContentOrPermissions() {
         seedOrganization();
         List<Set<ConnectorSyncComponent>> seen = new ArrayList<>();

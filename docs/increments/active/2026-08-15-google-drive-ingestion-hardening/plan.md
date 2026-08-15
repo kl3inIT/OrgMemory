@@ -12,22 +12,38 @@ Implementation active on `feat/google-drive-ingestion-hardening`.
   Drive permission-sync mechanics.
 - [x] Define the service-account, direct-user-grant, aggregate-budget boundary and
   explicit Directory/OAuth/change-token exclusions.
-- [ ] Run the independent Fable 5 architecture challenge and record the verdict.
-- [ ] Apply every binding correction before implementation.
+- [x] Run the independent Fable 5 architecture challenge and record the
+  `ACCEPT WITH BINDING CORRECTIONS` verdict.
+- [x] Apply every binding correction to the design and this plan before
+  implementation.
 
 ## Implementation
 
-- [ ] Add `maxBatchBytes` to `GoogleDriveCrawlSettings` with a bounded default.
-- [ ] Stop retaining content when the aggregate UTF-8 budget would be exceeded;
-  mark content and whole-crawl completeness false without discarding established
-  permission evidence.
+- [ ] Add `maxBatchBytes` to `GoogleDriveCrawlSettings`: 64 MiB default,
+  non-positive values use the default, and smaller positive values clamp to the
+  25 MiB response cap.
+- [ ] Read one body under the existing response cap; stop retaining bodies when
+  aggregate UTF-8 bytes would be exceeded, but continue every remaining file
+  through permission observation.
+- [ ] Emit CONTENT incomplete with
+  `GOOGLE_DRIVE_CONTENT_BUDGET_EXHAUSTED`, whole-crawl incomplete, and
+  PERMISSION complete when all sharing was established; do not count skipped
+  bodies as provider failures.
+- [ ] Make permission-only reconciliation of an object without a materialized
+  source head return benign `UNCHANGED`.
 - [ ] Expose the advanced setting in the existing descriptor-driven connector
   form without adding a Drive-specific component.
-- [ ] Keep source replay, checkpoint, and retirement semantics unchanged.
+- [ ] Preserve existing source replay, retirement, golden cursor, and
+  mostly-failed semantics; deliberately change CONTENT checkpoint completeness
+  on an aggregate-budget hit.
 
 ## Proof
 
-- [ ] Add exact-boundary and over-boundary adapter tests.
+- [ ] Add exact-boundary, native-export overshoot, permissions-only continuation,
+  admission isolation, cadence, incomplete-reason, and golden-cursor adapter
+  tests.
+- [ ] Add a real PostgreSQL budget-hit test proving no false retirement and
+  benign permission reconciliation for unmaterialized tail content.
 - [ ] Add a recorded-response Google Drive vertical integration test using a
   generated service-account key, real connector reconciliation/PostgreSQL, and
   permission-aware retrieval.
@@ -35,6 +51,8 @@ Implementation active on `feat/google-drive-ingestion-hardening`.
 - [ ] Prove a permission-only recrawl revokes that user without changing the
   source revision or rematerializing content.
 - [ ] Prove the fixture uses no real credential and performs no network calls.
+- [ ] Prove the existing admin activity/checkpoint surface exposes the stable
+  aggregate-budget incomplete reason.
 
 ## Verification and consolidation
 

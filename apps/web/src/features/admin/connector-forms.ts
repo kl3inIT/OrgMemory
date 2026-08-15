@@ -105,6 +105,15 @@ export const CONNECTOR_FORMS: Record<string, ConnectorFormDescriptor> = {
         min: 1,
         description: "A bound on one crawl. Hitting it withdraws the completeness claim.",
       },
+      {
+        type: "number",
+        name: "maxBatchBytes",
+        label: "Retained text bytes per crawl",
+        default: 67_108_864,
+        min: 26_214_400,
+        description:
+          "Aggregate UTF-8 text retained before ingestion. Hitting it preserves collected permissions but leaves content incomplete.",
+      },
     ],
   },
   github: {
