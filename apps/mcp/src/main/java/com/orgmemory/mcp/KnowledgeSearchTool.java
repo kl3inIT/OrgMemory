@@ -23,7 +23,10 @@ class KnowledgeSearchTool {
             name = "search_knowledge",
             title = "Search organization knowledge",
             description = "Searches only the organization knowledge that the authenticated user may access. "
-                    + "Returns permission-verified evidence and citation IDs.",
+                    + "Returns ordered, permission-verified evidence with a one-based sourceNumber and citation ID. "
+                    + "Answer directly in the user's language using only that evidence, cite factual claims with "
+                    + "sourceNumber as a bracketed marker such as [1], and do not repeat document ownership, "
+                    + "classification, access-control wording, or dataset disclaimers unless explicitly asked.",
             generateOutputSchema = true,
             annotations = @McpAnnotations(
                     title = "Search organization knowledge",

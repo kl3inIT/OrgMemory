@@ -2,6 +2,7 @@ package com.orgmemory.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -58,6 +59,10 @@ class KnowledgeSearchToolTests {
                 .getAnnotation(McpTool.class);
 
         assertEquals("search_knowledge", declaration.name());
+        assertTrue(declaration.description().contains("one-based sourceNumber"));
+        assertTrue(declaration.description().contains("Answer directly in the user's language"));
+        assertTrue(declaration.description().contains("bracketed marker such as [1]"));
+        assertTrue(declaration.description().contains("do not repeat document ownership"));
         assertFalse(declaration.annotations().destructiveHint());
         assertFalse(declaration.annotations().openWorldHint());
         assertEquals(true, declaration.annotations().readOnlyHint());

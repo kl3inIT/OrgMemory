@@ -69,9 +69,48 @@ class KnowledgeSearchApiClientTests {
 
         assertEquals("request-1", result.requestId());
         assertEquals(1, result.evidence().size());
+        assertEquals(1, result.evidence().getFirst().sourceNumber());
         assertEquals(
                 "Submit receipts within 30 days.",
                 result.evidence().getFirst().content());
+        server.verify();
+    }
+
+    @Test
+    void assignsStableOneBasedSourceNumbersInApiEvidenceOrder() {
+        server.expect(requestTo(
+                        "https://api.example.test/api/knowledge/search?q=onboarding"))
+                .andRespond(withSuccess(
+                        """
+                        {
+                          "requestId": "request-2",
+                          "evidence": [{
+                            "citationId": "40000000-0000-0000-0000-000000000001",
+                            "knowledgeAssetId": "10000000-0000-0000-0000-000000000001",
+                            "title": "Manager checklist",
+                            "content": "Approve the account request.",
+                            "relevanceScore": 0.95
+                          }, {
+                            "citationId": "40000000-0000-0000-0000-000000000002",
+                            "knowledgeAssetId": "10000000-0000-0000-0000-000000000002",
+                            "title": "IT checklist",
+                            "content": "Provision the approved account.",
+                            "relevanceScore": 0.90
+                          }]
+                        }
+                        """,
+                        MediaType.APPLICATION_JSON));
+
+        var evidence = client().search(
+                        "Bearer api-token",
+                        "onboarding",
+                        null)
+                .evidence();
+
+        assertEquals(1, evidence.get(0).sourceNumber());
+        assertEquals("Manager checklist", evidence.get(0).title());
+        assertEquals(2, evidence.get(1).sourceNumber());
+        assertEquals("IT checklist", evidence.get(1).title());
         server.verify();
     }
 
