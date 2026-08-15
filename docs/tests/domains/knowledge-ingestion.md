@@ -14,7 +14,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `integrations/document-parsing-spring-ai/src/test`,
 `integrations/connectors/src/test`.
 
-Reconciled: `admin-safe-deletion-controls (fcde1113)`.
+Reconciled: `2026-08-15-google-drive-ingestion-hardening-review (44ec5b54)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -184,10 +184,14 @@ All run against recorded Slack responses; none touches the network.
 
 ## Google Drive Adapter Coverage
 
-Evidence class: `integrations/connectors/src/test/java/com/orgmemory/connectors/googledrive/GoogleDriveConnectorBatchSourceTests.java`.
-Run against recorded Drive responses with a service account key generated in the
-test, so the RS256 signing path executes for real and no credential from anywhere
-real exists in the repository. Nothing touches the network.
+Evidence spans
+`integrations/connectors/src/test/java/com/orgmemory/connectors/googledrive/GoogleDriveConnectorBatchSourceTests.java`,
+`core/src/test/java/com/orgmemory/core/knowledge/connector/ConnectorReconcilerTests.java`,
+`apps/worker/src/test/java/com/orgmemory/connectors/googledrive/GoogleDriveIngestionIntegrationTests.java`,
+`apps/worker/src/test/java/com/orgmemory/worker/connector/ConnectorCrawlCheckpointIntegrationTests.java`,
+and `apps/web/src/features/admin/connector-google-drive.test.ts`. Recorded Drive
+responses use a service account key generated in the test, so RS256 signing
+executes for real without any real credential or network call.
 
 | Behavior | Automated evidence |
 | --- | --- |
@@ -204,6 +208,13 @@ real exists in the repository. Nothing touches the network.
 | A scoped folder means its subtree, not its immediate children | `crawlsTheWholeSubtreeUnderAScopedFolder` |
 | Replacing one reader with another changes the cursor, so the driver cannot skip the batch | `changesTheCursorWhenAReaderIsReplacedByAnotherRatherThanCounting` |
 | A file past the size bound is not read, and that withdraws the claim because the bound is ours | `skipsAFileLargerThanTheBoundAndSaysTheCrawlIsNoLongerComplete` |
+| Aggregate text admits the exact boundary, stops retaining at the first crossing, and still observes every later permission | `admitsContentAtTheExactAggregateBudgetBoundary`, `boundsAggregateTextAndStillObservesEveryPermission` |
+| Budget exhaustion marks only CONTENT incomplete with its stable reason, remains distinct in the content cursor, and does not become a provider failure | `boundsAggregateTextAndStillObservesEveryPermission`, `contentCursorChangesWhenOnlyTheBudgetStatusChanges` |
+| A permission-only observation for an unmaterialized budget-tail object is benign | `ConnectorReconcilerTests.missingMaterializedContentMakesPermissionOnlyReconciliationBenign` |
+| A materialized object missing its ACL head fails closed instead of preserving stale permission state | `ConnectorReconcilerTests.missingAclHeadForMaterializedObjectFailsClosed` |
+| A generated-key, recorded-response crawl materializes through PostgreSQL; only the mapped direct user retrieves, and a permission-only recrawl revokes without changing revision or chunks | `GoogleDriveIngestionIntegrationTests.directDriveGrantConvergesAndPermissionOnlyRecrawlRevokesWithoutRematerializing` |
+| The existing admin checkpoint surface exposes the aggregate-budget incomplete reason without advancing last-successful CONTENT state | `ConnectorCrawlCheckpointIntegrationTests.aggregateBudgetReasonIsVisibleInTheExistingCheckpointSurface` |
+| The descriptor-driven admin form serializes the 64 MiB default and rejects aggregate budgets below 25 MiB | `connector-google-drive.test.ts` |
 | A rate limit is waited out rather than failing the connection | `waitsOutARateLimitAndCompletesTheCrawl` |
 | A failed content crawl does not consume the content interval | `aFailedContentCrawlDoesNotConsumeTheContentInterval` |
 | Every type the adapter indexes is a type it asks Drive for, so none is silently dropped | `GoogleDriveDocumentTypesTests.everyTypeThisIndexesIsAlsoATypeItAsksDriveFor` |

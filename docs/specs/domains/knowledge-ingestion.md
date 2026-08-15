@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `integrations/document-parsing-spring-ai/src/main`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `admin-safe-deletion-controls (fcde1113)`.
+Reconciled: `2026-08-15-google-drive-ingestion-hardening-review (44ec5b54)`.
 
 ## Current Behavior
 
@@ -416,6 +416,22 @@ are downloaded; everything else is skipped, because extracting text from a PDF i
 a parser concern the ingestion pipeline already owns for uploads. A skipped file
 was never in the adapter's universe and does not withdraw the completeness claim;
 a folder filter, an unreadable file and a hit bound each do.
+
+Each Drive response remains capped at 25 MiB. The separate `maxBatchBytes`
+setting bounds aggregate retained UTF-8 text for one crawl, defaults to 64 MiB,
+and clamps smaller positive values to the response cap. A body that lands
+exactly on the remaining budget is admitted; the first body that would cross it
+and later bodies are not retained, while every file still proceeds through
+sharing observation. That policy transition marks CONTENT incomplete with
+`GOOGLE_DRIVE_CONTENT_BUDGET_EXHAUSTED`, may leave PERMISSION complete, advances
+normal crawl cadence, and is not a provider failure. Content cursor material
+includes the incomplete transition so an otherwise identical prior complete
+batch cannot hide it from the checkpoint. Permission-only reconciliation can
+therefore rotate an existing object's ACL or benignly return unchanged only
+when the inventory confirms that the budgeted tail object has no retrieval
+surface. An active object with a current revision but no ACL head fails that
+object's reconciliation instead of silently preserving an ungoverned or stale
+permission state.
 
 Drive omits inline `permissions` for an item in a shared drive and returns
 `permissionIds` instead, so the adapter follows those ids through

@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +29,9 @@ class SourceInventoryQueryTests {
                         ORGANIZATION_ID, SOURCE_SYSTEM, CONNECTION_KEY, "channel-1"))
                 .thenReturn(java.util.Optional.of(source));
         when(source.getId()).thenReturn(sourceObjectId);
+        when(sources.countActiveCurrentRevision(
+                        ORGANIZATION_ID, SOURCE_SYSTEM, CONNECTION_KEY, "channel-1"))
+                .thenReturn(1L);
         when(sources.findActiveExternalObjectIds(
                         ORGANIZATION_ID, SOURCE_SYSTEM, CONNECTION_KEY))
                 .thenReturn(List.of("channel-1", "channel-2"));
@@ -46,6 +50,8 @@ class SourceInventoryQueryTests {
                                 CONNECTION_KEY,
                                 "channel-1")
                         .orElseThrow());
+        assertTrue(query.hasRetrievalSurface(
+                ORGANIZATION_ID, SOURCE_SYSTEM, CONNECTION_KEY, "channel-1"));
         assertEquals(
                 List.of("channel-1", "channel-2"),
                 query.activeExternalObjectIds(

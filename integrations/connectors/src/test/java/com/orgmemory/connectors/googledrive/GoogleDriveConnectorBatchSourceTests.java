@@ -546,6 +546,110 @@ class GoogleDriveConnectorBatchSourceTests {
         assertFalse(batch.crawlComplete(), "our own bound is not evidence the file went away");
     }
 
+    @Test
+    void boundsAggregateTextAndStillObservesEveryPermission() {
+        long responseCap = GoogleDriveApiClient.MAX_BODY_BYTES;
+        assertEquals(64L * 1024 * 1024, GoogleDriveCrawlSettings.from("{}").maxBatchBytes());
+        assertEquals(
+                responseCap,
+                GoogleDriveCrawlSettings.from("{\"maxBatchBytes\":1}").maxBatchBytes(),
+                "one admissible response must fit in an empty batch");
+
+        MutableClock clock = new MutableClock(java.time.Instant.parse("2026-07-23T09:00:00Z"));
+        GoogleDriveConnectorBatchSource source = new GoogleDriveConnectorBatchSource(
+                connections, builder, new tools.jackson.databind.ObjectMapper(), clock);
+        when(connections.enabledCrawls("google_drive"))
+                .thenReturn(List.of(configuration("{\"maxFiles\":500,\"maxBatchBytes\":"
+                        + responseCap + "}")));
+        expectToken();
+        expectFileList(BUDGET_FILES);
+        expectExport("1-boundary", "a".repeat(GoogleDriveApiClient.MAX_BODY_BYTES));
+        expectExport("2-crossing", "b");
+
+        ConnectorPoll poll = source.pendingBatches();
+        ConnectorCrawlBatch batch = poll.batches().getFirst();
+
+        assertTrue(poll.unavailable().isEmpty(), "budget exhaustion is admitted, not mostly-failed");
+        assertEquals(
+                List.of("1-boundary"),
+                batch.contents().stream().map(content -> content.externalObjectId()).toList(),
+                "the exact-boundary body is retained and the crossing body is discarded");
+        assertEquals(
+                List.of("1-boundary", "2-crossing", "3-permission-tail"),
+                batch.permissions().stream().map(permission -> permission.externalObjectId()).toList(),
+                "permission observation continues after body retention stops");
+        assertEquals(
+                ConnectorCaptureStatus.INCOMPLETE,
+                batch.componentState(ConnectorSyncComponent.CONTENT).captureStatus());
+        assertEquals(
+                "GOOGLE_DRIVE_CONTENT_BUDGET_EXHAUSTED",
+                batch.componentState(ConnectorSyncComponent.CONTENT).incompleteReason());
+        assertEquals(
+                ConnectorCaptureStatus.COMPLETE,
+                batch.componentState(ConnectorSyncComponent.PERMISSION).captureStatus());
+        assertFalse(batch.crawlComplete(), "a budget-bound pass has no retirement authority");
+        server.verify();
+
+        setUpServerOnly();
+        clock.advance(Duration.ofMinutes(5));
+        expectFileList(BUDGET_FILES);
+        ConnectorCrawlBatch permissionsOnly = source.pendingBatches().batches().getFirst();
+        assertTrue(
+                permissionsOnly.contents().isEmpty(),
+                "an admitted budget hit consumes content cadence instead of hot-looping");
+        assertEquals(3, permissionsOnly.permissions().size());
+        server.verify();
+    }
+
+    @Test
+    void contentCursorChangesWhenOnlyTheBudgetStatusChanges() {
+        long responseCap = GoogleDriveApiClient.MAX_BODY_BYTES;
+        String boundaryBody = "a".repeat(GoogleDriveApiClient.MAX_BODY_BYTES);
+        MutableClock clock = new MutableClock(java.time.Instant.parse("2026-07-23T09:00:00Z"));
+        when(connections.enabledCrawls("google_drive"))
+                .thenReturn(List.of(configuration("{\"maxFiles\":1,\"maxBatchBytes\":"
+                        + responseCap + "}")));
+        expectToken();
+        expectFileList(BUDGET_FILES);
+        expectExport("1-boundary", boundaryBody);
+        GoogleDriveConnectorBatchSource controlSource = new GoogleDriveConnectorBatchSource(
+                connections, builder, new tools.jackson.databind.ObjectMapper(), clock);
+
+        ConnectorCrawlBatch control = controlSource.pendingBatches().batches().getFirst();
+
+        assertEquals(
+                ConnectorCaptureStatus.COMPLETE,
+                control.componentState(ConnectorSyncComponent.CONTENT).captureStatus());
+        assertFalse(control.crawlComplete(), "the one-file control is enumeration-incomplete");
+        server.verify();
+
+        setUpServerOnly();
+        when(connections.enabledCrawls("google_drive"))
+                .thenReturn(List.of(configuration("{\"maxFiles\":500,\"maxBatchBytes\":"
+                        + responseCap + "}")));
+        expectToken();
+        expectFileList(BUDGET_FILES);
+        expectExport("1-boundary", boundaryBody);
+        expectExport("2-crossing", "b");
+        GoogleDriveConnectorBatchSource budgetSource = new GoogleDriveConnectorBatchSource(
+                connections, builder, new tools.jackson.databind.ObjectMapper(), clock);
+
+        ConnectorCrawlBatch budgetHit = budgetSource.pendingBatches().batches().getFirst();
+
+        assertEquals(
+                control.contents().stream().map(content -> content.externalObjectId()).toList(),
+                budgetHit.contents().stream().map(content -> content.externalObjectId()).toList());
+        assertFalse(budgetHit.crawlComplete(), "the budget-bound pass is also enumeration-incomplete");
+        assertEquals(
+                ConnectorCaptureStatus.INCOMPLETE,
+                budgetHit.componentState(ConnectorSyncComponent.CONTENT).captureStatus());
+        assertNotEquals(
+                control.componentState(ConnectorSyncComponent.CONTENT).cursor(),
+                budgetHit.componentState(ConnectorSyncComponent.CONTENT).cursor(),
+                "a status-only transition must remain visible to the checkpoint");
+        server.verify();
+    }
+
     /** Drive rate limits routinely; one refusal is a moment, not an answer about the Drive. */
     @Test
     void waitsOutARateLimitAndCompletesTheCrawl() {
@@ -627,6 +731,18 @@ class GoogleDriveConnectorBatchSourceTests {
                 "{\"folderIds\":[" + folders + "],\"maxFiles\":500}",
                 Duration.ofMinutes(60),
                 contentCrawlRequestedAt);
+    }
+
+    private static ConnectorCrawlConfiguration configuration(String sourceConfig) {
+        return new ConnectorCrawlConfiguration(
+                ORG,
+                "google_drive",
+                CONNECTION,
+                SPACE,
+                ACTOR,
+                sourceConfig,
+                Duration.ofMinutes(60),
+                null);
     }
 
     private void expectToken() {
@@ -734,6 +850,24 @@ class GoogleDriveConnectorBatchSourceTests {
               "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com","displayName":"Owner"}],
               "permissions":[{"id":"p1","type":"user","emailAddress":"mai@example.com","role":"reader"}]
             }]}
+            """;
+
+    /** Three native exports: exact boundary, crossing body, then permission-only tail. */
+    private static final String BUDGET_FILES = """
+            {"files":[
+              {"id":"1-boundary","name":"Boundary",
+               "mimeType":"application/vnd.google-apps.document","trashed":false,
+               "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com"}],
+               "permissions":[{"id":"p1","type":"user","emailAddress":"mai@example.com","role":"reader"}]},
+              {"id":"2-crossing","name":"Crossing",
+               "mimeType":"application/vnd.google-apps.document","trashed":false,
+               "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com"}],
+               "permissions":[{"id":"p2","type":"user","emailAddress":"lan@example.com","role":"reader"}]},
+              {"id":"3-permission-tail","name":"Tail",
+               "mimeType":"application/vnd.google-apps.document","trashed":false,
+               "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com"}],
+               "permissions":[{"id":"p3","type":"user","emailAddress":"chi@example.com","role":"reader"}]}
+            ]}
             """;
 
     private static final String TWO_READABLE_FILES = """

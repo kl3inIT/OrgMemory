@@ -56,6 +56,8 @@ class GoogleDriveConnectorBatchSource extends PollingConnectorBatchSource<Google
     private static final int PARENTS_PER_QUERY = 25;
     /** A bound on folder expansion, so a pathological tree cannot spin here forever. */
     private static final int MAX_FOLDERS = 500;
+    private static final String CONTENT_BUDGET_EXHAUSTED =
+            "GOOGLE_DRIVE_CONTENT_BUDGET_EXHAUSTED";
 
     private final RestClient.Builder restClientBuilder;
     private final ObjectMapper objectMapper;
@@ -199,8 +201,13 @@ class GoogleDriveConnectorBatchSource extends PollingConnectorBatchSource<Google
         // would instead assert that nobody may read it.
         List<ConnectorComponentState> componentStates = new ArrayList<>();
         if (contentDue) {
-            componentStates.add(ConnectorComponentState.complete(
-                    ConnectorSyncComponent.CONTENT, contentCursor(crawl)));
+            componentStates.add(crawl.contentComplete
+                    ? ConnectorComponentState.complete(
+                            ConnectorSyncComponent.CONTENT, contentCursor(crawl))
+                    : ConnectorComponentState.incomplete(
+                            ConnectorSyncComponent.CONTENT,
+                            contentCursor(crawl),
+                            CONTENT_BUDGET_EXHAUSTED));
         }
         componentStates.add(crawl.permissionComplete
                 ? ConnectorComponentState.complete(
@@ -368,6 +375,9 @@ class GoogleDriveConnectorBatchSource extends PollingConnectorBatchSource<Google
         if (!readContent) {
             return;
         }
+        if (crawl.contentBudgetExhausted()) {
+            return;
+        }
         if (exceedsSizeBound(file, settings)) {
             // Refusing to read a file is this adapter's own policy, not a fact about the file,
             // so unlike a type it does not index, it must not license retiring what is already
@@ -381,6 +391,10 @@ class GoogleDriveConnectorBatchSource extends PollingConnectorBatchSource<Google
             // An empty document is not a failure and not evidence. Indexing a blank body would
             // put an unanswerable chunk in retrieval; it stays in the permission payload, so a
             // complete crawl still does not retire it.
+            return;
+        }
+        if (!crawl.reserveContentBytes(utf8Length(body), settings.maxBatchBytes())) {
+            log.warn("Google Drive content budget was exhausted while admitting file {}", fileId);
             return;
         }
         crawl.contents.add(new ConnectorContentItem(fileId, title, body, sha256(body)));
@@ -442,6 +456,33 @@ class GoogleDriveConnectorBatchSource extends PollingConnectorBatchSource<Google
     }
 
     /**
+     * Counts encoded bytes without allocating a second full copy of every retained body.
+     * {@link String#getBytes(java.nio.charset.Charset)} replaces an unpaired surrogate with one
+     * byte under UTF-8, which is mirrored here.
+     */
+    private static long utf8Length(String value) {
+        long bytes = 0;
+        for (int index = 0; index < value.length(); index++) {
+            char current = value.charAt(index);
+            if (current <= 0x7f) {
+                bytes++;
+            } else if (current <= 0x7ff) {
+                bytes += 2;
+            } else if (Character.isHighSurrogate(current)
+                    && index + 1 < value.length()
+                    && Character.isLowSurrogate(value.charAt(index + 1))) {
+                bytes += 4;
+                index++;
+            } else if (Character.isSurrogate(current)) {
+                bytes++;
+            } else {
+                bytes += 3;
+            }
+        }
+        return bytes;
+    }
+
+    /**
      * A fingerprint of everything this batch asserts, which is what lets the driver recognise a
      * batch it has already ingested.
      *
@@ -458,6 +499,9 @@ class GoogleDriveConnectorBatchSource extends PollingConnectorBatchSource<Google
                 content.externalObjectId(), content.contentRevision() + '/' + sha256(content.title())));
         contents.forEach((id, revision) -> material.append(id).append('=').append(revision).append(';'));
         material.append("enumerationComplete=").append(crawl.complete);
+        if (!crawl.contentComplete) {
+            material.append(";contentComplete=false");
+        }
         return "google-drive-content-" + sha256(material.toString());
     }
 
@@ -523,7 +567,9 @@ class GoogleDriveConnectorBatchSource extends PollingConnectorBatchSource<Google
         private final List<ConnectorContentItem> contents = new ArrayList<>();
         private final List<ConnectorPermissionItem> permissions = new ArrayList<>();
         private boolean complete = true;
+        private boolean contentComplete = true;
         private boolean permissionComplete = true;
+        private long retainedContentBytes;
 
         private void incomplete() {
             complete = false;
@@ -531,6 +577,20 @@ class GoogleDriveConnectorBatchSource extends PollingConnectorBatchSource<Google
 
         private void permissionIncomplete() {
             permissionComplete = false;
+        }
+
+        private boolean contentBudgetExhausted() {
+            return !contentComplete;
+        }
+
+        private boolean reserveContentBytes(long bodyBytes, long maxBatchBytes) {
+            if (bodyBytes > maxBatchBytes - retainedContentBytes) {
+                incomplete();
+                contentComplete = false;
+                return false;
+            }
+            retainedContentBytes += bodyBytes;
+            return true;
         }
 
         /** The owner is a user even when nothing was shared with anybody else. */

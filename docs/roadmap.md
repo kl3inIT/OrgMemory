@@ -16,6 +16,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Repository harness and secure knowledge foundation | shipped | [completed increments](increments/completed/README.md) |
 | Browser authentication, AI gateway, Assistant, secure hybrid retrieval, and MCP | shipped | [completed increments](increments/completed/README.md) |
 | Generic source contract plus Slack, Google Drive, and GitHub adapters | shipped | [completed increments](increments/completed/README.md) |
+| Google Drive bounded ingestion and permission-aware vertical proof | shipped | [completed verification](increments/completed/2026-08-15-google-drive-ingestion-hardening/verification.md) |
 | Source authorization core V2 and GitHub authorization synchronization | shipped | [source core](increments/completed/2026-07-28-source-authorization-core-v2/plan.md), [sync correctness](increments/completed/2026-07-28-source-authorization-sync-correctness/plan.md), [GitHub connector](increments/completed/2026-07-28-github-authorization-connector/plan.md) |
 | Secure Java LightRAG semantic port and replaceable storage adapters | shipped | [LightRAG parity history](increments/completed/2026-07-23-full-lightrag-semantic-port/plan.md) |
 | Governed Asset Registry, shared page system, and catalog UX | shipped | [Asset Registry](increments/completed/2026-07-25-unified-asset-registry-definition/plan.md), [catalog UX](increments/completed/2026-07-27-asset-catalog-ux/plan.md) |
@@ -103,7 +104,7 @@ implementation-active until their predecessor exit gates pass.
 3. Complete the guarded ZM database cutover, runtime health, browser login,
    upload, GraphRAG, Assistant/citation, restore, rollback, and resource gates.
 4. Complete the reproducible demo's real ingestion and permission-evaluation
-   path.
+   path using the shipped bounded Google Drive connector.
 5. Run the Slack live proof with credentials outside the repository and retain
    only redacted evidence.
 6. Close the production proofs for asset projection generation and LightRAG

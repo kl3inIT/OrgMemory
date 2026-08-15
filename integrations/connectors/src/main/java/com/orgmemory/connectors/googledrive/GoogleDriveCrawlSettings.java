@@ -24,24 +24,31 @@ import tools.jackson.databind.ObjectMapper;
  * @param includeSharedDrives whether shared drives are in scope as well as shared files
  * @param maxFiles            a bound on one crawl so a large Drive cannot run unbounded
  * @param maxFileBytes        the largest file whose text this will read
+ * @param maxBatchBytes       the aggregate UTF-8 text retained before durable reconciliation
  */
 record GoogleDriveCrawlSettings(
         List<String> folderIds,
         String impersonatedUser,
         boolean includeSharedDrives,
         int maxFiles,
-        long maxFileBytes) {
+        long maxFileBytes,
+        long maxBatchBytes) {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int DEFAULT_MAX_FILES = 500;
     /** Ten mebibytes of text is far past what a useful answer is chunked out of. */
     private static final long DEFAULT_MAX_FILE_BYTES = 10L * 1024 * 1024;
+    /** Aggregate retained text for one demo-scale crawl. */
+    private static final long DEFAULT_MAX_BATCH_BYTES = 64L * 1024 * 1024;
 
     GoogleDriveCrawlSettings {
         folderIds = folderIds == null ? List.of() : List.copyOf(folderIds);
         impersonatedUser = impersonatedUser == null ? "" : impersonatedUser.strip();
         maxFiles = maxFiles <= 0 ? DEFAULT_MAX_FILES : maxFiles;
         maxFileBytes = maxFileBytes <= 0 ? DEFAULT_MAX_FILE_BYTES : maxFileBytes;
+        maxBatchBytes = maxBatchBytes <= 0
+                ? DEFAULT_MAX_BATCH_BYTES
+                : Math.max(maxBatchBytes, GoogleDriveApiClient.MAX_BODY_BYTES);
     }
 
     static GoogleDriveCrawlSettings from(String sourceConfig) {
@@ -74,7 +81,8 @@ record GoogleDriveCrawlSettings(
                 // silently skipped them would look like an emptied Drive to the reconciler.
                 root.path("includeSharedDrives").asBoolean(true),
                 root.path("maxFiles").asInt(0),
-                root.path("maxFileBytes").asLong(0));
+                root.path("maxFileBytes").asLong(0),
+                root.path("maxBatchBytes").asLong(0));
     }
 
     /** A folder filter means this crawl did not enumerate the connection, and cannot claim to. */
@@ -84,6 +92,6 @@ record GoogleDriveCrawlSettings(
 
     private static GoogleDriveCrawlSettings defaults() {
         return new GoogleDriveCrawlSettings(
-                List.of(), "", true, DEFAULT_MAX_FILES, DEFAULT_MAX_FILE_BYTES);
+                List.of(), "", true, DEFAULT_MAX_FILES, DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_BATCH_BYTES);
     }
 }
