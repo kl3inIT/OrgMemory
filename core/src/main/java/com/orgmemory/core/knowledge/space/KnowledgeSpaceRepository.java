@@ -24,5 +24,7 @@ public interface KnowledgeSpaceRepository extends JpaRepository<KnowledgeSpace, 
 
     List<KnowledgeSpace> findByOrganizationIdOrderByName(UUID organizationId);
 
+    List<KnowledgeSpace> findByOrganizationIdAndActiveTrueOrderByName(UUID organizationId);
+
     boolean existsByOrganizationIdAndKey(UUID organizationId, String key);
 }

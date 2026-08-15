@@ -39,6 +39,7 @@ import { SourceIcon, type SourceIconName } from "@/features/admin/components/sou
 import { CONNECTOR_CATALOG } from "@/features/admin/connector-catalog"
 import { probeIsGood, probeReason } from "@/features/admin/connector-probe"
 import {
+  deleteAdminConnectionMutation,
   forgetAdminConnectionCredentialMutation,
   listAdminConnectionsOptions,
   listAdminConnectorSourcesOptions,
@@ -87,6 +88,7 @@ export function AdminConnectorsPage() {
   // the click that asked for it. The connection it belongs to is carried because the dialog is
   // one, at the page, rather than one mounted per row.
   const [forgetTarget, setForgetTarget] = useState<{ system: string; key: string }>()
+  const [deleteTarget, setDeleteTarget] = useState<{ system: string; key: string }>()
 
   // Which sources exist is the deployment's answer, not this file's. Everything below is
   // driven by it, so a second adapter appears here without a line changing.
@@ -111,6 +113,16 @@ export function AdminConnectorsPage() {
       toast.success("Credential forgotten. This connection can no longer authenticate.")
     },
     onError: () => toast.error("The credential could not be removed."),
+  })
+
+  const remove = useMutation({
+    ...deleteAdminConnectionMutation(),
+    onSuccess: async () => {
+      setDeleteTarget(undefined)
+      await invalidateAdminData(queryClient)
+      toast.success("Connection deleted. Its credential and crawl configuration were removed.")
+    },
+    onError: () => toast.error("The connection could not be deleted."),
   })
 
   const check = useMutation({
@@ -363,6 +375,12 @@ export function AdminConnectorsPage() {
                         >
                           Forget credential
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={() => setDeleteTarget({ system: group.system, key })}
+                        >
+                          Delete connection
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )
@@ -423,6 +441,44 @@ export function AdminConnectorsPage() {
               }}
             >
               {forget.isPending ? "Forgetting…" : "Forget credential"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open: boolean) => {
+          if (!open && !remove.isPending) setDeleteTarget(undefined)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this connection?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.key} will stop crawling and its stored credential and configuration
+              will be removed. Knowledge already retained from this source keeps following its
+              Knowledge Space and the organization retention policy.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={remove.isPending}>Keep connection</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={remove.isPending}
+              onClick={(event: MouseEvent) => {
+                event.preventDefault()
+                if (deleteTarget) {
+                  remove.mutate({
+                    path: {
+                      sourceSystem: deleteTarget.system,
+                      connectionKey: deleteTarget.key,
+                    },
+                  })
+                }
+              }}
+            >
+              {remove.isPending ? "Deleting…" : "Delete connection"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

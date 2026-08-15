@@ -315,6 +315,23 @@ class AdminConnectorController {
                 actor.userId()));
     }
 
+    @DeleteMapping("/{sourceSystem}/{connectionKey}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(
+            operationId = "deleteAdminConnection",
+            summary = "Remove a source connection and its stored credential")
+    void deleteConnection(
+            @PathVariable String sourceSystem,
+            @PathVariable String connectionKey,
+            Authentication authentication) {
+        CurrentActor actor = guard.requireSourceManager(authentication);
+        connections.delete(
+                actor.organizationId(),
+                requireInstalled(sourceSystem),
+                connectionKey,
+                actor.userId());
+    }
+
     /** Replaces the stored credential. The response body is empty because there is nothing to echo. */
     @PutMapping("/{sourceSystem}/{connectionKey}/credential")
     @ResponseStatus(HttpStatus.NO_CONTENT)

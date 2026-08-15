@@ -229,9 +229,38 @@ public class KnowledgeSpaceAdministrationService {
         Objects.requireNonNull(actor, "actor");
         requireOrganizationPermission(actor, CAN_CREATE_SPACE);
         String policyVersion = tuples.policyVersion();
-        return spaces.findByOrganizationIdOrderByName(actor.organizationId()).stream()
+        return spaces.findByOrganizationIdAndActiveTrueOrderByName(actor.organizationId()).stream()
                 .map(space -> describe(space, policyVersion))
                 .toList();
+    }
+
+    /**
+     * Retires a Space from every active application surface while preserving its source,
+     * publication, permission, and audit evidence under the retention policy.
+     *
+     * <p>The row remains the stable parent of that retained evidence. OpenFGA tuples are also
+     * retained as historical policy input, but they cannot make an inactive Space visible because
+     * every serving path resolves the Space row and requires {@code active=true}.
+     */
+    @Transactional
+    public void delete(
+            CurrentActor actor,
+            UUID knowledgeSpaceId,
+            String requestId) {
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
+        KnowledgeSpace space = spaces
+                .findByIdAndOrganizationIdAndActiveTrue(knowledgeSpaceId, actor.organizationId())
+                .orElseThrow(KnowledgeSpaceAdministrationService::accessDenied);
+        requireSpacePermission(actor, knowledgeSpaceId);
+        space.deactivate();
+        spaces.save(space);
+        record(
+                actor,
+                "DELETE_KNOWLEDGE_SPACE",
+                knowledgeSpaceId,
+                tuples.policyVersion(),
+                requestId);
     }
 
     @Transactional

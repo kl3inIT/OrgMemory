@@ -88,6 +88,10 @@ class KnowledgeSpace extends BaseEntity {
         return active;
     }
 
+    void deactivate() {
+        active = false;
+    }
+
     private static void requireValidAudience(
             KnowledgeSpaceAudienceMode audienceMode, UUID departmentId) {
         if (audienceMode == KnowledgeSpaceAudienceMode.DEPARTMENT && departmentId == null) {

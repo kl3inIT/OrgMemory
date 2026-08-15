@@ -132,6 +132,8 @@ class ConnectorAdminIntegrationTests {
                 .andExpect(status().isForbidden());
         mvc.perform(delete("/api/admin/connectors/slack/{key}/credential", WORKSPACE).with(employee))
                 .andExpect(status().isForbidden());
+        mvc.perform(delete("/api/admin/connectors/slack/{key}", WORKSPACE).with(employee))
+                .andExpect(status().isForbidden());
         mvc.perform(post("/api/admin/connectors/slack/test")
                         .with(employee)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -251,6 +253,34 @@ class ConnectorAdminIntegrationTests {
                 .andExpect(jsonPath("$[0].sourceConnectionKey").value(WORKSPACE))
                 .andExpect(jsonPath("$[0].sourceConfig.maxThreadsPerChannel").value(50))
                 .andExpect(jsonPath("$[0].configuredByUserId").value(ADMIN_USER.toString()));
+    }
+
+    @Test
+    void deletingAConnectionRemovesItsConfigurationAndStoredCredential() throws Exception {
+        var admin = jwtFor(ADMIN_USER);
+        mvc.perform(put("/api/admin/connectors/slack/{key}", WORKSPACE)
+                        .with(admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"crawlEnabled\":false}"))
+                .andExpect(status().isOk());
+        mvc.perform(put("/api/admin/connectors/slack/{key}/credential", WORKSPACE)
+                        .with(admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"credential\":\"" + BOT_TOKEN + "\"}"))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(delete("/api/admin/connectors/slack/{key}", WORKSPACE).with(admin))
+                .andExpect(status().isNoContent());
+
+        assertEquals(
+                0,
+                (int) jdbc.queryForObject("SELECT count(*) FROM source_connections", Integer.class));
+        assertEquals(
+                0,
+                (int) jdbc.queryForObject("SELECT count(*) FROM source_connection_credentials", Integer.class));
+        mvc.perform(get("/api/admin/connectors/slack").with(admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test

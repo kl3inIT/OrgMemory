@@ -319,6 +319,25 @@ class KnowledgeSpaceAdminIntegrationTests {
     }
 
     @Test
+    void deletingASpaceRetiresItAndRemovesItFromTheAdministrationList() throws Exception {
+        UUID spaceId = createSpace("Temporary Knowledge");
+
+        mvc.perform(delete("/api/admin/knowledge-spaces/{id}", spaceId)
+                        .with(jwtFor(ADMIN_USER)))
+                .andExpect(status().isNoContent());
+
+        assertEquals(
+                false,
+                jdbc.queryForObject(
+                        "SELECT active FROM knowledge_spaces WHERE id = ?",
+                        Boolean.class,
+                        spaceId));
+        mvc.perform(get("/api/admin/knowledge-spaces").with(jwtFor(ADMIN_USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + spaceId + "')]").isEmpty());
+    }
+
+    @Test
     void aGrantMustNameAnAclRelationAndASubjectInThisOrganization() throws Exception {
         UUID spaceId = createSpace("Sales Knowledge");
 
@@ -423,6 +442,9 @@ class KnowledgeSpaceAdminIntegrationTests {
                         .with(jwtFor(AN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Shadow Space\",\"audienceMode\":\"RESTRICTED_CUSTOM\"}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(delete("/api/admin/knowledge-spaces/{id}", UUID.randomUUID())
+                        .with(jwtFor(AN_USER)))
                 .andExpect(status().isForbidden());
 
         assertEquals(

@@ -209,7 +209,7 @@ class KnowledgeSpaceAdministrationServiceTests {
                 null,
                 "sales-knowledge",
                 "Sales Knowledge");
-        when(spaces.findByOrganizationIdOrderByName(ORG)).thenReturn(List.of(space));
+        when(spaces.findByOrganizationIdAndActiveTrueOrderByName(ORG)).thenReturn(List.of(space));
         when(tuples.readObject(anyString(), anyInt(), any()))
                 .thenReturn(RelationshipTuplePage.resolved(List.of(), "same-token-forever", POLICY));
 
@@ -254,6 +254,45 @@ class KnowledgeSpaceAdministrationServiceTests {
                         "request-1"));
 
         verify(spaces, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void deletingASpaceRetiresItWithoutDeletingTheEvidenceParent() {
+        KnowledgeSpace space = new KnowledgeSpace(
+                ORG,
+                KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM,
+                null,
+                "sales-knowledge",
+                "Sales Knowledge");
+        when(spaces.findByIdAndOrganizationIdAndActiveTrue(space.getId(), ORG))
+                .thenReturn(Optional.of(space));
+
+        service.delete(ACTOR, space.getId(), "request-delete");
+
+        assertFalse(space.isActive());
+        verify(spaces).save(space);
+        verify(spaces, never()).delete(any());
+    }
+
+    @Test
+    void deletingASpaceRequiresItsManageAclPermission() {
+        KnowledgeSpace space = new KnowledgeSpace(
+                ORG,
+                KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM,
+                null,
+                "sales-knowledge",
+                "Sales Knowledge");
+        when(spaces.findByIdAndOrganizationIdAndActiveTrue(space.getId(), ORG))
+                .thenReturn(Optional.of(space));
+        when(authorization.check(any()))
+                .thenReturn(AuthorizationDecision.deny("NO_RELATIONSHIP", POLICY));
+
+        assertThrows(
+                OrgMemoryAccessDeniedException.class,
+                () -> service.delete(ACTOR, space.getId(), "request-delete"));
+
+        assertTrue(space.isActive());
+        verify(spaces, never()).save(space);
     }
 
     @Test
@@ -490,7 +529,7 @@ class KnowledgeSpaceAdministrationServiceTests {
                 null,
                 "sales-knowledge",
                 "Sales Knowledge");
-        when(spaces.findByOrganizationIdOrderByName(ORG)).thenReturn(List.of(space));
+        when(spaces.findByOrganizationIdAndActiveTrueOrderByName(ORG)).thenReturn(List.of(space));
         when(tuples.readObject(anyString(), anyInt(), any()))
                 .thenReturn(RelationshipTuplePage.indeterminate("OPENFGA_READ_TIMEOUT", POLICY));
 
@@ -511,7 +550,7 @@ class KnowledgeSpaceAdministrationServiceTests {
                 "sales-knowledge",
                 "Sales Knowledge");
         String object = "knowledge_space:" + space.getId();
-        when(spaces.findByOrganizationIdOrderByName(ORG)).thenReturn(List.of(space));
+        when(spaces.findByOrganizationIdAndActiveTrueOrderByName(ORG)).thenReturn(List.of(space));
         when(tuples.readObject(eq(object), anyInt(), any()))
                 .thenReturn(RelationshipTuplePage.resolved(
                         List.of(
@@ -542,7 +581,7 @@ class KnowledgeSpaceAdministrationServiceTests {
                 "sales-knowledge",
                 "Sales Knowledge");
         String object = "knowledge_space:" + space.getId();
-        when(spaces.findByOrganizationIdOrderByName(ORG)).thenReturn(List.of(space));
+        when(spaces.findByOrganizationIdAndActiveTrueOrderByName(ORG)).thenReturn(List.of(space));
         when(tuples.readObject(eq(object), anyInt(), any()))
                 .thenReturn(RelationshipTuplePage.resolved(
                         List.of(

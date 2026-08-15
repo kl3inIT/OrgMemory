@@ -173,6 +173,20 @@ class AdminKnowledgeSpaceController {
                 UUID.randomUUID().toString());
     }
 
+    @DeleteMapping("/{knowledgeSpaceId}")
+    @Operation(
+            operationId = "deleteAdminKnowledgeSpace",
+            summary = "Retire a Knowledge Space without deleting retained evidence")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void delete(
+            @PathVariable UUID knowledgeSpaceId,
+            Authentication authentication) {
+        spaces.delete(
+                actors.current(authentication),
+                knowledgeSpaceId,
+                UUID.randomUUID().toString());
+    }
+
     /**
      * A missing field is a request error rather than a null dereference, so each shape names what
      * it needs instead of letting {@code Objects.requireNonNull} answer 500.

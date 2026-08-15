@@ -258,6 +258,33 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                 "CREDENTIAL_CLEARED");
     }
 
+    /**
+     * Removes the crawl configuration and its secret without erasing governed source evidence.
+     * Existing connector documents continue to follow their Space and source lifecycle; deleting
+     * a connection is not a retention bypass.
+     */
+    @Transactional
+    public void delete(
+            UUID organizationId,
+            String sourceSystem,
+            String sourceConnectionKey,
+            UUID adminUserId) {
+        String system = requireText(sourceSystem, "sourceSystem");
+        String key = requireText(sourceConnectionKey, "sourceConnectionKey");
+        find(organizationId, system, key).ifPresent(connection -> {
+            credentials.deleteByOrganizationIdAndSourceConnectionId(
+                    organizationId, connection.getId());
+            connections.delete(connection);
+        });
+        record(
+                organizationId,
+                adminUserId,
+                system,
+                key,
+                "SOURCE_CONNECTION_DELETE",
+                "CONNECTION_REMOVED");
+    }
+
     /** The credential an adapter needs to authenticate. The only read path for a stored secret. */
     @Override
     @Transactional(readOnly = true)

@@ -1,9 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Building2, ChevronDown, FolderPlus, LockKeyhole, Users, X } from "lucide-react"
+import { Building2, ChevronDown, FolderPlus, LockKeyhole, Trash2, Users, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
@@ -27,6 +37,7 @@ import {
 import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admin/components/admin-page"
 import {
   createAdminKnowledgeSpaceMutation,
+  deleteAdminKnowledgeSpaceMutation,
   grantAdminKnowledgeSpaceAccessMutation,
   listAdminKnowledgeSpacesOptions,
   listAdminUsersOptions,
@@ -122,6 +133,8 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
   const queryClient = useQueryClient()
   const grant = useMutation(grantAdminKnowledgeSpaceAccessMutation())
   const revoke = useMutation(revokeAdminKnowledgeSpaceAccessMutation())
+  const remove = useMutation(deleteAdminKnowledgeSpaceMutation())
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const audienceIsManaged = space.audienceMode !== "RESTRICTED_CUSTOM"
   const [relation, setRelation] = useState<string>(audienceIsManaged ? "contributor" : "viewer")
@@ -197,6 +210,19 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
     }
   }
 
+  async function deleteSpace() {
+    try {
+      await remove.mutateAsync({ path: { knowledgeSpaceId: space.id! } })
+      setDeleteOpen(false)
+      await invalidateAdminData(queryClient)
+      toast.success(`${space.name} was deleted`, {
+        description: "Retained evidence stays governed by the organization retention policy.",
+      })
+    } catch {
+      toast.error("That Space could not be deleted")
+    }
+  }
+
   const subjectIsChosen =
     kind === "ORGANIZATION" || (kind === "ROLE" ? role.trim().length > 0 : subjectId.length > 0)
 
@@ -213,11 +239,12 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
 
   return (
     <Collapsible className="group border-b border-border-subtle last:border-b-0">
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 px-4 py-3 text-left outline-none transition-colors hover:bg-surface-subtle focus-visible:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring"
-        >
+      <div className="flex items-center">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left outline-none transition-colors hover:bg-surface-subtle focus-visible:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring"
+          >
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{space.name}</span>
             <span className="mt-0.5 block truncate text-xs text-muted-foreground">
@@ -239,8 +266,19 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
             className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
             aria-hidden="true"
           />
-        </button>
-      </CollapsibleTrigger>
+          </button>
+        </CollapsibleTrigger>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="mr-3 text-muted-foreground hover:text-destructive"
+          aria-label={`Delete ${space.name}`}
+          onClick={() => setDeleteOpen(true)}
+        >
+          <Trash2 className="size-4" aria-hidden="true" />
+        </Button>
+      </div>
 
       <CollapsibleContent className="space-y-3 border-t border-border-subtle bg-surface-subtle/40 px-4 py-3">
         {space.grantsComplete === false ? (
@@ -397,6 +435,32 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
           </Button>
         </form>
       </CollapsibleContent>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this Knowledge Space?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{space.name}” will disappear from administration, uploads, and retrieval. Retained
+              documents, permissions, and audit evidence continue to follow the organization
+              retention policy.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={remove.isPending}>Keep Space</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={remove.isPending}
+              onClick={(event) => {
+                event.preventDefault()
+                void deleteSpace()
+              }}
+            >
+              {remove.isPending ? "Deleting…" : "Delete Space"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Collapsible>
   )
 }
