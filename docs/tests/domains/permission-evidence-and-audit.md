@@ -19,9 +19,9 @@ Reconciled: `admin-safe-deletion-controls (fcde1113)`.
 | Denied evidence is omitted at the final citation boundary | `CanonicalHybridKnowledgeSearchTests#citationMissingAtCanonicalRecheckIsOmitted` |
 | AI administration is limited to organization administrators | OpenFGA `store.fga.yaml` AI management case and `PermissionsAdminIntegrationTests` |
 | AI secret storage is encrypted/redacted and tenant scoped | `AiGatewayAdministrationServiceTests` |
-| Relationship allowance cannot be presented as final document access when canonical retrieval denies | `PermissionsAdminIntegrationTests#effectiveContentAccessSeparatesRelationshipGrantFromCanonicalDenial` |
+| Relationship allowance cannot be presented as final document access when canonical retrieval denies, and the protected derivation carries tenant-owned document, Space, and department labels | `PermissionsAdminIntegrationTests#effectiveContentAccessSeparatesRelationshipGrantFromCanonicalDenial` |
 | Member administration alone cannot inspect protected resource metadata | `PermissionsAdminIntegrationTests#memberAdministrationDoesNotRevealAccessInspectionMetadata` |
-| Layered result names, relationship-only identifier suppression, and unresolved-state semantics | `access-inspector.test.tsx` |
+| Business-first current result, named assignment, document availability, evaluation time, technical-detail suppression, and unresolved-state semantics | `access-inspector.test.tsx` |
 | Typed Space creation, built-in projection, immutable managed audiences, custom grant ledger, drift repair, and tenant isolation | `KnowledgeSpaceAdminIntegrationTests`, `KnowledgeSpaceAdministrationServiceTests` |
 | Space retirement requires management permission, marks the row inactive without physical deletion, and removes it from the active administration list | `KnowledgeSpaceAdminIntegrationTests`, `KnowledgeSpaceAdministrationServiceTests` |
 | Existing Space audience backfill and database-invalid mode/department combinations | `KnowledgeSpaceAudienceMigrationTests` |

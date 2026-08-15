@@ -19,7 +19,7 @@ Reconciled: `2026-08-06-clearance-separation (219902eb)`.
 | Tenant foreign keys, organization-scoped email uniqueness, and the six-value role to two-value clearance backfill survive populated upgrades | `IdentityTenantIntegrityMigrationTests`, `IdentityOrganizationEmailCutoverMigrationTests`, `ClearanceSeparationMigrationTests` |
 | Inactive linked users are denied | `OidcCurrentActorProviderTests#rejectsAnInactiveLinkedUser` |
 | Knowledge reads reload the active persisted department and Executive state; ADMIN, inactive, and foreign-tenant subjects cannot widen access | `JpaKnowledgeAccessSubjectQueryTests`, `ModulithVerificationTests#retrievalDoesNotDependOnOrganizationPersistenceOrRoleTypes`, `#retrievalOrganizationReadsUseOnlyOwnerQueries`, `KnowledgeRetrievalIntegrationTests` |
-| Authorization resource resolution uses Organization-owned canonical organization and department existence queries | `JpaOrganizationResourceQueryTests`, `PermissionsAdminIntegrationTests` |
+| Authorization resource resolution and protected business-label enrichment use Organization-owned, tenant-scoped organization and department queries | `JpaOrganizationResourceQueryTests`, `PermissionsAdminIntegrationTests#effectiveContentAccessSeparatesRelationshipGrantFromCanonicalDenial` |
 | Session carries clearance and an OpenFGA-derived member-administration affordance without conflating them | `BrowserSessionControllerTests#exposesOnlyTheCanonicalInternalActorForAnAuthenticatedSession` |
 | Non-administrators are refused on every admin endpoint | `PermissionsAdminIntegrationTests#nonAdministratorsAreRefusedEverywhere` |
 | Admin confirmation opens retrieval and revocation closes it | `#confirmingAnIdentityOpensRetrievalAndRevokingClosesIt` |

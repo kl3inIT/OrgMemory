@@ -1,6 +1,7 @@
 package com.orgmemory.core.organization;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,5 +33,19 @@ class JpaOrganizationResourceQuery implements OrganizationResourceQuery {
         return departments.existsByIdAndOrganizationId(
                 Objects.requireNonNull(departmentId, "departmentId"),
                 Objects.requireNonNull(organizationId, "organizationId"));
+    }
+
+    @Override
+    public Optional<String> findOrganizationName(UUID organizationId) {
+        return organizations.findById(Objects.requireNonNull(organizationId, "organizationId"))
+                .map(Organization::getName);
+    }
+
+    @Override
+    public Optional<String> findDepartmentName(UUID organizationId, UUID departmentId) {
+        return departments.findByIdAndOrganizationId(
+                        Objects.requireNonNull(departmentId, "departmentId"),
+                        Objects.requireNonNull(organizationId, "organizationId"))
+                .map(Department::getName);
     }
 }

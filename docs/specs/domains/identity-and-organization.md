@@ -49,7 +49,8 @@ client payloads cannot choose them. There is no offline/permit-all profile.
 Knowledge reads then reload the active persisted subject through the
 Organization-owned `KnowledgeAccessSubjectQuery`; its department and Executive
 flag come from current Organization state rather than actor claims. Canonical
-organization and department existence checks cross `OrganizationResourceQuery`.
+organization and department existence checks cross `OrganizationResourceQuery`;
+the same tenant-owned query supplies their names to protected access explanations.
 Knowledge Retrieval imports no Organization entity, clearance type, or repository.
 External source-system users and groups are resolved into knowledge ACL
 principals through the verified mapping ledger described in the

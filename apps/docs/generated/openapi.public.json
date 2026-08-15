@@ -9316,6 +9316,12 @@
           "object": {
             "type": "string"
           },
+          "objectType": {
+            "type": "string"
+          },
+          "objectLabel": {
+            "type": "string"
+          },
           "relation": {
             "type": "string"
           },
