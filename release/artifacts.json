@@ -1,57 +1,57 @@
 {
   "schemaVersion": 1,
-  "releaseSourceSha": "23285b740bbfe5ddb6b698d893ae8e4e5c25b66e",
+  "releaseSourceSha": "db999fab09a2f012f276909878840e1941fa2711",
   "product": {
-    "decisionRunId": 31893796168,
-    "manifestRunId": 31893796168,
-    "commitSha": "23285b740bbfe5ddb6b698d893ae8e4e5c25b66e",
+    "decisionRunId": 31900617574,
+    "manifestRunId": 31900617574,
+    "commitSha": "db999fab09a2f012f276909878840e1941fa2711",
     "images": [
       {
         "component": "api",
-        "reference": "ghcr.io/kl3init/orgmemory-api:sha-23285b740bbfe5ddb6b698d893ae8e4e5c25b66e",
-        "digest": "sha256:4a20e31d5e3644219ac181024f5b100070ad2ba034d658b14374eae1e1a60095",
-        "sourceSha": "23285b740bbfe5ddb6b698d893ae8e4e5c25b66e"
+        "reference": "ghcr.io/kl3init/orgmemory-api:sha-db999fab09a2f012f276909878840e1941fa2711",
+        "digest": "sha256:2b241da5d54d21662f8e43a49a8537ebd3009ab83ac367c5b22fb47272891a40",
+        "sourceSha": "e84f19025b5c9cdfda9dd22c60be20d82bd7fd08"
       },
       {
         "component": "worker",
-        "reference": "ghcr.io/kl3init/orgmemory-worker:sha-23285b740bbfe5ddb6b698d893ae8e4e5c25b66e",
-        "digest": "sha256:a7157998ebd3c3e04d228a62e27ba42d6e457333e748b59936b4f9c01ae3a6d9",
-        "sourceSha": "23285b740bbfe5ddb6b698d893ae8e4e5c25b66e"
+        "reference": "ghcr.io/kl3init/orgmemory-worker:sha-db999fab09a2f012f276909878840e1941fa2711",
+        "digest": "sha256:a465fcec1e152ceae5f9c6f5478c73e0eb8afc2c1a2fca2ac9c5d52a706d3959",
+        "sourceSha": "e84f19025b5c9cdfda9dd22c60be20d82bd7fd08"
       },
       {
         "component": "mcp",
-        "reference": "ghcr.io/kl3init/orgmemory-mcp:sha-23285b740bbfe5ddb6b698d893ae8e4e5c25b66e",
-        "digest": "sha256:b639e0e538d2bfdf31499438b1fe4c06562b9140262ee68a6a3c68f7285aacd8",
-        "sourceSha": "15ae13d9ea5e8bd46d33b1c8dac0ba4d0e14643e"
+        "reference": "ghcr.io/kl3init/orgmemory-mcp:sha-db999fab09a2f012f276909878840e1941fa2711",
+        "digest": "sha256:34eda44cd03389c1095b8db0fb16fa8b867857e9276a9e61d9fc55e98cc631af",
+        "sourceSha": "db999fab09a2f012f276909878840e1941fa2711"
       },
       {
         "component": "web",
-        "reference": "ghcr.io/kl3init/orgmemory-web:sha-23285b740bbfe5ddb6b698d893ae8e4e5c25b66e",
-        "digest": "sha256:11ca4d944380af5260bba0021381c2c1c394005a2eb90b2dd35e95488c906c19",
-        "sourceSha": "23285b740bbfe5ddb6b698d893ae8e4e5c25b66e"
+        "reference": "ghcr.io/kl3init/orgmemory-web:sha-db999fab09a2f012f276909878840e1941fa2711",
+        "digest": "sha256:494c5c2348f9d611ff180f6281cf2b1bd7f50b6335d87969c3fc79ac324da640",
+        "sourceSha": "e84f19025b5c9cdfda9dd22c60be20d82bd7fd08"
       },
       {
         "component": "keycloak",
-        "reference": "ghcr.io/kl3init/orgmemory-keycloak:sha-23285b740bbfe5ddb6b698d893ae8e4e5c25b66e",
-        "digest": "sha256:809021d6c85c4508ecd6a67d1edd74c50f5559c2b7db7d67161682e86d2804c7",
-        "sourceSha": "15ae13d9ea5e8bd46d33b1c8dac0ba4d0e14643e"
+        "reference": "ghcr.io/kl3init/orgmemory-keycloak:sha-db999fab09a2f012f276909878840e1941fa2711",
+        "digest": "sha256:fdd438632057fd3ec6c2a62578098c34a81dd66bfb2b892721a1b92f92a9cc5c",
+        "sourceSha": "af458bec8ecae432a1a726135985c44cbd0ff32c"
       },
       {
         "component": "postgres-rag",
-        "reference": "ghcr.io/kl3init/orgmemory-postgres-rag:sha-23285b740bbfe5ddb6b698d893ae8e4e5c25b66e",
+        "reference": "ghcr.io/kl3init/orgmemory-postgres-rag:sha-db999fab09a2f012f276909878840e1941fa2711",
         "digest": "sha256:c40a4cae96af1ff6591ea797682d89e434b6649b603a55751ba128d34de40328",
         "sourceSha": "15ae13d9ea5e8bd46d33b1c8dac0ba4d0e14643e"
       }
     ]
   },
   "docs": {
-    "decisionRunId": 31893796228,
-    "manifestRunId": 31862553678,
-    "commitSha": "98500ed4beb3775fa8a19cf217cdc84c2d53dc5e",
+    "decisionRunId": 31900617538,
+    "manifestRunId": 31897691515,
+    "commitSha": "e84f19025b5c9cdfda9dd22c60be20d82bd7fd08",
     "image": {
-      "reference": "ghcr.io/kl3init/orgmemory-docs:sha-98500ed4beb3775fa8a19cf217cdc84c2d53dc5e",
-      "digest": "sha256:82c8f5c0f30d117d9fdb2778e57a52b9462531e925c04bdf853236b12d330755",
-      "sourceSha": "98500ed4beb3775fa8a19cf217cdc84c2d53dc5e"
+      "reference": "ghcr.io/kl3init/orgmemory-docs:sha-e84f19025b5c9cdfda9dd22c60be20d82bd7fd08",
+      "digest": "sha256:c828a44233edd7aa3ef85eaa5baf403755e220b8fffd427e245a22d5e9a2cfcc",
+      "sourceSha": "e84f19025b5c9cdfda9dd22c60be20d82bd7fd08"
     }
   }
 }

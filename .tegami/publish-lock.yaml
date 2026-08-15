@@ -1,17 +1,17 @@
 core:changelogs:
-  - content: "---\nsubject: Clarify the owner-led Asset lifecycle\npackages:\n  orgmemory:\n    type: patch\n---\n\n## Documentation\n\nPublic guidance now distinguishes mutable working copies, independent sharing\nstate, immutable exact Releases, ownership transfer, Asset withdrawal, and the\nper-user Skill Enabled preference. It also identifies the optional writable\nreview and deprecation compatibility APIs without implying that the current POC\nenforces organization-wide review.\n"
-    filename: 2026-08-14-asset-lifecycle-documentation.md
+  - content: "---\nsubject: Explain document access in business terms\npackages:\n  orgmemory:\n    type: minor\n---\n\n## Features\n\nAdministrators can check a user's current document access with a named business\nassignment path, separate document availability, and the time permissions were\nevaluated. Unknown or unavailable derivations remain explicit instead of being\npresented as direct or inherited access, and technical authorization identifiers\nstay out of the primary User Detail experience.\n"
+    filename: 2026-08-15-business-access-explanation.md
     v: 0.0.0
-  - content: "---\nsubject: Keep Drive permissions current through bounded crawls\npackages:\n  orgmemory:\n    type: minor\n---\n\n## Features\n\nGoogle Drive crawls now bound retained text without abandoning permission checks\nfor the remaining files. Administrators can inspect content and permission\nhealth separately, understand partial crawl outcomes, and open the exact crawl\nlimits that need attention from the connection detail page.\n"
-    filename: google-drive-ingestion-hardening.md
+  - content: "---\nsubject: Restyle the Keycloak OAuth consent page\npackages:\n  orgmemory:\n    type: patch\n---\n\n## Fixes\n\nThe OAuth consent page shown when an MCP client such as Claude requests\naccess now renders with the OrgMemory login theme: centered card on the\nthemed canvas in light and dark mode, a readable scope list, and a\nconsistent full-width accept/cancel pair. Previously the page lost the\ntheme layout entirely and rendered as an unstyled card in the top-left\ncorner.\n"
+    filename: keycloak-consent-page-restyle.md
     v: 0.0.0
-  - content: "---\nsubject: Author governed Prompts in the Asset library\npackages:\n  orgmemory:\n    type: minor\n---\n\n## Features\n\nCreate and edit private Prompt working copies in the Asset library with typed\nvariables, bounded synthetic test cases, and optional Knowledge requirements.\nOwners can publish an immutable version directly, then run the tests embedded\nin that exact release without adding a review workflow or changing who can see\nthe Asset.\n"
-    filename: prompt-asset-authoring.md
+  - content: "---\nsubject: Keep MCP answers and released Assets within their intended authority\npackages:\n  orgmemory:\n    type: patch\n---\n\n## Fixes\n\nMCP knowledge search now gives connected assistants stable source numbers and\ndirect-answer guidance without exposing permission details unnecessarily.\nReleased Asset instructions remain below the connected assistant's system,\nsafety, and tool-permission policies; Skill tool declarations do not grant\naccess, hidden relations remain opaque, and Asset discovery returns a bounded\ncandidate set before exact-release use.\n"
+    filename: mcp-answer-and-asset-behavior.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-14-asset-lifecycle-documentation.md
-      - google-drive-ingestion-hardening.md
-      - prompt-asset-authoring.md
+      - 2026-08-15-business-access-explanation.md
+      - keycloak-consent-page-restyle.md
+      - mcp-answer-and-asset-behavior.md
     id: product:orgmemory
     updated: true
