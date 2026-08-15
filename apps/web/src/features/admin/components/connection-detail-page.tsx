@@ -286,6 +286,7 @@ export function ConnectionDetailPage({
   } else if (!connection.credentialSet) {
     crawlDisabledReason = "Store a credential before requesting a crawl."
   }
+  const crawlUnavailable = Boolean(crawlDisabledReason) || crawlNow.isPending
 
   return (
     <AdminPage
@@ -304,13 +305,24 @@ export function ConnectionDetailPage({
           </Button>
           <Button
             variant="outline"
-            disabled={Boolean(crawlDisabledReason) || crawlNow.isPending}
+            aria-busy={crawlNow.isPending}
+            aria-disabled={crawlUnavailable}
+            aria-describedby={crawlDisabledReason ? "crawl-disabled-reason" : undefined}
+            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
             title={crawlDisabledReason}
-            onClick={() => crawlNow.mutate({ path: { sourceSystem, connectionKey } })}
+            onClick={() => {
+              if (crawlUnavailable) return
+              crawlNow.mutate({ path: { sourceSystem, connectionKey } })
+            }}
           >
             <RefreshCw aria-hidden="true" />
             {crawlNow.isPending ? "Requesting…" : "Crawl now"}
           </Button>
+          {crawlDisabledReason ? (
+            <span id="crawl-disabled-reason" className="max-w-56 text-xs text-muted-foreground">
+              {crawlDisabledReason}
+            </span>
+          ) : null}
           <Button asChild>
             <Link
               to="/admin/connectors/$sourceSystem"
@@ -469,9 +481,7 @@ export function ConnectionDetailPage({
                 <SettingRow
                   key={field.name}
                   label={
-                    field.type === "number" && field.summaryFormat === "bytes"
-                      ? field.label.replace(" bytes", "")
-                      : field.label
+                    field.type === "number" ? (field.summaryLabel ?? field.label) : field.label
                   }
                 >
                   {formatConnectionSetting(field, connection.sourceConfig?.[field.name])}
