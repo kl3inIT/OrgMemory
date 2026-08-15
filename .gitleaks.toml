@@ -17,3 +17,10 @@ targetRules = ["generic-api-key"]
 condition = "AND"
 commits = ["ad5811174d054aa76ea590bdab1a201713c16cf4"]
 paths = ['''^apps/api/src/test/java/com/orgmemory/api/assistant/AssistantStreamFailuresTests\.java$''']
+
+[[allowlists]]
+description = "Google Drive integration test generated a synthetic RSA key at runtime"
+targetRules = ["private-key"]
+condition = "AND"
+commits = ["9d7112d0adba99da9770459510b0a95bb75d2c2a"]
+paths = ['''^apps/worker/src/test/java/com/orgmemory/connectors/googledrive/GoogleDriveIngestionIntegrationTests\.java$''']
