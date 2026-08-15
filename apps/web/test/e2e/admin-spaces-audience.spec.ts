@@ -29,7 +29,7 @@ test("admin chooses a typed Space audience without seeing internal ids", async (
   await expect(page.getByText(ORGANIZATION_ID)).toHaveCount(0)
   await expect(page.getByText(SPACE_ID)).toHaveCount(0)
 
-  await page.getByRole("button", { name: "Sales Knowledge" }).click()
+  await page.getByRole("button", { name: /^Sales Knowledge/ }).click()
   await expect(page.getByText("Managed by audience policy")).toBeVisible()
   await expect(page.getByText("Not effective · remove drift")).toBeVisible()
   await expect(page.getByRole("button", { name: /Remove ineffective Can read/ })).toBeVisible()
