@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `integrations/document-parsing-spring-ai/src/main`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-08-14-google-drive-ingestion-hardening (9d7112d0)`.
+Reconciled: `2026-08-15-google-drive-ingestion-hardening-review (44ec5b54)`.
 
 ## Current Behavior
 
@@ -427,8 +427,11 @@ sharing observation. That policy transition marks CONTENT incomplete with
 normal crawl cadence, and is not a provider failure. Content cursor material
 includes the incomplete transition so an otherwise identical prior complete
 batch cannot hide it from the checkpoint. Permission-only reconciliation can
-therefore rotate an existing object's ACL or benignly return unchanged when the
-budgeted tail object has never had a materialized source head.
+therefore rotate an existing object's ACL or benignly return unchanged only
+when the inventory confirms that the budgeted tail object has no retrieval
+surface. An active object with a current revision but no ACL head fails that
+object's reconciliation instead of silently preserving an ungoverned or stale
+permission state.
 
 Drive omits inline `permissions` for an item in a shared drive and returns
 `permissionIds` instead, so the adapter follows those ids through

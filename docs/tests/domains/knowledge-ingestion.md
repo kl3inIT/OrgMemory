@@ -14,7 +14,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `integrations/document-parsing-spring-ai/src/test`,
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-08-14-google-drive-ingestion-hardening (9d7112d0)`.
+Reconciled: `2026-08-15-google-drive-ingestion-hardening-review (44ec5b54)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -211,6 +211,7 @@ executes for real without any real credential or network call.
 | Aggregate text admits the exact boundary, stops retaining at the first crossing, and still observes every later permission | `admitsContentAtTheExactAggregateBudgetBoundary`, `boundsAggregateTextAndStillObservesEveryPermission` |
 | Budget exhaustion marks only CONTENT incomplete with its stable reason, remains distinct in the content cursor, and does not become a provider failure | `boundsAggregateTextAndStillObservesEveryPermission`, `contentCursorChangesWhenOnlyTheBudgetStatusChanges` |
 | A permission-only observation for an unmaterialized budget-tail object is benign | `ConnectorReconcilerTests.missingMaterializedContentMakesPermissionOnlyReconciliationBenign` |
+| A materialized object missing its ACL head fails closed instead of preserving stale permission state | `ConnectorReconcilerTests.missingAclHeadForMaterializedObjectFailsClosed` |
 | A generated-key, recorded-response crawl materializes through PostgreSQL; only the mapped direct user retrieves, and a permission-only recrawl revokes without changing revision or chunks | `GoogleDriveIngestionIntegrationTests.directDriveGrantConvergesAndPermissionOnlyRecrawlRevokesWithoutRematerializing` |
 | The existing admin checkpoint surface exposes the aggregate-budget incomplete reason without advancing last-successful CONTENT state | `ConnectorCrawlCheckpointIntegrationTests.aggregateBudgetReasonIsVisibleInTheExistingCheckpointSurface` |
 | The descriptor-driven admin form serializes the 64 MiB default and rejects aggregate budgets below 25 MiB | `connector-google-drive.test.ts` |
