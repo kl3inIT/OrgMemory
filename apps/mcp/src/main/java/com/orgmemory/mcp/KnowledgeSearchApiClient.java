@@ -1,6 +1,7 @@
 package com.orgmemory.mcp;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -44,12 +45,17 @@ class KnowledgeSearchApiClient {
     record SearchResult(String requestId, List<Evidence> evidence) {
 
         SearchResult {
-            evidence = List.copyOf(evidence);
+            List<Evidence> numbered = new ArrayList<>(evidence.size());
+            for (int index = 0; index < evidence.size(); index++) {
+                numbered.add(evidence.get(index).withSourceNumber(index + 1));
+            }
+            evidence = List.copyOf(numbered);
         }
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     record Evidence(
+            Integer sourceNumber,
             UUID citationId,
             UUID knowledgeAssetId,
             String title,
@@ -59,6 +65,43 @@ class KnowledgeSearchApiClient {
             @Nullable Integer endPage,
             @Nullable String heading,
             double relevanceScore) {
+
+        Evidence(
+                UUID citationId,
+                UUID knowledgeAssetId,
+                String title,
+                String content,
+                @Nullable String sourceUri,
+                @Nullable Integer startPage,
+                @Nullable Integer endPage,
+                @Nullable String heading,
+                double relevanceScore) {
+            this(
+                    0,
+                    citationId,
+                    knowledgeAssetId,
+                    title,
+                    content,
+                    sourceUri,
+                    startPage,
+                    endPage,
+                    heading,
+                    relevanceScore);
+        }
+
+        Evidence withSourceNumber(int value) {
+            return new Evidence(
+                    value,
+                    citationId,
+                    knowledgeAssetId,
+                    title,
+                    content,
+                    sourceUri,
+                    startPage,
+                    endPage,
+                    heading,
+                    relevanceScore);
+        }
     }
 
 }

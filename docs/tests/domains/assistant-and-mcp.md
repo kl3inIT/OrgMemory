@@ -16,7 +16,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/components/ai-elements/prompt-input.test.tsx`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-11-assistant-private-files (92448337)`.
+Reconciled: `2026-08-16-mcp-asset-behavior-hardening (a8eec467)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -72,6 +72,9 @@ Reconciled: `2026-08-11-assistant-private-files (92448337)`.
 | A downstream failure surfaces as a sanitized tool error without internal host or request detail | `McpToolErrorSurfaceTests#downstreamFailureBecomesASanitizedToolErrorWithoutTransportDetail` | covered |
 | Per-actor filtering of tool, prompt, and resource listings | none | not supported by the stateless annotation runtime |
 | MCP exchanges caller identity and forwards only the API-audience bearer to canonical REST search | `McpApiAuthorizationTests`, `KnowledgeSearchApiClientTests`, `KnowledgeSearchToolTests` | covered |
+| MCP Knowledge evidence receives stable one-based source numbers in API order, publishes the `[n]` citation mapping, and carries permission-safe direct-answer guidance without adding a second generation call | `KnowledgeSearchApiClientTests#assignsStableOneBasedSourceNumbersInApiEvidenceOrder`, `KnowledgeSearchToolTests#publishesExplicitReadOnlyClosedWorldHints`, `OrgMemoryMcpContextTests#publishesPermissionSafeKnowledgeAnswerGuidance`, `#knowledgeSearchOutputAcceptsAbsentOptionalCitationMetadata` | covered |
+| MCP Asset tools bound discovery output, require exact-release resolution before repeatable application, keep released instructions below host policy, treat Skill `allowedTools` as metadata rather than authority, preserve opaque access gaps, and require explicit user intent before application, execution, installation, or download | `AssetDeliveryToolsTests#searchAssetsBoundsTheModelFacingCandidateSet`, `#publishesAssetExecutionAndDisclosureBoundaries`, `OrgMemoryMcpContextTests#publishesAssetExecutionBoundaryGuidance` | covered |
+| The generic released Prompt remains a user-role task message, preserves explicit null variables, and cannot present its organization-approved instruction as host system authority | `AssetDeliveryToolsTests#releasedPromptPreservesExplicitNullVariables` | covered |
 | Asset recommendations are actor-scoped and pin an exact usable release | `AssetRegistryIntegrationTests#recommendationsAreActorScopedAndPinExactUsableReleases` | covered |
 | Assistant-proposed external provider and state-changing Asset actions require confirmation | `AssistantAssetToolServiceTests` | covered |
 | Asset tool traces contain exact release refs without raw Prompt secrets/output | `AssistantAssetToolServiceTests#promptTraceStoresShapeAndDigestButNoRawSecretOrOutput` | covered |

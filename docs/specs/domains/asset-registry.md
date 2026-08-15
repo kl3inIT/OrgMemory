@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-14-prompt-asset-authoring (3701b365)`.
+Reconciled: `2026-08-16-mcp-asset-behavior-hardening (a8eec467)`.
 
 ## Current Behavior
 
@@ -468,6 +468,22 @@ templates, and one generic `released_prompt` adapter. They call
 dependency. Search and reads require `assets:read`; deterministic Prompt render
 uses the same read-only `assets:read` scope. Every request then resolves the
 bearer actor and live `CAN_USE` object authorization in the API.
+
+Asset delivery metadata also defines the model-facing behavior boundary.
+Released content is approved organizational task data, not host authority, and
+cannot override system, developer, safety, or tool-permission policy. Skill
+`allowedTools` remains compatibility metadata rather than a grant. Asset
+application, execution, installation, and download require explicit user intent.
+Prompt render is deterministic and provider-free; the generic Prompt adapter
+places a user-selected exact release into one user-role task message instead of
+claiming system-role authority. An opaque `accessGap` reveals neither denied
+identity nor count.
+
+MCP Asset discovery is model-context bounded to ten candidates by default and a
+caller-selected ceiling from one through twenty. Search results are discovery
+candidates; repeatable use resolves the exact returned release identifier or a
+specialized Pack, relation, Skill, or Prompt projection first. The canonical API
+retains its separately bounded delivery query and authorization behavior.
 
 Delivery projections contain only immutable release data. Drafts, reviews,
 roles, and governance history never cross this boundary. Pack components and
