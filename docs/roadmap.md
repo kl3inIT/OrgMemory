@@ -83,6 +83,7 @@ The table is a delivery index, not a second description of current behavior.
 | [OpenFGA model rollout repair](increments/active/2026-07-29-openfga-model-rollout/plan.md) | active | version and pin the repository model during deployment, then verify the affected admin screens |
 | [Production CI/CD and ZM runtime](increments/active/2026-07-25-production-cicd-zm/plan.md) | active | shared-PostgreSQL cutover, restore proof, end-to-end runtime and rollback gates |
 | [Reproducible demo bootstrap](increments/active/2026-07-22-reproducible-demo-bootstrap/plan.md) | active | public ingestion and permission-evaluation run |
+| [Google Drive ingestion hardening](increments/active/2026-08-15-google-drive-ingestion-hardening/plan.md) | active | challenge and implement aggregate batch-memory admission, then prove recorded Drive responses through the durable ledger, source ACL, and permission-aware retrieval |
 | [Slack connector live proof](increments/active/2026-07-23-slack-connector-live/plan.md) | active | live workspace crawl and next-crawl revocation |
 | [Asset projection generation repair](increments/active/2026-07-25-asset-projection-generation/plan.md) | active | production Assistant/citation/permission verification |
 | [LightRAG multi-space query latency](increments/active/2026-07-28-lightrag-query-latency/plan.md) | active | deploy merged repair and capture production before/after timings |
@@ -103,7 +104,7 @@ implementation-active until their predecessor exit gates pass.
 3. Complete the guarded ZM database cutover, runtime health, browser login,
    upload, GraphRAG, Assistant/citation, restore, rollback, and resource gates.
 4. Complete the reproducible demo's real ingestion and permission-evaluation
-   path.
+   path through the Google Drive ingestion-hardening proof.
 5. Run the Slack live proof with credentials outside the repository and retain
    only redacted evidence.
 6. Close the production proofs for asset projection generation and LightRAG
