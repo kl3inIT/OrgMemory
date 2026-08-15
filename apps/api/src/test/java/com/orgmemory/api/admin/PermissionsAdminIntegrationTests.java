@@ -19,9 +19,12 @@ import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.BatchAuthorizationQuery;
 import com.orgmemory.core.authorization.BatchAuthorizationResult;
+import com.orgmemory.core.authorization.ExpansionNode;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
+import com.orgmemory.core.authorization.RelationshipExpansionPort;
+import com.orgmemory.core.authorization.RelationshipExpansionResult;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
@@ -115,6 +118,9 @@ class PermissionsAdminIntegrationTests {
 
     @MockitoBean
     RelationshipAuthorizationSetPort setAuthorization;
+
+    @MockitoBean
+    RelationshipExpansionPort relationshipExpansion;
 
     @MockitoBean
     QueryEmbeddingPort queryEmbeddings;
@@ -254,6 +260,12 @@ class PermissionsAdminIntegrationTests {
                 .andExpect(jsonPath("$.contentPolicyState").value("DENIED"))
                 .andExpect(jsonPath("$.contentPolicyReasonCode")
                         .value("CANONICAL_RETRIEVAL_POLICY_DENIED"))
+                .andExpect(jsonPath("$.path[0].objectType").value("knowledge_asset"))
+                .andExpect(jsonPath("$.path[0].objectLabel").value("General channel digest"))
+                .andExpect(jsonPath("$.path[1].objectType").value("knowledge_space"))
+                .andExpect(jsonPath("$.path[1].objectLabel").value("Admin Test Space"))
+                .andExpect(jsonPath("$.path[2].objectType").value("organizational_unit"))
+                .andExpect(jsonPath("$.path[2].objectLabel").value("Operations"))
                 .andExpect(jsonPath("$.resource.label").value("General channel digest"))
                 .andExpect(jsonPath("$.resource.contextLabel").value("Admin Test Space"))
                 .andExpect(jsonPath("$.resource.classification").value("INTERNAL"));
@@ -519,6 +531,34 @@ class PermissionsAdminIntegrationTests {
                     query.resources().stream().collect(Collectors.toMap(
                             resource -> resource, resource -> AuthorizationDecision.allow(MODEL_ID))),
                     MODEL_ID);
+        });
+        when(relationshipExpansion.expand(any())).thenAnswer(invocation -> {
+            var query = invocation.getArgument(
+                    0, com.orgmemory.core.authorization.RelationshipExpansionQuery.class);
+            String object = query.resource().openFgaObject();
+            if (object.equals("knowledge_asset:" + ASSET)) {
+                return RelationshipExpansionResult.resolved(
+                        new ExpansionNode.TupleToUserset(
+                                object + "#can_view",
+                                "knowledge_space",
+                                List.of("knowledge_space:" + SPACE + "#viewer")),
+                        MODEL_ID);
+            }
+            if (object.equals("knowledge_space:" + SPACE)) {
+                return RelationshipExpansionResult.resolved(
+                        new ExpansionNode.Direct(
+                                object + "#viewer",
+                                List.of("organizational_unit:" + DEPT + "#member")),
+                        MODEL_ID);
+            }
+            if (object.equals("organizational_unit:" + DEPT)) {
+                return RelationshipExpansionResult.resolved(
+                        new ExpansionNode.Direct(
+                                object + "#member",
+                                List.of("user:" + AN_USER)),
+                        MODEL_ID);
+            }
+            return RelationshipExpansionResult.indeterminate("NOT_IN_FIXTURE", MODEL_ID);
         });
         // Lexical-only retrieval keeps the proof independent of embedding dimensions.
         when(queryEmbeddings.embed(any(), any())).thenReturn(Optional.empty());
