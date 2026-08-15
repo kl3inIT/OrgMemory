@@ -33,6 +33,20 @@ public class SourceInventoryQuery {
                 .map(source -> new SourceInventoryRef(source.getId()));
     }
 
+    /** Whether an external object currently has content reachable from retrieval surfaces. */
+    public boolean hasRetrievalSurface(
+            UUID organizationId,
+            String sourceSystem,
+            String sourceConnectionKey,
+            String externalObjectId) {
+        return sources.countActiveCurrentRevision(
+                        Objects.requireNonNull(organizationId, "organizationId"),
+                        Objects.requireNonNull(sourceSystem, "sourceSystem"),
+                        Objects.requireNonNull(sourceConnectionKey, "sourceConnectionKey"),
+                        Objects.requireNonNull(externalObjectId, "externalObjectId"))
+                > 0;
+    }
+
     public List<String> activeExternalObjectIds(
             UUID organizationId, String sourceSystem, String sourceConnectionKey) {
         return sources.findActiveExternalObjectIds(

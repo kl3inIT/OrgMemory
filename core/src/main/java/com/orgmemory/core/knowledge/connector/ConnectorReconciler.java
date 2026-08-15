@@ -292,6 +292,15 @@ class ConnectorReconciler {
         var head = ingestion.findSourceHead(
                 ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), permission.externalObjectId());
         if (head.isEmpty()) {
+            if (sourceInventory.hasRetrievalSurface(
+                    ctx.organizationId(),
+                    ctx.sourceSystem(),
+                    ctx.sourceConnectionKey(),
+                    permission.externalObjectId())) {
+                throw new IllegalStateException(
+                        "an active source object exists without its ACL head: "
+                                + permission.externalObjectId());
+            }
             return ObjectOutcome.UNCHANGED;
         }
         AclPlan plan = buildAclPlan(ctx, permission, resolution);
