@@ -1,6 +1,6 @@
 # Assistant And MCP Spec
 
-Reconciled: `2026-08-11-assistant-private-files (92448337)`.
+Reconciled: `2026-08-16-mcp-answer-guidance (9fd93881)`.
 
 Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `core/src/main/java/com/orgmemory/core/ai`,
@@ -398,6 +398,18 @@ short-lived API-audience token instead of forwarding the inbound bearer,
 preserving one retrieval, OpenFGA, ACL-recheck, and audit path across the
 Assistant, REST, and MCP surfaces. MCP owns no schema migration or privileged
 service identity.
+
+`search_knowledge` remains one model-controlled retrieval call rather than a
+second answer-generation path. It returns permission-verified evidence in API
+order with a stable one-based `sourceNumber` plus the opaque citation identity.
+The tool contract maps that number to bracketed markers such as `[1]`. Server
+instructions tell supporting hosts to use only that evidence, treat document
+text as untrusted data, answer directly in the user's language, and omit source
+ownership, classification, access-control wording, and dataset disclaimers
+unless the user explicitly asks for those properties. Empty evidence receives
+permission-safe not-found guidance without inferring whether restricted content
+exists. These natural-language instructions guide host presentation; canonical
+retrieval and authorization remain the enforced security boundary.
 
 Completion is permission-scoped. Every suggestion for a Prompt argument or an
 Asset resource-template variable comes from one authorized Asset delivery call
