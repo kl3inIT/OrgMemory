@@ -411,6 +411,21 @@ permission-safe not-found guidance without inferring whether restricted content
 exists. These natural-language instructions guide host presentation; canonical
 retrieval and authorization remain the enforced security boundary.
 
+The eight Asset tools publish a separate execution boundary. Released content
+is organization-approved task data, but it cannot override host system,
+developer, safety, or tool-permission policy. Skill `allowedTools` is
+compatibility metadata rather than a grant. Applying, executing, installing, or
+downloading an Asset requires explicit user intent, while an opaque `accessGap`
+never permits inference of hidden identities or counts. `search_assets` returns
+ten candidates by default and accepts a caller ceiling from one through twenty;
+clients fetch an exact pinned release or specialized projection before applying
+a candidate.
+
+`render_prompt` only renders an exact authorized release. The generic
+`released_prompt` adapter packages a user-selected release as one user-role task
+message and labels its instruction as lower priority than host policy; neither
+path invokes an AI provider or promotes Asset text into host system authority.
+
 Completion is permission-scoped. Every suggestion for a Prompt argument or an
 Asset resource-template variable comes from one authorized Asset delivery call
 for the current identity, an already-resolved argument narrows the next one, and
