@@ -1,6 +1,6 @@
 # Assistant And MCP Spec
 
-Reconciled: `2026-08-16-mcp-answer-guidance (9fd93881)`.
+Reconciled: `2026-08-16-mcp-asset-behavior-hardening (a8eec467)`.
 
 Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `core/src/main/java/com/orgmemory/core/ai`,

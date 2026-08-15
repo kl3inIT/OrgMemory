@@ -16,7 +16,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/components/ai-elements/prompt-input.test.tsx`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-16-mcp-answer-guidance (9fd93881)`.
+Reconciled: `2026-08-16-mcp-asset-behavior-hardening (a8eec467)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
