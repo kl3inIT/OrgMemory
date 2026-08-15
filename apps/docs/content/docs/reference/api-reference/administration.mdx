@@ -97,6 +97,9 @@ _openapi:
       title: Remove a user from a role
       url: '#remove-a-user-from-a-role'
     - depth: 2
+      title: Retire a Knowledge Space without deleting retained evidence
+      url: '#retire-a-knowledge-space-without-deleting-retained-evidence'
+    - depth: 2
       title: Withdraw an invitation that has not been used
       url: '#withdraw-an-invitation-that-has-not-been-used'
   structuredData:
@@ -157,6 +160,8 @@ _openapi:
         id: read-immutable-deployment-managed-embedding-settings
       - content: Remove a user from a role
         id: remove-a-user-from-a-role
+      - content: Retire a Knowledge Space without deleting retained evidence
+        id: retire-a-knowledge-space-without-deleting-retained-evidence
       - content: Withdraw an invitation that has not been used
         id: withdraw-an-invitation-that-has-not-been-used
     contents: []
@@ -171,7 +176,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/admin/ai/routes/{workload}","method":"delete"},{"path":"/api/admin/ai/routes/{workload}","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}","method":"delete"},{"path":"/api/admin/ai/gateways/{profileId}","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}/credential","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}/assistant-models","method":"put"},{"path":"/api/admin/roles/{role}/members","method":"post"},{"path":"/api/admin/knowledge-spaces","method":"get"},{"path":"/api/admin/knowledge-spaces","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"delete"},{"path":"/api/admin/invitations","method":"get"},{"path":"/api/admin/invitations","method":"post"},{"path":"/api/admin/ai/gateways","method":"get"},{"path":"/api/admin/ai/gateways","method":"post"},{"path":"/api/admin/ai/gateways/{profileId}/test","method":"post"},{"path":"/api/admin/ai/gateways/test","method":"post"},{"path":"/api/admin/access/explain","method":"post"},{"path":"/api/admin/users/{userId}","method":"patch"},{"path":"/api/admin/users","method":"get"},{"path":"/api/admin/users/{userId}/permissions","method":"get"},{"path":"/api/admin/roles","method":"get"},{"path":"/api/admin/knowledge-spaces/grant-options","method":"get"},{"path":"/api/admin/ai/routes","method":"get"},{"path":"/api/admin/ai/providers","method":"get"},{"path":"/api/admin/ai/index-settings","method":"get"},{"path":"/api/admin/roles/{role}/members/{userId}","method":"delete"},{"path":"/api/admin/invitations/{invitationId}","method":"delete"}]} showTitle showDescription />
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/admin/ai/routes/{workload}","method":"delete"},{"path":"/api/admin/ai/routes/{workload}","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}","method":"delete"},{"path":"/api/admin/ai/gateways/{profileId}","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}/credential","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}/assistant-models","method":"put"},{"path":"/api/admin/roles/{role}/members","method":"post"},{"path":"/api/admin/knowledge-spaces","method":"get"},{"path":"/api/admin/knowledge-spaces","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"delete"},{"path":"/api/admin/invitations","method":"get"},{"path":"/api/admin/invitations","method":"post"},{"path":"/api/admin/ai/gateways","method":"get"},{"path":"/api/admin/ai/gateways","method":"post"},{"path":"/api/admin/ai/gateways/{profileId}/test","method":"post"},{"path":"/api/admin/ai/gateways/test","method":"post"},{"path":"/api/admin/access/explain","method":"post"},{"path":"/api/admin/users/{userId}","method":"patch"},{"path":"/api/admin/users","method":"get"},{"path":"/api/admin/users/{userId}/permissions","method":"get"},{"path":"/api/admin/roles","method":"get"},{"path":"/api/admin/knowledge-spaces/grant-options","method":"get"},{"path":"/api/admin/ai/routes","method":"get"},{"path":"/api/admin/ai/providers","method":"get"},{"path":"/api/admin/ai/index-settings","method":"get"},{"path":"/api/admin/roles/{role}/members/{userId}","method":"delete"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}","method":"delete"},{"path":"/api/admin/invitations/{invitationId}","method":"delete"}]} showTitle showDescription />
     </>
   );
 }

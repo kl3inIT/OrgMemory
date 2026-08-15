@@ -23,6 +23,9 @@ _openapi:
       title: Record the identity trust for a connection
       url: '#record-the-identity-trust-for-a-connection'
     - depth: 2
+      title: Remove a source connection and its stored credential
+      url: '#remove-a-source-connection-and-its-stored-credential'
+    - depth: 2
       title: Record how a connection is crawled
       url: '#record-how-a-connection-is-crawled'
     - depth: 2
@@ -102,6 +105,8 @@ _openapi:
         id: confirm-a-principal-maps-to-an-internal-user
       - content: Record the identity trust for a connection
         id: record-the-identity-trust-for-a-connection
+      - content: Remove a source connection and its stored credential
+        id: remove-a-source-connection-and-its-stored-credential
       - content: Record how a connection is crawled
         id: record-how-a-connection-is-crawled
       - content: Forget a connection's stored credential
@@ -162,7 +167,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/admin/source-principals/{principalId}/mapping","method":"delete"},{"path":"/api/admin/source-principals/{principalId}/mapping","method":"put"},{"path":"/api/admin/source-connections/identity-trust","method":"put"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}","method":"put"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/credential","method":"delete"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/credential","method":"put"},{"path":"/api/sources","method":"get"},{"path":"/api/sources","method":"post"},{"path":"/api/admin/provisioning/connections","method":"get"},{"path":"/api/admin/provisioning/connections","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials","method":"get"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials/{credentialId}/rotate","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/test","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/crawl","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/test","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/state","method":"patch"},{"path":"/api/sources/{sourceId}/content","method":"get"},{"path":"/api/admin/source-principals","method":"get"},{"path":"/api/admin/source-groups","method":"get"},{"path":"/api/admin/source-connections","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/scopes","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/activity","method":"get"},{"path":"/api/admin/connectors/sources","method":"get"},{"path":"/api/sources/{sourceId}","method":"delete"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials/{credentialId}","method":"delete"}]} showTitle showDescription />
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/admin/source-principals/{principalId}/mapping","method":"delete"},{"path":"/api/admin/source-principals/{principalId}/mapping","method":"put"},{"path":"/api/admin/source-connections/identity-trust","method":"put"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}","method":"delete"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}","method":"put"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/credential","method":"delete"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/credential","method":"put"},{"path":"/api/sources","method":"get"},{"path":"/api/sources","method":"post"},{"path":"/api/admin/provisioning/connections","method":"get"},{"path":"/api/admin/provisioning/connections","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials","method":"get"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials/{credentialId}/rotate","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/test","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/crawl","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/test","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/state","method":"patch"},{"path":"/api/sources/{sourceId}/content","method":"get"},{"path":"/api/admin/source-principals","method":"get"},{"path":"/api/admin/source-groups","method":"get"},{"path":"/api/admin/source-connections","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/scopes","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/activity","method":"get"},{"path":"/api/admin/connectors/sources","method":"get"},{"path":"/api/sources/{sourceId}","method":"delete"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials/{credentialId}","method":"delete"}]} showTitle showDescription />
     </>
   );
 }

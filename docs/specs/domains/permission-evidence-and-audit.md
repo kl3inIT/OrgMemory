@@ -6,7 +6,7 @@ Source: `core/src/main/java/com/orgmemory/core/permission`,
 `apps/api/src/main/java/com/orgmemory/api/admin`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-02-knowledge-space-audience-modes (75a8dd3b)`.
+Reconciled: `admin-safe-deletion-controls (fcde1113)`.
 
 ## Current Behavior
 
@@ -51,6 +51,14 @@ shape grantable. Space administration, publication, authoring, and viewing are
 independent permissions; an operational relation alone does not grant content
 read. Every Space audience remains only an eligibility gate: Source ACL and the
 other canonical content gates remain hard ceilings.
+
+Deleting a Knowledge Space is a retention-safe retirement, not physical
+erasure. The Space is marked inactive and disappears from active administration
+and serving paths. Its stable row, source and publication evidence, audit
+history, and OpenFGA tuples remain available to retention and investigation;
+stored tuples cannot reactivate or expose an inactive Space. Retirement requires
+the same Space-management permission as audience administration and appends a
+permission audit event.
 
 ## Source Modules
 

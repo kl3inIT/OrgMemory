@@ -4,7 +4,9 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/api/src/test/java/com/orgmemory/api/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/source`,
+`apps/api/src/test/java/com/orgmemory/api/admin`,
 `apps/web/src/features/sources`, `apps/web/test/e2e`,
+`apps/web/src/features/admin`,
 `apps/worker/src/test/java/com/orgmemory/worker/ingestion`,
 `apps/worker/src/test/java/com/orgmemory/worker/connector`,
 `components/graph-rag-core/src/test/java/com/orgmemory/graphrag/parsing`,
@@ -12,7 +14,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `integrations/document-parsing-spring-ai/src/test`,
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-08-10-assistant-file-evidence (5aee7535)`.
+Reconciled: `admin-safe-deletion-controls (fcde1113)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -266,6 +268,7 @@ the API boundary, which is the only way it is reached.
 | A probe reports the workspace it authenticated as and never repeats the token | `testingATokenReportsTheWorkspaceItAuthenticatedAs` |
 | Testing a connection with nothing stored answers rather than fails | `testingAConnectionWithNothingStoredSaysSoRatherThanFailing` |
 | Every mutation leaves an audit event recording that a token was set, not the token | `everyMutationLeavesAnAuditEvent` |
+| Deleting a connection removes its configuration and encrypted credential while refusing non-administrators | `deletingAConnectionRemovesItsConfigurationAndStoredCredential`, `nonAdministratorsAreRefusedEverywhere` |
 | Only the sources this deployment installed are offered, and naming another is a request error rather than an empty list | `reportsOnlyTheSourcesThisDeploymentCanActuallyIngest`, `refusesASourceNoAdapterInstalled` |
 | A connection that looks healthy reports why it is producing nothing | `reportsWhyAConnectionThatLooksHealthyIsProducingNothing` |
 | A second source is configured over the same endpoints and stored under the name its adapter declared | `asecondSourceIsConfiguredOverTheSameEndpoints` |

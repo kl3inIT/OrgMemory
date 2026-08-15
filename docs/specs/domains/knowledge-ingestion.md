@@ -3,7 +3,9 @@
 Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/source`,
+`apps/api/src/main/java/com/orgmemory/api/admin`,
 `apps/web/src/features/sources`,
+`apps/web/src/features/admin`,
 `apps/worker/src/main/java/com/orgmemory/worker/ingestion`,
 `apps/worker/src/main/java/com/orgmemory/worker/connector`,
 `components/graph-rag-core/src/main/java/com/orgmemory/graphrag/parsing`,
@@ -11,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `integrations/document-parsing-spring-ai/src/main`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-08-10-assistant-file-evidence (5aee7535)`.
+Reconciled: `admin-safe-deletion-controls (fcde1113)`.
 
 ## Current Behavior
 
@@ -346,6 +348,14 @@ thread bound are opaque to the ledger and parsed by the adapter that defined the
 the key version that produced it. A row whose authentication tag does not verify
 is refused rather than decrypted, and the application refuses to store a secret at
 all when no encryption key is configured, rather than storing something weaker.
+
+Deleting a connection removes its crawl configuration and encrypted credential,
+so the polling directory stops offering it on the next pass. It does not erase
+already governed source objects, revisions, evidence, or projections: those
+remain under their Knowledge Space and source lifecycle so connection removal
+cannot bypass retention. An administrator can retire eligible native uploads
+through the separate document command when that content should leave active
+retrieval.
 
 An administrator sets both through `/api/admin/connectors/{sourceSystem}`, one
 endpoint for every source rather than one per source; a source system no adapter

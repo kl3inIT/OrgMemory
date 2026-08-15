@@ -547,6 +547,36 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Sources and connections"
+        ],
+        "summary": "Remove a source connection and its stored credential",
+        "operationId": "deleteAdminConnection",
+        "parameters": [
+          {
+            "name": "sourceSystem",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "connectionKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
       }
     },
     "/api/admin/connectors/{sourceSystem}/{connectionKey}/credential": {
@@ -6153,6 +6183,31 @@
           },
           {
             "name": "credentialId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/admin/knowledge-spaces/{knowledgeSpaceId}": {
+      "delete": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Retire a Knowledge Space without deleting retained evidence",
+        "operationId": "deleteAdminKnowledgeSpace",
+        "parameters": [
+          {
+            "name": "knowledgeSpaceId",
             "in": "path",
             "required": true,
             "schema": {
