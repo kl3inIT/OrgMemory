@@ -35,11 +35,17 @@ provider response bodies, prompts, and completions are never audit fields.
 Effective-access inspection is an audit capability rather than an implication
 of member administration. `can_view_audit` is checked before the target user,
 tenant-owned resource, document title, Space name, or classification is
-resolved. A Knowledge Asset `can_view` response distinguishes the OpenFGA
-relationship result from the canonical content-policy result and exposes their
-intersection as the final verdict. Other resource and permission combinations
-are labeled relationship-only. The UI uses resolved names as primary labels and
-keeps identifiers and policy reason codes in collapsed technical details.
+resolved. After that guard succeeds, tenant-owned organization, department,
+Knowledge Space, Knowledge Asset, and target-user labels may enrich the raw
+relationship derivation. A Knowledge Asset `can_view` response distinguishes
+the OpenFGA relationship result from the canonical content-policy result and
+exposes their intersection as the final verdict. Other resource and permission
+combinations are labeled relationship-only. User Detail presents the current
+verdict, named direct or inherited assignment, current document availability,
+and evaluation time. It never renders raw object identifiers, relation names,
+policy reason codes, the authorization model, or a technical-details section;
+those protocol fields remain available only to the protected API and backend
+diagnostics.
 
 Each Knowledge Space persists one versioned audience mode. Organization and
 department modes project an immutable built-in viewer audience; the ordinary

@@ -3,6 +3,7 @@ package com.orgmemory.api.admin;
 import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.core.authorization.AccessExplanation;
 import com.orgmemory.core.authorization.AccessExplanationService;
+import com.orgmemory.core.authorization.AccessStep;
 import com.orgmemory.core.authorization.AccessState;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.PrincipalRef;
@@ -13,6 +14,7 @@ import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.organization.OrganizationResourceQuery;
 import com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeAssetAccessInspector;
 import io.swagger.v3.oas.annotations.Operation;
@@ -68,6 +70,7 @@ class AdminPermissionController {
     private final KnowledgeAssetRepository assets;
     private final KnowledgeAssetVersionRepository versions;
     private final KnowledgeSpaceQuery spaces;
+    private final OrganizationResourceQuery organizations;
 
     AdminPermissionController(
             AdminAccessGuard guard,
@@ -76,7 +79,8 @@ class AdminPermissionController {
             KnowledgeAssetAccessInspector evidenceScopes,
             KnowledgeAssetRepository assets,
             KnowledgeAssetVersionRepository versions,
-            KnowledgeSpaceQuery spaces) {
+            KnowledgeSpaceQuery spaces,
+            OrganizationResourceQuery organizations) {
         this.guard = guard;
         this.explanations = explanations;
         this.resources = resources;
@@ -84,6 +88,7 @@ class AdminPermissionController {
         this.assets = assets;
         this.versions = versions;
         this.spaces = spaces;
+        this.organizations = organizations;
     }
 
     record EffectivePermissionResponse(
@@ -93,7 +98,12 @@ class AdminPermissionController {
     record ExplainAccessRequest(UUID userId, String permission, String resourceType, UUID resourceId) {
     }
 
-    record AccessStepResponse(String object, String relation, String kind) {
+    record AccessStepResponse(
+            String object,
+            String objectType,
+            String objectLabel,
+            String relation,
+            String kind) {
     }
 
     record AccessBlockResponse(String branch, String kind, String detail) {
@@ -190,14 +200,16 @@ class AdminPermissionController {
                     user.getClearance());
             return canonicalContentResponse(
                     explanation,
+                    user,
                     subject,
                     request.resourceId());
         }
-        return relationshipOnlyResponse(explanation);
+        return relationshipOnlyResponse(explanation, actor.organizationId(), user);
     }
 
     private ExplainAccessResponse canonicalContentResponse(
             AccessExplanation relationship,
+            AppUser user,
             CurrentActor subject,
             UUID assetId) {
         AccessState finalState;
@@ -232,7 +244,8 @@ class AdminPermissionController {
                 "CANONICAL_CONTENT",
                 contentState,
                 contentReason,
-                resource);
+                resource,
+                resolvedPath(subject.organizationId(), user, resource, relationship.path()));
     }
 
     private ResourceSummaryResponse resourceSummary(UUID organizationId, UUID assetId) {
@@ -260,7 +273,10 @@ class AdminPermissionController {
                 classification);
     }
 
-    private static ExplainAccessResponse relationshipOnlyResponse(AccessExplanation explanation) {
+    private ExplainAccessResponse relationshipOnlyResponse(
+            AccessExplanation explanation,
+            UUID organizationId,
+            AppUser user) {
         return response(
                 explanation,
                 explanation.state(),
@@ -268,7 +284,8 @@ class AdminPermissionController {
                 "RELATIONSHIP_ONLY",
                 null,
                 null,
-                null);
+                null,
+                resolvedPath(organizationId, user, null, explanation.path()));
     }
 
     private static ExplainAccessResponse response(
@@ -278,14 +295,12 @@ class AdminPermissionController {
             String evaluationKind,
             AccessState contentPolicyState,
             String contentPolicyReasonCode,
-            ResourceSummaryResponse resource) {
+            ResourceSummaryResponse resource,
+            List<AccessStepResponse> path) {
         return new ExplainAccessResponse(
                 finalState,
                 reasonCode,
-                explanation.path().stream()
-                        .map(step -> new AccessStepResponse(
-                                step.object(), step.relation(), step.kind().name()))
-                        .toList(),
+                path,
                 explanation.blockedBy().stream()
                         .map(block -> new AccessBlockResponse(
                                 block.branch(), block.kind().name(), block.detail()))
@@ -304,5 +319,64 @@ class AdminPermissionController {
                 resource,
                 explanation.policyVersion(),
                 explanation.evaluatedAt());
+    }
+
+    private List<AccessStepResponse> resolvedPath(
+            UUID organizationId,
+            AppUser user,
+            ResourceSummaryResponse selectedResource,
+            List<AccessStep> path) {
+        return path.stream()
+                .map(step -> resolvedStep(organizationId, user, selectedResource, step))
+                .toList();
+    }
+
+    private AccessStepResponse resolvedStep(
+            UUID organizationId,
+            AppUser user,
+            ResourceSummaryResponse selectedResource,
+            AccessStep step) {
+        int separator = step.object().indexOf(':');
+        String objectType = separator > 0 ? step.object().substring(0, separator) : "resource";
+        UUID objectId = null;
+        if (separator > 0) {
+            try {
+                objectId = UUID.fromString(step.object().substring(separator + 1));
+            } catch (IllegalArgumentException ignored) {
+                // Unrecognized provider objects remain available to protected diagnostics only.
+            }
+        }
+        String label = objectId == null
+                ? null
+                : resolvedLabel(organizationId, user, selectedResource, objectType, objectId);
+        return new AccessStepResponse(
+                step.object(),
+                objectType,
+                label,
+                step.relation(),
+                step.kind().name());
+    }
+
+    private String resolvedLabel(
+            UUID organizationId,
+            AppUser user,
+            ResourceSummaryResponse selectedResource,
+            String objectType,
+            UUID objectId) {
+        if (selectedResource != null
+                && selectedResource.type().equals(objectType)
+                && selectedResource.id().equals(objectId)) {
+            return selectedResource.label();
+        }
+        return switch (objectType) {
+            case "organization" -> organizationId.equals(objectId)
+                    ? organizations.findOrganizationName(organizationId).orElse(null)
+                    : null;
+            case "organizational_unit" ->
+                    organizations.findDepartmentName(organizationId, objectId).orElse(null);
+            case "knowledge_space" -> spaces.findName(organizationId, objectId).orElse(null);
+            case "user" -> user.getId().equals(objectId) ? user.getName() : null;
+            default -> null;
+        };
     }
 }

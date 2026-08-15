@@ -57,6 +57,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Business access explanation](increments/active/2026-08-15-business-access-explanation/plan.md) | active | resolve tenant-owned authorization paths into business labels, replace the technical User Detail inspector, and complete Allowed/Denied browser proof |
 | [Assistant governed file evidence](increments/active/2026-08-10-assistant-file-evidence/plan.md) | active | implement conversation-bound governed upload, active-engine answerability, and selection-constrained retrieval on the shipped parser and Source pipeline |
 | [Asset library sharing lifecycle](increments/active/2026-08-10-asset-library-sharing-lifecycle/plan.md) | active | owner-led direct publication, released-only Viewer reads, sharing, locked transfer/demotion, recovery, withdrawal, and Skill activation are on `main`; close transfer-target eligibility, conflict migration, authorization rollout/convergence evidence, collision handling, and remaining browser gates |
 | [Assistant turn activity continuity](increments/completed/2026-08-06-assistant-turn-activity-continuity/verification.md) | shipped | one stable pre-answer surface now preserves thinking through renderable text and presents Skill detail only when useful; the unrelated browser timing baseline gap is recorded |
