@@ -43,8 +43,11 @@
   --om-shadow: 0 1px 2px oklch(0.16 0.01 260 / 0.06), 0 20px 55px oklch(0.16 0.01 260 / 0.1);
 }
 
+/* Layout is scoped through the html class: Keycloak replaces the body class on
+   some templates (login-oauth-grant.ftl sends bodyClass "oauth"), so a
+   body-class-only selector silently drops the canvas and centering there. */
 html.orgmemory-login,
-body.orgmemory-login__body {
+html.orgmemory-login body {
   min-height: 100%;
   margin: 0;
   color: var(--om-primary);
@@ -58,7 +61,7 @@ body.orgmemory-login__body {
   line-height: 1.5;
 }
 
-body.orgmemory-login__body {
+html.orgmemory-login body {
   display: flex;
   min-height: 100vh;
   align-items: center;
@@ -330,7 +333,7 @@ a:hover {
 }
 
 @media (max-width: 480px) {
-  body.orgmemory-login__body {
+  html.orgmemory-login body {
     align-items: stretch;
     padding: 0;
   }
@@ -358,6 +361,52 @@ a:hover {
   }
 }
 
+/* Consent page (login-oauth-grant.ftl): scope list and accept/cancel pair
+   have no login-form equivalent to inherit from. */
+#kc-oauth h3 {
+  margin: 0 0 0.4rem;
+  color: var(--om-primary);
+  font-family: var(--om-font);
+  font-size: 0.9375rem;
+  font-weight: 560;
+}
+
+#kc-oauth ul {
+  margin: 0 0 1.4rem;
+  padding: 0;
+  list-style: none;
+}
+
+#kc-oauth ul li {
+  padding: 0.7rem 0.15rem;
+  border-bottom: 1px solid var(--om-border-subtle);
+  color: var(--om-secondary);
+  font-size: 0.9rem;
+  font-weight: 520;
+}
+
+#kc-oauth ul li:last-child {
+  border-bottom: 0;
+}
+
+#kc-oauth .kcFormButtonsWrapperClass {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 0.65rem;
+}
+
+#kc-cancel {
+  width: 100%;
+  border: 1px solid var(--om-border);
+  background: var(--om-control);
+  color: var(--om-primary);
+}
+
+#kc-cancel:hover {
+  border-color: color-mix(in oklch, var(--om-border) 68%, var(--om-primary));
+  background: var(--om-subtle);
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -383,7 +432,7 @@ a:hover {
     --om-shadow: 0 1px 2px oklch(0 0 0 / 0.22), 0 24px 65px oklch(0 0 0 / 0.36);
   }
 
-  body.orgmemory-login__body {
+  html.orgmemory-login body {
     background-color: var(--om-canvas);
     background-image:
       radial-gradient(circle at 12% 12%, oklch(0.27 0.06 255 / 0.42), transparent 32rem),
