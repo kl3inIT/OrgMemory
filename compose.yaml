@@ -1,6 +1,6 @@
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:26.7.0
+    image: quay.io/keycloak/keycloak:26.7.1
     command: start-dev --import-realm
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
@@ -75,7 +75,7 @@ services:
         condition: service_healthy
 
   openfga-migrate:
-    image: openfga/openfga:v1.18.1
+    image: openfga/openfga:v1.18.3
     command:
       - migrate
       - --datastore-engine
@@ -87,7 +87,7 @@ services:
         condition: service_completed_successfully
 
   openfga:
-    image: openfga/openfga:v1.18.1
+    image: openfga/openfga:v1.18.3
     command:
       - run
       - --datastore-engine
