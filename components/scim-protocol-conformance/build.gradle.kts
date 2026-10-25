@@ -8,10 +8,10 @@ val pingCandidate by configurations.creating {
 }
 
 dependencies {
-    pingCandidate("com.unboundid.product.scim2:scim2-sdk-common:6.0.0")
+    pingCandidate("com.unboundid.product.scim2:scim2-sdk-common:6.1.0")
 
     testImplementation(platform(libs.spring.boot.dependencies))
-    testImplementation("com.unboundid.product.scim2:scim2-sdk-common:6.0.0")
+    testImplementation("com.unboundid.product.scim2:scim2-sdk-common:6.1.0")
     testImplementation("org.apache.directory.scimple:scim-spec-schema:1.0.0-M1")
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
